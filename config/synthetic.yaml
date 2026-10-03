@@ -1,0 +1,54 @@
+# SYNTHETIC settings for the simulator and the Gate 3 coverage test (docs/PLAN.md section 8.1).
+#
+# Nothing here is a measured instrument property. These detection curves and the floor
+# generate simulated data with known truth; real fits use config/instruments.yaml and
+# config/model.yaml only. Instrument names match the real ones so simulated tables pass
+# the same schemas.
+
+label: SYNTHETIC
+q_min_kg_hr: 50
+q_max_kg_hr: 20000
+years: 2
+n_sites: 10
+
+instruments:
+  tanager1:
+    q50_kg_hr: 150
+    w: 0.5
+    meas_sigma_log: 0.35
+    release_prob: 1.0
+    overpasses_per_year: 12
+  emit:
+    q50_kg_hr: 500
+    w: 0.5
+    meas_sigma_log: 0.35
+    release_prob: 1.0
+    overpasses_per_year: 6
+  aircraft:
+    q50_kg_hr: 50
+    w: 0.6
+    meas_sigma_log: 0.3
+    release_prob: 1.0
+    overpasses_per_year: 1
+  sentinel2:
+    q50_kg_hr: 1500 # 90% POD near 2,500 kg/hr, in line with the cited Sentinel-2 study
+    w: 0.4
+    meas_sigma_log: 0.4
+    release_prob: 1.0
+    overpasses_per_year: 50
+
+# Shorter chains than real fits; the coverage test runs hundreds of fits.
+sampler:
+  chains: 4
+  draws: 1000
+  tune: 500
+  target_accept: 0.9
+  seed: 7
+
+coverage_target: [0.85, 0.95]
+
+# Fixed-truth cases reported alongside the prior-drawn coverage test (not gated).
+scenarios:
+  rare-large: { f: 0.1, qbar_kg_hr: 2000, sigma: 0.7 }
+  frequent-small: { f: 0.6, qbar_kg_hr: 150, sigma: 0.7 }
+  typical: { f: 0.3, qbar_kg_hr: 500, sigma: 0.8 }
