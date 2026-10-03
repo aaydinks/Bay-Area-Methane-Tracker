@@ -152,11 +152,22 @@ class ModelConfig(_Strict):
 # --- impact.yaml ------------------------------------------------------------
 
 
+class YearRangeValue(_Strict):
+    years: tuple[int, int]
+    value: float = Field(gt=0)
+    source: str | None = None
+    confirmed: bool = False
+
+    def by_year(self) -> dict[int, float]:
+        return {y: self.value for y in range(self.years[0], self.years[1] + 1)}
+
+
 class ImpactConfig(_Strict):
     gwp20: Sourced
     gwp100: Sourced
     usd_per_t_co2e: Sourced
     population_radius_km: list[float]
+    ghgrp_gwp_ch4: YearRangeValue
 
 
 # --- synthetic.yaml ---------------------------------------------------------

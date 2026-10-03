@@ -126,20 +126,49 @@ def ingest_carbonmapper(
     _run(carbonmapper.pull_plumes, site, radius_km, date.fromisoformat(since) if since else None)
 
 
-@ingest_app.command("emit")
-def ingest_emit(site: Site, radius_km: Annotated[float, typer.Option()] = 5.0) -> None:
-    """Pull NASA EMIT v2 plume complexes near a site."""
-    from methanewatch.ingest import emit
+BBoxOpt = Annotated[
+    str | None,
+    typer.Option(help="minlon,minlat,maxlon,maxlat; defaults to site polygons plus search radius"),
+]
 
-    _run(emit.pull_plumes, site, radius_km)
+
+def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
+    from methanewatch.ingest.pipeline import registry_bbox
+
+    if bbox:
+        parts = tuple(float(x) for x in bbox.split(","))
+        if len(parts) != 4:
+            raise typer.BadParameter("bbox needs four comma-separated numbers")
+        return parts  # type: ignore[return-value]
+    found = registry_bbox(project)
+    if found is None:
+        typer.secho("no site polygons yet; pass --bbox", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    return found
+
+
+@ingest_app.command("emit")
+def ingest_emit(
+    start: Annotated[str, typer.Option(help="YYYY-MM-DD")] = "2022-08-01",
+    end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
+    bbox: BBoxOpt = None,
+) -> None:
+    """EMIT v2 scene footprints and plume-complex outlines (CMR metadata, no login)."""
+    from methanewatch.ingest import pipeline
+
+    project = config.load_project()
+    stop = date.fromisoformat(end) if end else date.today()
+    counts = pipeline.ingest_emit(project, _bbox(project, bbox), date.fromisoformat(start), stop)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @ingest_app.command("ghgrp")
-def ingest_ghgrp() -> None:
-    """Pull EPA GHGRP subpart HH reports for registry facilities."""
-    from methanewatch.ingest import ghgrp
+def ingest_ghgrp(year: Annotated[int, typer.Option(help="Facility-list year")] = 2023) -> None:
+    """EPA GHGRP subpart HH facilities and operator-reported methane for crosswalked sites."""
+    from methanewatch.ingest import pipeline
 
-    _run(ghgrp.pull_reports, [])
+    counts = pipeline.ingest_ghgrp(config.load_project(), year)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @coverage_app.command("build")
@@ -153,14 +182,23 @@ def coverage_build() -> None:
 
 @s2_app.command("search")
 def s2_search(
-    site: Site,
     start: Annotated[str, typer.Option(help="YYYY-MM-DD")],
     end: Annotated[str, typer.Option(help="YYYY-MM-DD")],
+    bbox: BBoxOpt = None,
+    max_cloud: Annotated[float, typer.Option(help="Tile cloud cover limit, percent")] = 100.0,
 ) -> None:
-    """Search Sentinel-2 scenes over a site."""
-    from methanewatch.sentinel2 import search
+    """Sentinel-2 L1C scene footprints from the public Earth Search catalog."""
+    from methanewatch.ingest import pipeline
 
-    _run(search.search_scenes, site, date.fromisoformat(start), date.fromisoformat(end))
+    project = config.load_project()
+    counts = pipeline.ingest_sentinel2(
+        project,
+        _bbox(project, bbox),
+        date.fromisoformat(start),
+        date.fromisoformat(end),
+        max_cloud=max_cloud,
+    )
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @model_app.command("fit")
