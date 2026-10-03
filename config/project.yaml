@@ -1,0 +1,24 @@
+# Project-wide settings. Paths are relative to the repository root.
+
+crs_geographic: "EPSG:4326"
+crs_metric: "EPSG:32610" # UTM zone 10N, for buffers and distances in metres
+
+paths:
+  registry: data/registry # hand-curated, committed
+  raw: data/raw # immutable downloads + manifest.json per pull
+  interim: data/interim # normalized Parquet
+  processed: data/processed # model inputs and outputs
+  reports: reports
+
+attribution:
+  buffer_m: 500 # plume origin within polygon + buffer -> attributed to the site
+  search_radius_km: 5 # pull every plume within this distance of a site
+
+coverage:
+  min_coverage_frac: 0.8 # share of the site polygon inside the footprint
+  min_valid_frac: 0.7 # share of covered pixels that are cloud-free / unmasked
+
+repair:
+  window_months: 12
+  gap_days: 14 # overpasses this close to a repair are excluded
+  min_overpasses_per_window: 5

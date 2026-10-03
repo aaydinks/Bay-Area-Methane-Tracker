@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Bay Area Landfill Methane Watch{% endblock %}</title>
+</head>
+<body>
+  <header>
+    <p>
+      Retrospective tracker built from public satellite and aircraft data (about a 30-day lag).
+      Results are screening indications for investigation, not compliance findings.
+    </p>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer>
+    <p>Data: Carbon Mapper (non-commercial use), NASA EMIT, ESA Copernicus Sentinel-2, US EPA GHGRP.
+       Run {{ run_id }}.</p>
+  </footer>
+</body>
+</html>

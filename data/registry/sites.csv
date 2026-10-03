@@ -1,0 +1,6 @@
+site_id,name,city,county,tier,status,operator,baaqmd_facility_id,ghgrp_facility_id,polygon_source,neighbors,notes
+newby-island,Newby Island Landfill,San Jose (near Milpitas),Santa Clara,pilot,,,,,,compost facility; energy facility; wastewater plant,Hearing Board abatement order
+acme-fill,Acme Fill,Martinez,Contra Costa,pilot,,,,,,,Air District lawsuit; 2023 surface leaks at 23x and 31x the limit
+sonoma-central,Sonoma Central Landfill,Petaluma,Sonoma,pilot,,,,,,,$159000 fine; 14 violations June 2023 with dated repairs
+shoreline,Shoreline Landfill,Mountain View,Santa Clara,pilot,closed,City of Mountain View,,,,,semiannual monitoring reports
+potrero-hills,Potrero Hills Landfill,Suisun City,Solano,pilot,,,,,,,aircraft methane survey on record
