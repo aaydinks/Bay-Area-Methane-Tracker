@@ -4,7 +4,7 @@ Placebo: pseudo-repair dates at control sites where nothing changed. The share
 of "drop" or "rise" calls is the test's false-positive rate. The pseudo-treated
 site is removed from the control set in each fit. Pseudo-dates at the same few
 sites have overlapping windows, so the Wilson interval is optimistic; a block
-bootstrap over sites is reported alongside it.
+bootstrap (over sites, or over simulated worlds) is reported alongside it.
 
 Power: inject a known drop at one site after a date and record how often the
 test calls "drop".
@@ -56,8 +56,12 @@ def run_placebos(
     return pd.DataFrame(rows)
 
 
-def false_positive_rate(placebos: pd.DataFrame) -> dict[str, float]:
-    """FPR over usable placebo fits, with Wilson and site-block-bootstrap intervals."""
+def false_positive_rate(placebos: pd.DataFrame, block: str = "site_id") -> dict[str, float]:
+    """FPR over usable placebo fits, with Wilson and block-bootstrap intervals.
+
+    ``block`` names the column whose groups are resampled: ``site_id`` for real
+    data, ``world`` for independent simulated datasets.
+    """
     from methanewatch.validate.synthetic import wilson
 
     usable = placebos[placebos["call"] != "insufficient_data"]
@@ -66,7 +70,7 @@ def false_positive_rate(placebos: pd.DataFrame) -> dict[str, float]:
     lo, hi = wilson(k, n)
 
     rng = np.random.default_rng(0)
-    by_site = usable.assign(hit=hits).groupby("site_id")["hit"].agg(["sum", "size"])
+    by_site = usable.assign(hit=hits).groupby(block)["hit"].agg(["sum", "size"])
     boots = []
     for _ in range(2000):
         pick = by_site.sample(len(by_site), replace=True, random_state=int(rng.integers(2**31)))
@@ -80,4 +84,6 @@ def false_positive_rate(placebos: pd.DataFrame) -> dict[str, float]:
         "bootstrap_hi": float(bhi),
         "n_usable": n,
         "n_insufficient": int(len(placebos) - n),
+        "block": block,
+        "n_blocks": len(by_site),
     }

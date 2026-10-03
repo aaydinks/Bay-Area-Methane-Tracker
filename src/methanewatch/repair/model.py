@@ -14,9 +14,11 @@ the treated site's after-period emissions relative to its counterfactual
 
   effect = log E[s, after] - log E_cf[s, after]
 
-Call: "drop" if the 90% interval is entirely below 0, "rise" if entirely above,
-"inconclusive" otherwise, and "insufficient_data" if a window has too few
-usable overpasses or the fit fails diagnostics.
+Call: "drop" if P(effect < 0) >= call_probability (0.975 by default), "rise" if
+P(effect < 0) <= 1 - call_probability, "inconclusive" otherwise, and
+"insufficient_data" if a window has too few usable overpasses or the fit fails
+diagnostics. The call threshold is stricter than the reported 90% interval so the
+nominal false-positive rate (5%) sits under the 10% placebo gate (ADR 0006).
 """
 
 from __future__ import annotations
@@ -73,6 +75,14 @@ def assign_periods(
     )
     out = detections.assign(period=period)
     return out[out["period"] != ""].reset_index(drop=True)
+
+
+def call_from_probability(p_decrease: float, call_probability: float) -> Call:
+    if p_decrease >= call_probability:
+        return "drop"
+    if p_decrease <= 1 - call_probability:
+        return "rise"
+    return "inconclusive"
 
 
 def window_counts(labelled: pd.DataFrame) -> pd.DataFrame:
@@ -217,7 +227,8 @@ def verify_repair(
     tail = (1 - cfg.interval_mass) / 2
     lo, med, hi = np.quantile(eff, [tail, 0.5, 1 - tail])
     dlo, dmed, dhi = np.quantile(d_e, [tail, 0.5, 1 - tail])
-    call: Call = "drop" if hi < 0 else "rise" if lo > 0 else "inconclusive"
+    p_dec = float((eff < 0).mean())
+    call = call_from_probability(p_dec, windows.call_probability)
     return RepairResult(
         repair.repair_id,
         repair.site_id,
@@ -226,7 +237,7 @@ def verify_repair(
         float(med),
         float(lo),
         float(hi),
-        float((eff < 0).mean()),
+        p_dec,
         float(dmed),
         float(dlo),
         float(dhi),

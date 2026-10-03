@@ -55,6 +55,7 @@ class RepairWindows(_Strict):
     window_months: int = Field(gt=0)
     gap_days: int = Field(ge=0)
     min_overpasses_per_window: int = Field(gt=0)
+    call_probability: float = Field(gt=0.5, lt=1)
 
 
 class ProjectConfig(_Strict):

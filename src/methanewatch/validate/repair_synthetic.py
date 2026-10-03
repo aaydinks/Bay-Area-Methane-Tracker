@@ -90,23 +90,36 @@ def with_drop(
     return keep.reset_index(drop=True)
 
 
-def run(n_placebos: int, n_power: int, factors: tuple[float, ...], seed: int = 3) -> Path:
+def run(
+    n_worlds: int,
+    placebos_per_world: int,
+    n_power: int,
+    factors: tuple[float, ...],
+    seed: int = 3,
+) -> Path:
     syn = repair_world(load_synthetic())
     windows = load_project().repair
     rng = np.random.default_rng(seed)
     verify = make_verifier(syn)
 
-    # Placebo: a world where nothing changes
-    sites = control_sites(syn, syn.n_sites, rng)
-    schedule = simulate.poisson_schedule(sites["site_id"].tolist(), syn, rng)
-    det = simulate.simulate_detections(sites, schedule, syn, rng)
-    placebos = placebo.run_placebos(
-        det, sites["site_id"].tolist(), n_placebos, verify, windows, rng
-    )
-    fpr = placebo.false_positive_rate(placebos)
+    # Placebo: independent worlds where nothing changes, a few pseudo-repairs in each
+    frames = []
+    for w in range(n_worlds):
+        sites = control_sites(syn, syn.n_sites, rng)
+        schedule = simulate.poisson_schedule(sites["site_id"].tolist(), syn, rng)
+        det = simulate.simulate_detections(sites, schedule, syn, rng)
+        pl = placebo.run_placebos(
+            det, sites["site_id"].tolist(), placebos_per_world, verify, windows, rng
+        )
+        frames.append(pl.assign(world=w))
+        done = pd.concat(frames)
+        hits = done["call"].isin(["drop", "rise"]).sum()
+        print(f"world {w + 1}/{n_worlds}  false positives so far {hits}/{len(done)}", flush=True)
+    placebos = pd.concat(frames, ignore_index=True)
+    fpr = placebo.false_positive_rate(placebos, block="world")
     print("placebo", fpr, flush=True)
 
-    # Power: one "typical" site with a known drop, the rest as controls
+    # Power: one "typical" site with a known drop, the rest as controls; a new world per fit
     date = simulate.START + timedelta(days=REPAIR_YEARS * 365.25 / 2)
     rows = []
     for factor in factors:
@@ -121,11 +134,29 @@ def run(n_placebos: int, n_power: int, factors: tuple[float, ...], seed: int = 3
             rows.append({**res.__dict__, "factor": factor, "true_effect": float(np.log(factor))})
         print("power", factor, flush=True)
     power = pd.DataFrame(rows)
-    return write_report(placebos, fpr, power, syn)
+    return write_report(placebos, fpr, power, syn, windows.call_probability)
+
+
+def minimum_detectable(summary: pd.DataFrame, target: float = 0.8) -> str:
+    """Mildest injected drop detected in at least ``target`` of fits."""
+    ok = summary[summary["p_drop"] >= target]
+    if ok.empty:
+        mildest = summary.index.min()
+        return (
+            f"none of the tested drops reached {target:.0%} power; even a "
+            f"{1 - mildest:.0%} drop was called in {summary.loc[mildest, 'p_drop']:.0%} of fits"
+        )
+    factor = ok.index.max()
+    share = ok.loc[factor, "p_drop"]
+    return f"a {1 - factor:.0%} drop (factor {factor:g}) is called in {share:.0%} of fits"
 
 
 def write_report(
-    placebos: pd.DataFrame, fpr: dict, power: pd.DataFrame, syn: SyntheticConfig
+    placebos: pd.DataFrame,
+    fpr: dict,
+    power: pd.DataFrame,
+    syn: SyntheticConfig,
+    call_probability: float,
 ) -> Path:
     project = load_project()
     run_id = new_id("repair-synthetic")
@@ -139,6 +170,7 @@ def write_report(
         fits=("call", "size"),
         p_drop=("call", lambda c: (c == "drop").mean()),
         p_rise=("call", lambda c: (c == "rise").mean()),
+        p_decrease_median=("p_decrease", "median"),
         effect_median=("effect_med", "median"),
         true_effect=("true_effect", "first"),
         covered=("effect_lo", "size"),
@@ -153,7 +185,11 @@ def write_report(
     )
     summary["covered"] = cover
     calls = placebos["call"].value_counts().to_dict()
-    manifest = run_manifest(run_id, extra={"fpr": fpr, "years": syn.years})
+    mde = minimum_detectable(summary)
+    manifest = run_manifest(
+        run_id,
+        extra={"fpr": fpr, "years": syn.years, "call_probability": call_probability},
+    )
     lines = [
         f"# Repair test on synthetic data ({run_id})",
         "",
@@ -161,15 +197,22 @@ def write_report(
         "Instrument settings come from `config/synthetic.yaml` (SYNTHETIC), over "
         f"{syn.years:g} years of simulated overpasses.",
         "",
+        f"Call rule: drop if P(decrease) >= {call_probability}, rise if P(decrease) <= "
+        f"{1 - call_probability:.3f} (two-sided, nominal false-positive rate "
+        f"{2 * (1 - call_probability):.0%}); intervals reported at 90%. See ADR 0006.",
+        "",
+        f"**Minimum detectable effect (80% power):** {mde}.",
+        "",
         "## Placebo false-positive rate",
         "",
-        f"Pseudo-repairs at sites where nothing changed: {fpr['n_usable']} usable fits, "
-        f"{fpr['n_insufficient']} insufficient. Calls: {calls}.",
+        f"Pseudo-repairs at sites where nothing changed, in {fpr['n_blocks']} independent "
+        f"simulated worlds: {fpr['n_usable']} usable fits, {fpr['n_insufficient']} "
+        f"insufficient. Calls: {calls}.",
         "",
         f"- False-positive rate (drop or rise): **{fpr['fpr']:.3f}**",
         f"- 95% Wilson interval: {fpr['wilson_lo']:.3f} to {fpr['wilson_hi']:.3f} "
         "(optimistic: pseudo-dates at the same sites overlap)",
-        f"- Site block bootstrap: {fpr['bootstrap_lo']:.3f} to {fpr['bootstrap_hi']:.3f}",
+        f"- Bootstrap over worlds: {fpr['bootstrap_lo']:.3f} to {fpr['bootstrap_hi']:.3f}",
         "- Gate 5 threshold: 0.10",
         "",
         "## Power: injected drops at one site",

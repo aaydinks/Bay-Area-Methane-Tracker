@@ -9,3 +9,4 @@ One short file per decision: context, options, choice, consequences. Copy `0000-
 | 0003 | Detection-probability curves per instrument, with citations | week 3–4 |
 | 0004 | Open Sentinel-2 pipeline: inputs, license, what was reused | week 3 |
 | 0005 | Priors and prior predictive check ([proposed](0005-priors.md)) | week 5 |
+| 0006 | [Repair call rule](0006-repair-call-rule.md): calls at P = 0.975, intervals at 90% | week 9 |

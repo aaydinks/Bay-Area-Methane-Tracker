@@ -8,7 +8,9 @@ from methanewatch.config import RepairWindows, load_synthetic
 from methanewatch.repair import placebo
 from methanewatch.repair.model import Repair, RepairResult, assign_periods, window_counts
 
-WINDOWS = RepairWindows(window_months=6, gap_days=14, min_overpasses_per_window=3)
+WINDOWS = RepairWindows(
+    window_months=6, gap_days=14, min_overpasses_per_window=3, call_probability=0.975
+)
 T0 = datetime(2025, 1, 1, tzinfo=UTC)
 
 
@@ -101,10 +103,29 @@ def test_repair_model_sees_a_large_drop():
     syn = rs.repair_world(load_synthetic())
     rng = np.random.default_rng(4)
     ctrl = rs.control_sites(syn, 5, rng)
-    world = pd.concat([rs.simulate.sites_from_scenarios(syn, ["frequent-small"]), ctrl])
+    # A large, frequently seen emitter: f 0.5 -> 0.05 after the repair
+    big = pd.DataFrame({"site_id": ["big"], "f": [0.5], "mu": [np.log(1200)], "sigma": [0.6]})
+    world = pd.concat([rs.simulate.with_truth(big, syn), ctrl], ignore_index=True)
     date = pd.Timestamp(rs.simulate.START + timedelta(days=548))
-    det = rs.with_drop(world, syn, rng, "frequent-small", date, factor=0.1)
+    det = rs.with_drop(world, syn, rng, "big", date, factor=0.1)
     res = rs.make_verifier(syn)(
-        det, Repair("frequent-small", date.to_pydatetime()), ctrl["site_id"].tolist(), 4
+        det, Repair("big", date.to_pydatetime()), ctrl["site_id"].tolist(), 4
     )
     assert res.call == "drop"
+    assert res.effect_lo < np.log(0.1) < res.effect_hi
+
+
+def test_call_rule_thresholds():
+    from methanewatch.repair.model import call_from_probability
+
+    assert call_from_probability(0.98, 0.975) == "drop"
+    assert call_from_probability(0.96, 0.975) == "inconclusive"
+    assert call_from_probability(0.02, 0.975) == "rise"
+
+
+def test_minimum_detectable_effect_text():
+    from methanewatch.validate.repair_synthetic import minimum_detectable
+
+    s = pd.DataFrame({"p_drop": [0.1, 0.5, 0.85]}, index=[0.75, 0.5, 0.25])
+    assert minimum_detectable(s).startswith("a 75% drop")
+    assert "none of the tested drops" in minimum_detectable(s.assign(p_drop=0.2))

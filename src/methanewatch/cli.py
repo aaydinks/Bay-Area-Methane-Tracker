@@ -260,13 +260,14 @@ def validate_holdout() -> None:
 
 @validate_app.command("repair-synthetic")
 def validate_repair_synthetic(
-    placebos: Annotated[int, typer.Option(help="Pseudo-repairs where nothing changed.")] = 150,
-    power: Annotated[int, typer.Option(help="Fits per injected-drop factor.")] = 20,
+    worlds: Annotated[int, typer.Option(help="Independent simulated worlds.")] = 40,
+    per_world: Annotated[int, typer.Option(help="Pseudo-repairs per world.")] = 4,
+    power: Annotated[int, typer.Option(help="Fits per injected-drop factor.")] = 15,
 ) -> None:
     """Dry run of the repair test on synthetic data: placebo false-positive rate and power."""
     from methanewatch.validate import repair_synthetic
 
-    _run(repair_synthetic.run, placebos, power, (0.75, 0.5, 0.25))
+    _run(repair_synthetic.run, worlds, per_world, power, (0.75, 0.5, 0.25, 0.1))
 
 
 @validate_app.command("placebo")
