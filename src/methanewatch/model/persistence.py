@@ -176,10 +176,12 @@ class Diagnostics:
     ok: bool
 
 
-def diagnostics(idata: xr.DataTree, cfg: ModelConfig) -> Diagnostics:
+def diagnostics(
+    idata: xr.DataTree, cfg: ModelConfig, var_names: list[str] | None = None
+) -> Diagnostics:
     import arviz as az
 
-    names = [*HYPER, "f", "mu"]
+    names = var_names or [*HYPER, "f", "mu"]
     rhat = az.rhat(idata, var_names=names).to_dataset()
     ess = az.ess(idata, var_names=names, method="bulk").to_dataset()
     rhat_max = max(float(v.max()) for v in rhat.data_vars.values())

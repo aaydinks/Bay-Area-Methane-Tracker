@@ -169,11 +169,40 @@ def model_fit(
 
 
 @repair_app.command("count")
-def repair_count(site: Site, date_: Annotated[str, typer.Option("--date", help="YYYY-MM-DD")]):
+def repair_count(
+    site: Site,
+    date_: Annotated[str, typer.Option("--date", help="Repair start, YYYY-MM-DD")],
+    end: Annotated[str | None, typer.Option(help="Repair end, YYYY-MM-DD")] = None,
+) -> None:
     """Count usable overpasses per instrument in the before/after windows."""
-    from methanewatch.repair import model
+    from datetime import datetime
 
-    _run(model.count_overpasses, site, date.fromisoformat(date_))
+    import pandas as pd
+
+    from methanewatch.repair.model import Repair, assign_periods, window_counts
+
+    project = config.load_project()
+    path = project.resolve(project.paths.interim) / "overpasses.parquet"
+    if not path.exists():
+        typer.secho(f"missing {path}; run `mw coverage build` first", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    ov = pd.read_parquet(path)
+    ov = ov[ov["usable"] & (ov["site_id"] == site)]
+    rep = Repair(
+        site_id=site,
+        date_start=datetime.fromisoformat(date_),
+        date_end=datetime.fromisoformat(end) if end else None,
+    )
+    counts = window_counts(assign_periods(ov, rep, project.repair))
+    typer.echo(counts.to_string() if len(counts) else "no usable overpasses in either window")
+    short = [
+        p
+        for p in ("before", "after")
+        if counts.get("total", pd.Series()).get((site, p), 0)
+        < project.repair.min_overpasses_per_window
+    ]
+    if short:
+        typer.secho(f"too few overpasses: {', '.join(short)}", fg=typer.colors.YELLOW)
 
 
 @validate_app.command("gate1")
@@ -227,6 +256,17 @@ def validate_holdout() -> None:
     from methanewatch.validate import gates
 
     _gate(_run(gates.holdout))
+
+
+@validate_app.command("repair-synthetic")
+def validate_repair_synthetic(
+    placebos: Annotated[int, typer.Option(help="Pseudo-repairs where nothing changed.")] = 150,
+    power: Annotated[int, typer.Option(help="Fits per injected-drop factor.")] = 20,
+) -> None:
+    """Dry run of the repair test on synthetic data: placebo false-positive rate and power."""
+    from methanewatch.validate import repair_synthetic
+
+    _run(repair_synthetic.run, placebos, power, (0.75, 0.5, 0.25))
 
 
 @validate_app.command("placebo")
