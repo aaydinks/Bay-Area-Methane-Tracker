@@ -49,6 +49,15 @@ def _run(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         raise typer.Exit(code=2) from exc
 
 
+def _run_or_exit(fn: Callable[..., Any], *args: Any) -> Any:
+    """Like _run, but missing inputs exit with a message instead of a traceback."""
+    try:
+        return _run(fn, *args)
+    except FileNotFoundError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+
 def _gate(passed: bool) -> None:
     raise typer.Exit(code=0 if passed else 1)
 
@@ -91,11 +100,18 @@ def sites_build() -> None:
     from methanewatch.sites import registry
 
     project = config.load_project()
-    _run(
-        registry.build_registry,
-        project.resolve(project.paths.registry),
-        project.resolve(project.paths.interim) / "sites.parquet",
-    )
+    registry_dir = project.resolve(project.paths.registry)
+    missing = registry.missing_polygons(registry_dir)
+    if missing:
+        typer.secho(f"no boundary polygon yet: {', '.join(missing)}", fg=typer.colors.YELLOW)
+    try:
+        sites = registry.build_registry(
+            registry_dir, project.resolve(project.paths.interim), metric_crs=project.crs_metric
+        )
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {len(sites)} sites to data/interim/sites.parquet")
 
 
 @ingest_app.command("carbonmapper")
@@ -128,10 +144,11 @@ def ingest_ghgrp() -> None:
 
 @coverage_app.command("build")
 def coverage_build() -> None:
-    """Build the overpasses and detections tables."""
-    from methanewatch.coverage import overpasses
+    """Build overpasses, attributed plumes and detections from interim footprints and plumes."""
+    from methanewatch.coverage import build
 
-    _run(overpasses.build_detections, None, None)
+    counts = _run_or_exit(build.build, config.load_project())
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @s2_app.command("search")
@@ -210,7 +227,7 @@ def validate_gate1() -> None:
     """Plume and overpass counts per instrument per year for the pilot sites."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.gate1_plume_table))
+    _gate(_run_or_exit(gates.gate1_plume_table))
 
 
 @validate_app.command("gate2")
