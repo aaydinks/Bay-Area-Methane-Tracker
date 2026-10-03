@@ -1,0 +1,41 @@
+# Per-instrument detection curves and measurement error.
+#
+# POD(q) = Phi((ln q - ln q50) / w), q in kg/hr.
+# Every curve stays `confirmed: false` until its values are taken from a cited
+# source (docs/decisions/0003-pod-curves.md). The persistence model refuses to
+# fit real data with unconfirmed curves unless run with --allow-unconfirmed.
+
+instruments:
+  tanager1:
+    platform: satellite
+    pod: { q50_kg_hr: null, w: null, source: null, confirmed: false }
+    meas_sigma_log: { value: null, source: null, confirmed: false }
+    release_prob: { value: 1.0, source: "assumption; sensitivity runs use 0.7 and 0.85", confirmed: false }
+
+  emit:
+    platform: satellite
+    pod: { q50_kg_hr: null, w: null, source: null, confirmed: false }
+    meas_sigma_log: { value: null, source: null, confirmed: false }
+    release_prob:
+      value: 1.0
+      source: "assumption; EMIT plumes are manually reviewed before release"
+      confirmed: false
+
+  aircraft:
+    platform: aircraft # AVIRIS-NG / GAO
+    pod: { q50_kg_hr: null, w: null, source: null, confirmed: false }
+    meas_sigma_log: { value: null, source: null, confirmed: false }
+    release_prob: { value: 1.0, source: "assumption", confirmed: false }
+
+  sentinel2:
+    platform: satellite
+    pod:
+      q50_kg_hr: null
+      w: null
+      source: "ML detection study cited in the project plan: ~90% POD at 2,200-2,500 kg/hr"
+      confirmed: false
+    meas_sigma_log:
+      value: 0.4
+      source: "placeholder consistent with controlled release: 75% of estimates within 50% of metered"
+      confirmed: false
+    release_prob: { value: 1.0, source: "local retrieval; no review step", confirmed: false }

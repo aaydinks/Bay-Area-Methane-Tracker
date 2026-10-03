@@ -1,0 +1,34 @@
+# Persistence model settings (docs/PLAN.md section 6).
+# Priors are starting points; finalize after the prior predictive check (ADR 0005).
+
+grid:
+  n_points: 96
+  q_min_kg_hr: null # emission floor; set near the most sensitive instrument's ~10% POD point
+  q_max_kg_hr: 20000
+
+priors:
+  alpha_f_mu: -1.0 # logit of the population-mean emitting fraction
+  alpha_f_sd: 1.5
+  tau_f_sd: 1.0
+  alpha_mu_mu: 5.7 # ln(300 kg/hr)
+  alpha_mu_sd: 1.0
+  tau_mu_sd: 0.75
+  sigma_sd: 1.0
+
+sampler:
+  chains: 4
+  draws: 1000
+  tune: 1000
+  target_accept: 0.9
+  seed: 20261003
+
+diagnostics:
+  rhat_max: 1.01
+  ess_bulk_min: 400
+  max_divergences: 0
+
+insufficient_data:
+  min_usable_overpasses: 8
+  max_interval_orders_of_magnitude: 2.0
+
+interval_mass: 0.90
