@@ -108,3 +108,14 @@ def test_fit_real_needs_floor_and_detections(tmp_path):
     pd.DataFrame({"instrument": ["emit"]}).to_parquet(tmp_path / "interim" / "detections.parquet")
     with pytest.raises(run.ConfigNotReadyError, match="q_min"):
         run.fit_real(project, load_model(), load_instruments())
+
+
+def test_superseded_repair_reports_are_labelled(tmp_path):
+    d = tmp_path / "validation" / "repair-synthetic"
+    d.mkdir(parents=True)
+    body = "\n\n- False-positive rate (drop or rise): **{}**\n"
+    (d / "old.md").write_text("# Old run" + body.format("0.129"))
+    (d / "new.md").write_text("# New run\n\nCall rule: drop if ..." + body.format("0.020"))
+    out = {v["path"]: v["result"] for v in build.validation_summaries(tmp_path)}
+    assert "superseded" in out["repair-synthetic/old.md"]
+    assert out["repair-synthetic/new.md"] == "placebo FPR 0.020"

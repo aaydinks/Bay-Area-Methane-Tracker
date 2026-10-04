@@ -130,6 +130,9 @@ def validation_summaries(reports_root: Path) -> list[dict]:
         result = re.search(r"\*\*Result: (PASS|FAIL)\*\*", text)
         fpr = re.search(r"False-positive rate \(drop or rise\): \*\*([0-9.]+)\*\*", text)
         summary = result.group(1) if result else (f"placebo FPR {fpr.group(1)}" if fpr else "")
+        # Repair dry runs from before ADR 0006 used the 90%-interval call rule.
+        if md.parent.name == "repair-synthetic" and "Call rule:" not in text:
+            summary += " (superseded: earlier call rule, see ADR 0006)"
         out.append({"title": title, "path": f"{md.parent.name}/{md.name}", "result": summary})
     return out
 
