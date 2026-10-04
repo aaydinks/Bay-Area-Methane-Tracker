@@ -11,6 +11,6 @@ Before publishing any derived table, confirm below that the source's terms allow
 | Wind reanalysis (HRRR or ERA5) | Plume quantification | NOAA open data / Copernicus licence | _to confirm_ | _to fill_ |
 | US EPA GHGRP (Envirofacts REST) | Operator-reported subpart HH methane | US government public data | yes | "US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts" |
 | Bay Area Air Quality Management District | Permits, orders, monitoring reports | Public records | yes, with citation | _to fill_ |
-| US Census ACS | Population context | Public data | yes | _to fill_ |
+| US Census ACS 5-year (B01003) and TIGERweb block groups | Population context, areal-weighted | Public data; ACS API needs a free key | yes | "US Census Bureau, American Community Survey 5-year estimates" |
 
 Record the date each row was checked and a link to the terms page.

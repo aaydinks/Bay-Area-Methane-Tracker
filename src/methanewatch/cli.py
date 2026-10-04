@@ -10,8 +10,12 @@ from datetime import date
 from typing import Annotated, Any
 
 import typer
+from dotenv import load_dotenv
 
 from methanewatch import __version__, config
+
+# API keys (Carbon Mapper, Census) live in the git-ignored .env at the repo root.
+load_dotenv(config.REPO_ROOT / ".env")
 
 app = typer.Typer(no_args_is_help=True, help="Bay Area Landfill Methane Watch pipeline.")
 config_app = typer.Typer(no_args_is_help=True, help="Inspect configuration.")
@@ -24,6 +28,7 @@ repair_app = typer.Typer(no_args_is_help=True, help="Repair verification (phase 
 validate_app = typer.Typer(no_args_is_help=True, help="Validation tests and phase gates.")
 report_app = typer.Typer(no_args_is_help=True, help="Dashboard and publications (phase 7).")
 wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantification (phase 4).")
+population_app = typer.Typer(no_args_is_help=True, help="Residents near each site (context only).")
 
 for name, sub in [
     ("config", config_app),
@@ -36,6 +41,7 @@ for name, sub in [
     ("validate", validate_app),
     ("report", report_app),
     ("wind", wind_app),
+    ("population", population_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -395,6 +401,39 @@ def wind_get(
         f"{w.product} {w.product_version}: u10 {w.u10:.2f} m/s, v10 {w.v10:.2f} m/s, "
         f"speed {w.speed:.2f} m/s"
     )
+
+
+@population_app.command("build")
+def population_build() -> None:
+    """Residents within the configured radii of each site -> data/interim/population.csv."""
+    import geopandas as gpd
+    import pandas as pd
+
+    from methanewatch.population import LABEL, MissingCensusKeyError, residents_within
+
+    project = config.load_project()
+    radii = config.load_impact().population_radius_km
+    path = project.resolve(project.paths.interim) / "sites.parquet"
+    if not path.exists():
+        typer.secho("run `mw sites build` first", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    sites = gpd.read_parquet(path)
+    if sites.empty:
+        typer.secho("no site polygons yet", fg=typer.colors.YELLOW)
+        raise typer.Exit(code=2)
+    rows = []
+    try:
+        for site in sites.itertuples():
+            counts = residents_within(site.geometry, radii, project.crs_metric)
+            rows += [
+                {"site_id": site.site_id, "radius_km": r, "residents": n} for r, n in counts.items()
+            ]
+    except MissingCensusKeyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+    out = project.resolve(project.paths.interim) / "population.csv"
+    pd.DataFrame(rows).assign(label=LABEL).to_csv(out, index=False)
+    typer.echo(f"wrote {out}")
 
 
 if __name__ == "__main__":
