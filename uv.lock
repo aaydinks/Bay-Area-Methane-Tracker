@@ -1194,6 +1194,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "typer" },
     { name = "xarray" },
+    { name = "zarr" },
 ]
 
 [package.optional-dependencies]
@@ -1247,6 +1248,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.0" },
     { name = "typer", specifier = ">=0.12" },
     { name = "xarray", specifier = ">=2024.7" },
+    { name = "zarr", specifier = ">=3.0" },
 ]
 provides-extras = ["wind", "fast"]
 

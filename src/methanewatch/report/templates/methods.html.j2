@@ -1,0 +1,33 @@
+{% extends "base.html.j2" %}
+{% block title %}Methods · Bay Area Landfill Methane Watch{% endblock %}
+{% block content %}
+<h2>Methods</h2>
+<p>
+  A hierarchical Bayesian model turns sparse, detection-limited overpasses into an estimate of
+  how often each site emits above a floor and how much while it does. Every overpass counts,
+  including those where nothing was seen, weighted by each instrument's chance of seeing a plume
+  of a given size. Sites share information, so sites with few overpasses get wide intervals
+  rather than forced numbers.
+</p>
+<p>
+  Repairs are checked by comparing a site's emissions before and after a documented repair date,
+  against control sites seen by the same instruments. A drop is reported only when the posterior
+  probability of a decrease is at least 0.975; otherwise the result is inconclusive, shown with
+  its interval.
+</p>
+
+<h3>Validation</h3>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Report</th><th>Result</th></tr></thead>
+  <tbody>
+  {% for v in validations %}
+    <tr><td><code>{{ v.path }}</code><br>{{ v.title }}</td><td>{{ v.result }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h3>Run manifest</h3>
+<pre>{{ manifest }}</pre>
+{% endblock %}

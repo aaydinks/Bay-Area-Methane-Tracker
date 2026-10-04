@@ -207,7 +207,9 @@ def model_fit(
         bool, typer.Option(help="Fit with unconfirmed POD curves; stamps outputs provisional.")
     ] = False,
 ) -> None:
-    """Fit the persistence model to real detections."""
+    """Fit the persistence model to data/interim/detections.parquet."""
+    from methanewatch.model import run
+
     instruments = config.load_instruments()
     if instruments.unconfirmed() and not allow_unconfirmed:
         typer.secho(
@@ -218,9 +220,27 @@ def model_fit(
             err=True,
         )
         raise typer.Exit(code=1)
-    from methanewatch.model import persistence
+    try:
+        run_id = _run_or_exit(
+            run.fit_real,
+            config.load_project(),
+            config.load_model(),
+            instruments,
+            allow_unconfirmed,
+        )
+    except run.ConfigNotReadyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"run {run_id}")
 
-    _run(persistence.fit, None, config.load_model())
+
+@model_app.command("demo")
+def model_demo(seed: Annotated[int, typer.Option()] = 11) -> None:
+    """Fit SYNTHETIC sites so the dashboard can be previewed (never real data)."""
+    from methanewatch.model import run
+
+    run_id = run.fit_synthetic_demo(config.load_project(), config.load_model(), seed=seed)
+    typer.echo(f"run {run_id}")
 
 
 @repair_app.command("count")
@@ -335,11 +355,17 @@ def validate_placebo() -> None:
 
 @report_app.command("build")
 def report_build(run_id: Annotated[str, typer.Option()]) -> None:
-    """Build the static dashboard for a model run."""
+    """Build the static dashboard for a model run into reports/site."""
     from methanewatch.report import build
 
     project = config.load_project()
-    _run(build.build_site, run_id, project.resolve(project.paths.reports) / "site")
+    out = project.resolve(project.paths.reports) / "site"
+    try:
+        index = _run_or_exit(build.build_site, project, run_id, out)
+    except build.LintError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {index}")
 
 
 if __name__ == "__main__":

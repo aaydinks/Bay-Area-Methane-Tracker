@@ -1,0 +1,73 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ row.site_id }} · Bay Area Landfill Methane Watch{% endblock %}
+{% block content %}
+<h2>{{ row.site_id }}</h2>
+<p class="note">Screening indication for investigation. Status: {{ row.status | replace("_", " ") }}.</p>
+
+<div class="card">
+  <table>
+    <thead><tr><th></th><th class="num">Median</th><th class="num">90% interval</th></tr></thead>
+    <tbody>
+      <tr><td>Annual methane above the floor (t/yr)</td>
+          <td class="num">{{ row.E_t_yr_med | num }}</td>
+          <td class="num">{{ row.E_t_yr_lo | num }} – {{ row.E_t_yr_hi | num }}</td></tr>
+      <tr><td>Share of observed times emitting</td>
+          <td class="num">{{ (row.f_med * 100) | round(1) }}%</td>
+          <td class="num">{{ (row.f_lo * 100) | round(1) }}% – {{ (row.f_hi * 100) | round(1) }}%</td></tr>
+      <tr><td>Mean rate while emitting (kg/hr)</td>
+          <td class="num">{{ row.qbar_kg_hr_med | num }}</td>
+          <td class="num">{{ row.qbar_kg_hr_lo | num }} – {{ row.qbar_kg_hr_hi | num }}</td></tr>
+      {% if truth is not none %}
+      <tr><td>Simulated truth (demo only)</td><td class="num">{{ truth | num }}</td><td></td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<h3>Every overpass</h3>
+<p class="note">
+  Points are plumes with their reported rates; ticks are overpasses where nothing was seen.
+  A missing plume is not proof of no emissions: each instrument only sees plumes above its
+  detection limit, and the model accounts for that.
+</p>
+<div class="card table-scroll"><div id="timeline"></div></div>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Instrument</th><th class="num">Usable overpasses</th><th class="num">Detections</th></tr></thead>
+  <tbody>
+  {% for c in counts %}
+    <tr><td>{{ c.instrument }}</td><td class="num">{{ c.overpasses }}</td><td class="num">{{ c.detections }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if ops %}
+<h3>Operator-reported methane (EPA GHGRP)</h3>
+<p class="note">
+  Operators' estimates and these satellite-based figures measure different things; a gap is a
+  question to explain, not proof of error on either side.
+</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Year</th><th class="num">t CH4</th><th class="num">t CO2e as published</th><th class="num">GWP used</th></tr></thead>
+  <tbody>
+  {% for o in ops %}
+    <tr><td>{{ o.year }}</td><td class="num">{{ o.reported_ch4_t | num }}</td>
+        <td class="num">{{ o.reported_co2e_t | num }}</td><td class="num">{{ o.gwp_used | int }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<p class="note">
+  Fit diagnostics: max r-hat {{ "%.3f" | format(row.rhat_max) }}, min bulk ESS {{ row.ess_bulk_min | round | int }},
+  divergences {{ row.divergences }}.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>vegaEmbed("#timeline", {{ chart | safe }}, {actions: false});</script>
+{% endblock %}
