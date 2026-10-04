@@ -50,16 +50,38 @@ def synthetic_recovery(n_replicates: int = 200, n_scenario_replicates: int = 20)
     ).passed
 
 
-def matched_pairs() -> bool:
-    raise NotImplementedError("matched pairs: week 6-8")
+def _out_root():
+    from methanewatch.config import load_project
+
+    project = load_project()
+    return project, project.resolve(project.paths.reports) / "validation"
 
 
-def holdout(n_folds: int = 5) -> bool:
-    raise NotImplementedError("hold-out: week 7")
+def matched_pairs(max_days: float = 1.0) -> bool:
+    """Writes the matched-pairs report. There is no pass threshold."""
+    from methanewatch.validate import gate4
+
+    project, out_root = _out_root()
+    gate4.matched_pairs_report(project, out_root, max_days=max_days)
+    return True
 
 
-def operator_comparison() -> bool:
-    raise NotImplementedError("operator comparison: week 8")
+def holdout(n_folds: int = 5, *, synthetic: bool = False, allow_unconfirmed: bool = False) -> bool:
+    from methanewatch.validate import gate4
+
+    project, out_root = _out_root()
+    if synthetic:
+        return gate4.holdout_synthetic(out_root, n_folds).passed
+    return gate4.holdout_real(
+        project, out_root, n_folds, allow_unconfirmed=allow_unconfirmed
+    ).passed
+
+
+def operator_comparison(run_id: str) -> bool:
+    from methanewatch.validate import gate4
+
+    project, out_root = _out_root()
+    return gate4.operator_report(project, out_root, run_id).passed
 
 
 def placebo() -> bool:

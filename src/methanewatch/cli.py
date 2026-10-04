@@ -49,10 +49,10 @@ def _run(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         raise typer.Exit(code=2) from exc
 
 
-def _run_or_exit(fn: Callable[..., Any], *args: Any) -> Any:
+def _run_or_exit(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """Like _run, but missing inputs exit with a message instead of a traceback."""
     try:
-        return _run(fn, *args)
+        return _run(fn, *args, **kwargs)
     except FileNotFoundError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
@@ -297,19 +297,21 @@ def validate_gate2() -> None:
 
 
 @validate_app.command("matched-pairs")
-def validate_matched_pairs() -> None:
-    """Sentinel-2 hit and false-positive rates by reference rate bin."""
+def validate_matched_pairs(
+    max_days: Annotated[float, typer.Option(help="Pairing window in days.")] = 1.0,
+) -> None:
+    """Sentinel-2 hit and false-positive rates by reference rate bin (no threshold)."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.matched_pairs))
+    _gate(_run_or_exit(gates.matched_pairs, max_days))
 
 
 @validate_app.command("operator")
-def validate_operator() -> None:
-    """Compare model annual totals with operator-reported figures."""
+def validate_operator(run_id: Annotated[str, typer.Option(help="Model run to compare.")]) -> None:
+    """Compare a run's annual totals with GHGRP figures; every gap needs a written note."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.operator_comparison))
+    _gate(_run_or_exit(gates.operator_comparison, run_id))
 
 
 @validate_app.command("synthetic")
@@ -326,23 +328,23 @@ def validate_synthetic(
 
 
 @validate_app.command("holdout")
-def validate_holdout() -> None:
+def validate_holdout(
+    folds: Annotated[int, typer.Option()] = 5,
+    synthetic: Annotated[bool, typer.Option(help="Dry run on SYNTHETIC sites.")] = False,
+    allow_unconfirmed: Annotated[bool, typer.Option()] = False,
+) -> None:
     """Fit on 80% of overpasses, predict detections in the held-out 20%."""
+    from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.validate import gates
 
-    _gate(_run(gates.holdout))
-
-
-@validate_app.command("repair-synthetic")
-def validate_repair_synthetic(
-    worlds: Annotated[int, typer.Option(help="Independent simulated worlds.")] = 40,
-    per_world: Annotated[int, typer.Option(help="Pseudo-repairs per world.")] = 4,
-    power: Annotated[int, typer.Option(help="Fits per injected-drop factor.")] = 15,
-) -> None:
-    """Dry run of the repair test on synthetic data: placebo false-positive rate and power."""
-    from methanewatch.validate import repair_synthetic
-
-    _run(repair_synthetic.run, worlds, per_world, power, (0.75, 0.5, 0.25, 0.1))
+    try:
+        passed = _run_or_exit(
+            gates.holdout, folds, synthetic=synthetic, allow_unconfirmed=allow_unconfirmed
+        )
+    except ConfigNotReadyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    _gate(passed)
 
 
 @validate_app.command("placebo")
