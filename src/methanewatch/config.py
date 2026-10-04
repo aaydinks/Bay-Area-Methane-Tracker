@@ -222,6 +222,27 @@ class QuantifyConfig(_Strict):
     n_draws: int = Field(ge=100)
 
 
+# --- sentinel2.yaml ---------------------------------------------------------
+
+
+class S2Masks(_Strict):
+    min_b12_reflectance: float
+    max_b12_reflectance: float
+    max_ndwi: float
+    max_b02_reflectance: float
+
+
+class S2Detection(_Strict):
+    k_sigma: float = Field(gt=0)
+    min_pixels: int = Field(ge=1)
+
+
+class Sentinel2Config(_Strict):
+    masks: S2Masks
+    detection: S2Detection
+    ppb_lookup_table: Path | None = None
+
+
 # --- loaders ----------------------------------------------------------------
 
 
@@ -253,6 +274,11 @@ def load_synthetic(config_dir: Path = CONFIG_DIR) -> SyntheticConfig:
 @lru_cache
 def load_quantify(config_dir: Path = CONFIG_DIR) -> QuantifyConfig:
     return QuantifyConfig.model_validate(_read("quantify.yaml", config_dir))
+
+
+@lru_cache
+def load_sentinel2(config_dir: Path = CONFIG_DIR) -> Sentinel2Config:
+    return Sentinel2Config.model_validate(_read("sentinel2.yaml", config_dir))
 
 
 @lru_cache
