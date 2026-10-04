@@ -205,6 +205,23 @@ class SyntheticConfig(_Strict):
     scenarios: dict[str, Scenario]
 
 
+# --- quantify.yaml ----------------------------------------------------------
+
+
+class Ueff(_Strict):
+    a: Sourced
+    b: Sourced
+    relative_sigma: float = Field(ge=0)
+
+
+class QuantifyConfig(_Strict):
+    ueff: Ueff
+    u10_sigma_ms: float = Field(gt=0)
+    min_u10_ms: float = Field(gt=0)
+    surface_pressure_pa: float = Field(gt=0)
+    n_draws: int = Field(ge=100)
+
+
 # --- loaders ----------------------------------------------------------------
 
 
@@ -231,6 +248,11 @@ def load_model(config_dir: Path = CONFIG_DIR) -> ModelConfig:
 @lru_cache
 def load_synthetic(config_dir: Path = CONFIG_DIR) -> SyntheticConfig:
     return SyntheticConfig.model_validate(_read("synthetic.yaml", config_dir))
+
+
+@lru_cache
+def load_quantify(config_dir: Path = CONFIG_DIR) -> QuantifyConfig:
+    return QuantifyConfig.model_validate(_read("quantify.yaml", config_dir))
 
 
 @lru_cache

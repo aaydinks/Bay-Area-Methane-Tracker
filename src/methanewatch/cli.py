@@ -23,6 +23,7 @@ model_app = typer.Typer(no_args_is_help=True, help="Persistence model (phase 5).
 repair_app = typer.Typer(no_args_is_help=True, help="Repair verification (phase 6).")
 validate_app = typer.Typer(no_args_is_help=True, help="Validation tests and phase gates.")
 report_app = typer.Typer(no_args_is_help=True, help="Dashboard and publications (phase 7).")
+wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantification (phase 4).")
 
 for name, sub in [
     ("config", config_app),
@@ -34,6 +35,7 @@ for name, sub in [
     ("repair", repair_app),
     ("validate", validate_app),
     ("report", report_app),
+    ("wind", wind_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -368,6 +370,31 @@ def report_build(run_id: Annotated[str, typer.Option()]) -> None:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"wrote {index}")
+
+
+@wind_app.command("get")
+def wind_get(
+    lon: Annotated[float, typer.Option()],
+    lat: Annotated[float, typer.Option()],
+    time: Annotated[str, typer.Option(help="UTC, e.g. 2025-06-27T19:04")],
+    product: Annotated[str, typer.Option(help="hrrr or era5")] = "hrrr",
+) -> None:
+    """10 m wind at a point (downloads and caches a small GRIB or NetCDF subset)."""
+    import pandas as pd
+
+    from methanewatch.wind.era5 import Era5Provider
+    from methanewatch.wind.hrrr import HrrrProvider
+
+    project = config.load_project()
+    cache = project.resolve(project.paths.raw) / "wind" / product
+    providers = {"hrrr": HrrrProvider, "era5": Era5Provider}
+    if product not in providers:
+        raise typer.BadParameter("product must be hrrr or era5")
+    w = providers[product](cache).get(lon, lat, pd.Timestamp(time, tz="UTC"))
+    typer.echo(
+        f"{w.product} {w.product_version}: u10 {w.u10:.2f} m/s, v10 {w.v10:.2f} m/s, "
+        f"speed {w.speed:.2f} m/s"
+    )
 
 
 if __name__ == "__main__":

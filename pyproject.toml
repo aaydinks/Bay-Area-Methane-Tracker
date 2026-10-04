@@ -46,7 +46,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # The wind product is chosen in week 3 (docs/decisions/0002-wind-product.md).
-wind = ["herbie-data>=2024.8", "cdsapi>=0.7"]
+wind = ["herbie-data>=2024.8", "cdsapi>=0.7", "netcdf4>=1.7"]
 # Faster NUTS sampler for the synthetic-coverage and placebo runs.
 fast = ["nutpie>=0.13"]
 
