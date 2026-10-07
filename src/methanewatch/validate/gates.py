@@ -14,8 +14,15 @@ def gate2_s2_reproduction() -> bool:
     raise NotImplementedError("Gate 2: week 4")
 
 
-def synthetic_recovery(n_replicates: int = 200) -> bool:
-    raise NotImplementedError("Gate 3: week 6")
+def synthetic_recovery(n_replicates: int = 200, n_scenario_replicates: int = 20) -> bool:
+    from methanewatch.config import load_project
+    from methanewatch.validate import synthetic
+
+    project = load_project()
+    out_root = project.resolve(project.paths.reports) / "validation"
+    return synthetic.gate(
+        n_replicates, out_root, n_scenario_replicates=n_scenario_replicates
+    ).passed
 
 
 def matched_pairs() -> bool:

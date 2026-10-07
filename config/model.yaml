@@ -13,7 +13,10 @@ priors:
   alpha_mu_mu: 5.7 # ln(300 kg/hr)
   alpha_mu_sd: 1.0
   tau_mu_sd: 0.75
-  sigma_sd: 1.0
+  # sigma (log-scale spread of rates while emitting) ~ LogNormal; kept away from 0 so the
+  # rate density stays wider than the grid spacing. 95% prior mass in about [0.37, 1.75].
+  sigma_log_mu: -0.22 # ln(0.8)
+  sigma_log_sd: 0.4
 
 sampler:
   chains: 4

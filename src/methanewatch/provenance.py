@@ -85,3 +85,46 @@ class PullManifest:
 def read_manifests(raw_root: Path) -> list[dict[str, Any]]:
     """Collect every pull manifest under ``raw_root`` (for ``provenance.parquet``)."""
     return [json.loads(p.read_text()) for p in sorted(raw_root.glob("*/*/manifest.json"))]
+
+
+def git_dirty(repo: Path | None = None) -> bool | None:
+    """True when tracked files differ from HEAD, so the run is not reproducible from git_sha."""
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return bool(out.stdout.strip())
+
+
+def config_hashes(config_dir: Path | None = None) -> dict[str, str]:
+    from methanewatch.config import CONFIG_DIR
+
+    config_dir = config_dir or CONFIG_DIR
+    return {p.name: sha256_file(p) for p in sorted(config_dir.glob("*.yaml"))}
+
+
+def run_manifest(run_id: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+    """What a published number depends on: code version, config, library versions."""
+    import numpy
+    import pymc
+    import pytensor
+
+    return {
+        "run_id": run_id,
+        "created_at": utcnow().isoformat(),
+        "git_sha": git_sha(),
+        "git_dirty": git_dirty(),
+        "config_sha256": config_hashes(),
+        "versions": {
+            "pymc": pymc.__version__,
+            "pytensor": pytensor.__version__,
+            "numpy": numpy.__version__,
+        },
+        **(extra or {}),
+    }

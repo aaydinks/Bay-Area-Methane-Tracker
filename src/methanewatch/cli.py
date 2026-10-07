@@ -211,11 +211,14 @@ def validate_operator() -> None:
 @validate_app.command("synthetic")
 def validate_synthetic(
     quick: Annotated[bool, typer.Option(help="20 replicates instead of 200.")] = False,
+    replicates: Annotated[int | None, typer.Option(help="Override the replicate count.")] = None,
+    scenario_replicates: Annotated[int, typer.Option(help="Fixed-truth scenario fits.")] = 20,
 ) -> None:
     """Gate 3: 90% intervals cover the truth 85-95% of the time on simulated data."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.synthetic_recovery, 20 if quick else 200))
+    n = replicates or (20 if quick else 200)
+    _gate(_run(gates.synthetic_recovery, n, 0 if quick else scenario_replicates))
 
 
 @validate_app.command("holdout")

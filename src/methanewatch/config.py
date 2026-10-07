@@ -116,7 +116,8 @@ class Priors(_Strict):
     alpha_mu_mu: float
     alpha_mu_sd: float = Field(gt=0)
     tau_mu_sd: float = Field(gt=0)
-    sigma_sd: float = Field(gt=0)
+    sigma_log_mu: float
+    sigma_log_sd: float = Field(gt=0)
 
 
 class Sampler(_Strict):
@@ -157,6 +158,41 @@ class ImpactConfig(_Strict):
     population_radius_km: list[float]
 
 
+# --- synthetic.yaml ---------------------------------------------------------
+
+
+class SyntheticInstrument(_Strict):
+    q50_kg_hr: float = Field(gt=0)
+    w: float = Field(gt=0)
+    meas_sigma_log: float = Field(gt=0)
+    release_prob: float = Field(gt=0, le=1)
+    overpasses_per_year: float = Field(ge=0)
+
+    @property
+    def pod(self) -> PodCurve:
+        # Synthetic curves are "confirmed" only in the sense that they are the truth
+        # used to generate the simulated data.
+        return PodCurve(q50_kg_hr=self.q50_kg_hr, w=self.w, source="synthetic", confirmed=True)
+
+
+class Scenario(_Strict):
+    f: float = Field(gt=0, lt=1)
+    qbar_kg_hr: float = Field(gt=0)
+    sigma: float = Field(gt=0)
+
+
+class SyntheticConfig(_Strict):
+    label: Literal["SYNTHETIC"]
+    q_min_kg_hr: float = Field(gt=0)
+    q_max_kg_hr: float = Field(gt=0)
+    years: float = Field(gt=0)
+    n_sites: int = Field(ge=2)
+    instruments: dict[str, SyntheticInstrument]
+    sampler: Sampler
+    coverage_target: tuple[float, float]
+    scenarios: dict[str, Scenario]
+
+
 # --- loaders ----------------------------------------------------------------
 
 
@@ -178,6 +214,11 @@ def load_instruments(config_dir: Path = CONFIG_DIR) -> InstrumentsConfig:
 @lru_cache
 def load_model(config_dir: Path = CONFIG_DIR) -> ModelConfig:
     return ModelConfig.model_validate(_read("model.yaml", config_dir))
+
+
+@lru_cache
+def load_synthetic(config_dir: Path = CONFIG_DIR) -> SyntheticConfig:
+    return SyntheticConfig.model_validate(_read("synthetic.yaml", config_dir))
 
 
 @lru_cache
