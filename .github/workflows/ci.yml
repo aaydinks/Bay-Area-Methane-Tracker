@@ -23,3 +23,23 @@ jobs:
         run: uv run mw config check
       - name: Tests
         run: uv run pytest -m "not slow and not network"
+
+  summary:
+    # Every pull request adds summaries/NNNN-*.md, NNNN = its number (see summaries/README.md).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Pull request adds its summary
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          prefix=$(printf 'summaries/%04d-' "$PR_NUMBER")
+          added=$(git diff --name-only --diff-filter=A "origin/${BASE_REF}...HEAD" -- summaries/)
+          if ! printf '%s\n' "$added" | grep -q "^${prefix}.*\.md$"; then
+            echo "::error::Add ${prefix}<short-title>.md describing this pull request (see summaries/README.md)."
+            exit 1
+          fi
