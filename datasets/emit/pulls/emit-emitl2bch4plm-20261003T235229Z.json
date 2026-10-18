@@ -1,0 +1,24 @@
+{
+  "endpoint": "earthaccess.search_data",
+  "files": {
+    "granules.json": "735d5418f658115057e71d0aa4414750343cda5ce754e58dc80aacbbedd5c6e5"
+  },
+  "finished_at": "2026-10-03T23:52:29.467295+00:00",
+  "git_sha": "59b8f7c623978172481b968c55d964fb719e0ac4",
+  "n_records": 4,
+  "params": {
+    "bbox": [
+      -122.8,
+      37.3,
+      -121.8,
+      38.4
+    ],
+    "end": "2026-10-03",
+    "short_name": "EMITL2BCH4PLM",
+    "start": "2022-08-01",
+    "version": "002"
+  },
+  "pull_id": "emit-emitl2bch4plm-20261003T235229Z",
+  "source": "emit-emitl2bch4plm",
+  "started_at": "2026-10-03T23:52:29.442932+00:00"
+}

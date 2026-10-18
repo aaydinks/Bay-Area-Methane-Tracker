@@ -1,0 +1,23 @@
+{
+  "endpoint": "https://earth-search.aws.element84.com/v1 sentinel-2-l1c",
+  "files": {
+    "items.json": "9f8bc61d4aacc99a10d3c951d24dff7ddf66e81a0a60181642e18ad077e02127"
+  },
+  "finished_at": "2026-10-03T23:52:38.769937+00:00",
+  "git_sha": "59b8f7c623978172481b968c55d964fb719e0ac4",
+  "n_records": 550,
+  "params": {
+    "bbox": [
+      -122.8,
+      37.3,
+      -121.8,
+      38.4
+    ],
+    "end": "2025-12-31",
+    "max_cloud": 100.0,
+    "start": "2025-01-01"
+  },
+  "pull_id": "sentinel2-20261003T235238Z",
+  "source": "sentinel2",
+  "started_at": "2026-10-03T23:52:38.708300+00:00"
+}

@@ -1,0 +1,24 @@
+{
+  "endpoint": "earthaccess.search_data",
+  "files": {
+    "granules.json": "ee973d8938c1bb63271963e92643b1a58d6769dbb303bbe7bf59c5dedfd9fb3b"
+  },
+  "finished_at": "2026-10-03T23:52:28.879040+00:00",
+  "git_sha": "59b8f7c623978172481b968c55d964fb719e0ac4",
+  "n_records": 156,
+  "params": {
+    "bbox": [
+      -122.8,
+      37.3,
+      -121.8,
+      38.4
+    ],
+    "end": "2026-10-03",
+    "short_name": "EMITL2BCH4ENH",
+    "start": "2022-08-01",
+    "version": "002"
+  },
+  "pull_id": "emit-emitl2bch4enh-20261003T235228Z",
+  "source": "emit-emitl2bch4enh",
+  "started_at": "2026-10-03T23:52:28.835626+00:00"
+}

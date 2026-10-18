@@ -1,0 +1,23 @@
+{
+  "endpoint": "https://data.epa.gov/efservice/pub_facts_subp_ghg_emission",
+  "files": {
+    "1004123.json": "94eb6995f663f3c62c4f4e1908ae93dc101f825114792499aa18ffbe30d1a34d",
+    "1005910.json": "a1fa35019cd5c1555b441221e6659cfbf321da4c55d47ac7ec55942ae9b42a72",
+    "1006179.json": "361cc03dab7fb8c148ad103c4b37e967b6a3b48e33ce22a4b2b25aeadf8b1b01",
+    "1007345.json": "b3a830ccd66cbd727ce83582ebd19b962c3bbd615586b04c59ceb8e2fcc5ec84"
+  },
+  "finished_at": "2026-10-18T03:36:14.435795+00:00",
+  "git_sha": "02fb8649c8b7786f418433b45908256d0a133fd9",
+  "n_records": 147,
+  "params": {
+    "facility_ids": [
+      "1006179",
+      "1004123",
+      "1005910",
+      "1007345"
+    ]
+  },
+  "pull_id": "ghgrp-20261018T033611Z",
+  "source": "ghgrp",
+  "started_at": "2026-10-18T03:36:11.524256+00:00"
+}

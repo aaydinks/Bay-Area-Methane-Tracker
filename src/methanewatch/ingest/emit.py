@@ -114,7 +114,7 @@ def footprints(records: list[dict]) -> gpd.GeoDataFrame:
             }
         )
     gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs="EPSG:4326")
-    gdf["acquired_utc"] = pd.to_datetime(gdf["acquired_utc"], utc=True)
+    gdf["acquired_utc"] = pd.to_datetime(gdf["acquired_utc"], utc=True, format="ISO8601")
     return gdf
 
 
@@ -133,9 +133,109 @@ def plume_outlines(records: list[dict]) -> gpd.GeoDataFrame:
             }
         )
     gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs="EPSG:4326")
-    gdf["acquired_utc"] = pd.to_datetime(gdf["acquired_utc"], utc=True)
+    gdf["acquired_utc"] = pd.to_datetime(gdf["acquired_utc"], utc=True, format="ISO8601")
     return gdf
 
 
 def load_pull(pull_dir: Path) -> list[dict]:
     return json.loads((pull_dir / "granules.json").read_text())
+
+
+# --- Files behind an Earthdata login (~/.netrc) ------------------------------------
+
+ENH_LAYERS = {
+    "CH4ENH": "enhancement_ppm_m",
+    "CH4UNCERT": "uncertainty_ppm_m",
+    "CH4SENS": "sensitivity",
+}
+
+
+def data_urls(record: dict) -> dict[str, str]:
+    """HTTPS links of a granule's protected files, keyed by product part (``CH4ENH``...)."""
+    urls = {}
+    for u in record["umm"].get("RelatedUrls", []):
+        url = u["URL"]
+        if u.get("Type") == "GET DATA" and url.startswith("https://"):
+            name = url.rsplit("/", 1)[-1]
+            part = name.split("_")[2]  # EMIT_L2B_<part>_002_...
+            urls[part] = url
+    return urls
+
+
+def earthdata_session():
+    """Requests session logged in through ~/.netrc; raises if the login is missing."""
+    import earthaccess
+
+    auth = earthaccess.login(strategy="netrc")
+    if not auth or not auth.authenticated:
+        raise PermissionError("Earthdata login failed; add urs.earthdata.nasa.gov to ~/.netrc")
+    return earthaccess.get_requests_https_session()
+
+
+def plume_metadata(record: dict, session) -> dict:
+    """The CH4PLMMETA JSON of a plume complex: rate, uncertainty, maximum enhancement."""
+    r = session.get(data_urls(record)["CH4PLMMETA"], timeout=120)
+    r.raise_for_status()
+    return r.json()
+
+
+def gdal_env(cookie_file: Path) -> dict[str, str]:
+    """GDAL settings for windowed reads of LP DAAC files through the Earthdata redirect."""
+    return {
+        "GDAL_HTTP_NETRC": "YES",
+        "GDAL_HTTP_COOKIEFILE": str(cookie_file),
+        "GDAL_HTTP_COOKIEJAR": str(cookie_file),
+        "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+        "GDAL_HTTP_UNSAFESSL": "NO",
+    }
+
+
+def site_window(
+    record: dict, lon: float, lat: float, half_m: float, out: Path, cookie_file: Path
+) -> Path:
+    """Write enhancement, uncertainty and sensitivity around (lon, lat) as one 3-band GeoTIFF."""
+    import numpy as np
+    import rasterio
+    from pyproj import Transformer
+    from rasterio.windows import from_bounds
+
+    urls = data_urls(record)
+    to_ll = Transformer.from_crs("EPSG:32610", "EPSG:4326", always_xy=True)
+    x, y = Transformer.from_crs("EPSG:4326", "EPSG:32610", always_xy=True).transform(lon, lat)
+    xs, ys = to_ll.transform([x - half_m, x + half_m], [y - half_m, y + half_m])
+    layers, profile = [], None
+    with rasterio.Env(**gdal_env(cookie_file)):
+        for part in ENH_LAYERS:
+            with rasterio.open(f"/vsicurl/{urls[part]}") as src:
+                if src.crs.to_epsg() != 4326:
+                    raise ValueError(f"unexpected CRS {src.crs} for {urls[part]}")
+                w = from_bounds(xs[0], ys[0], xs[1], ys[1], src.transform).round_offsets()
+                w = w.round_lengths()
+                data = src.read(1, window=w, boundless=True, fill_value=src.nodata)
+                layers.append(data.astype("float32"))
+                if profile is None:
+                    profile = {
+                        "transform": src.window_transform(w),
+                        "crs": src.crs,
+                        "nodata": src.nodata,
+                    }
+    stack = np.stack(layers)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with rasterio.open(
+        out,
+        "w",
+        driver="GTiff",
+        height=stack.shape[1],
+        width=stack.shape[2],
+        count=len(layers),
+        dtype="float32",
+        compress="deflate",
+        predictor=3,
+        **profile,
+    ) as dst:
+        dst.write(stack)
+        for i, name in enumerate(ENH_LAYERS.values(), start=1):
+            dst.set_band_description(i, name)
+        dst.update_tags(granule_ur=record["umm"]["GranuleUR"], source=urls["CH4ENH"])
+    return out

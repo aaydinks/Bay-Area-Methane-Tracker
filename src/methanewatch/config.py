@@ -38,6 +38,7 @@ class Paths(_Strict):
     raw: Path
     interim: Path
     processed: Path
+    datasets: Path
     reports: Path
 
 

@@ -8,6 +8,7 @@ paths:
   raw: data/raw # immutable downloads + manifest.json per pull
   interim: data/interim # normalized Parquet
   processed: data/processed # model inputs and outputs
+  datasets: datasets # committed copy of each source dataset, one folder per source
   reports: reports
 
 attribution:

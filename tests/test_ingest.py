@@ -70,3 +70,12 @@ def test_ghgrp_normalize_converts_with_configured_gwp(tmp_path):
 def test_ghgrp_facility_fixture_has_pilots():
     fac = pd.read_csv(FX / "ghgrp_facilities_2023.csv")
     assert {1006179, 1007345, 1004123} <= set(fac["facility_id"])
+
+
+def test_sentinel2_footprints_accept_mixed_timestamp_precision():
+    # Earth Search returns most times with fractional seconds and a few without.
+    items = json.loads((FX / "s2_items.json").read_text())[:2]
+    items[0]["properties"]["datetime"] = "2025-06-27T19:04:08.140000Z"
+    items[1]["properties"]["datetime"] = "2025-06-27T19:04:08Z"
+    fp = s2.footprints(items)
+    assert fp["acquired_utc"].dt.second.tolist() == [8, 8]

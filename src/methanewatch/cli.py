@@ -29,6 +29,7 @@ validate_app = typer.Typer(no_args_is_help=True, help="Validation tests and phas
 report_app = typer.Typer(no_args_is_help=True, help="Dashboard and publications (phase 7).")
 wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantification (phase 4).")
 population_app = typer.Typer(no_args_is_help=True, help="Residents near each site (context only).")
+datasets_app = typer.Typer(no_args_is_help=True, help="Committed copy of each source dataset.")
 
 for name, sub in [
     ("config", config_app),
@@ -42,6 +43,7 @@ for name, sub in [
     ("report", report_app),
     ("wind", wind_app),
     ("population", population_app),
+    ("datasets", datasets_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -122,22 +124,26 @@ def sites_build() -> None:
     typer.echo(f"wrote {len(sites)} sites to data/interim/sites.parquet")
 
 
-@ingest_app.command("carbonmapper")
-def ingest_carbonmapper(
-    site: Site,
-    radius_km: Annotated[float, typer.Option()] = 5.0,
-    since: Annotated[str | None, typer.Option(help="YYYY-MM-DD")] = None,
-) -> None:
-    """Pull Carbon Mapper plumes near a site."""
-    from methanewatch.ingest import carbonmapper
-
-    _run(carbonmapper.pull_plumes, site, radius_km, date.fromisoformat(since) if since else None)
-
-
 BBoxOpt = Annotated[
     str | None,
     typer.Option(help="minlon,minlat,maxlon,maxlat; defaults to site polygons plus search radius"),
 ]
+
+
+@ingest_app.command("carbonmapper")
+def ingest_carbonmapper(
+    start: Annotated[str, typer.Option(help="YYYY-MM-DD")] = "2022-08-01",
+    end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
+    bbox: BBoxOpt = None,
+) -> None:
+    """Carbon Mapper CH4 plumes (solid-waste and all sectors) and scene footprints."""
+    from methanewatch.ingest import carbonmapper
+
+    project = config.load_project()
+    stop = date.fromisoformat(end) if end else date.today()
+    raw = project.resolve(project.paths.raw)
+    pull_dir = carbonmapper.pull(_bbox(project, bbox), date.fromisoformat(start), stop, raw)
+    typer.echo(f"wrote {pull_dir}")
 
 
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
@@ -434,6 +440,45 @@ def population_build() -> None:
     out = project.resolve(project.paths.interim) / "population.csv"
     pd.DataFrame(rows).assign(label=LABEL).to_csv(out, index=False)
     typer.echo(f"wrote {out}")
+
+
+@datasets_app.command("build")
+def datasets_build(
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="emit, sentinel2, carbonmapper, ghgrp, census, sentinel2-crops, emit-files"
+        ),
+    ] = None,
+) -> None:
+    """Write datasets/<source>/ from the raw pulls in data/raw.
+
+    ``sentinel2-crops`` and ``emit-files`` read pixels over the network and run only when
+    named; ``emit-files`` needs the Earthdata login in ~/.netrc.
+    """
+    from methanewatch import datasets
+
+    project = config.load_project()
+    raw = project.resolve(project.paths.raw)
+    interim = project.resolve(project.paths.interim)
+    root = project.resolve(project.paths.datasets)
+    sites = datasets.reference_points(root / "calrecycle" / "swis_pilot_sites.csv")
+    steps = {
+        "emit": lambda: datasets.build_emit(raw, root / "emit"),
+        "sentinel2": lambda: datasets.build_sentinel2(raw, root / "sentinel2"),
+        "carbonmapper": lambda: datasets.build_carbonmapper(raw, root / "carbonmapper"),
+        "ghgrp": lambda: datasets.build_ghgrp(raw, interim, root / "ghgrp"),
+        "census": lambda: datasets.build_census(raw, root / "census", sites, radius_km=6),
+        "sentinel2-crops": lambda: datasets.build_sentinel2_crops(root, interim, sites),
+        "emit-files": lambda: datasets.build_emit_files(raw, root, sites),
+    }
+    unknown = set(only or []) - set(steps)
+    if unknown:
+        raise typer.BadParameter(f"unknown dataset(s): {', '.join(sorted(unknown))}")
+    network = {"sentinel2-crops", "emit-files"}
+    for name in only or [s for s in steps if s not in network]:
+        counts = _run_or_exit(steps[name])
+        typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 if __name__ == "__main__":

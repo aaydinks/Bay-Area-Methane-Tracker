@@ -1,0 +1,6 @@
+site_id,swis_number,swis_name,swis_site_id,address,latitude,longitude,operational_status,swis_url,ghgrp_facility_id,ghgrp_latitude,ghgrp_longitude,checked
+newby-island,43-AN-0003,Newby Island Sanitary Landfill,3388,"1601 Dixon Landing Road, Milpitas (SJ), CA 95035",37.45897,-121.94108,Active,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3388,1006179,37.45973,-121.94164,2026-10-17
+acme-fill,07-AA-0002,Acme Landfill,217,"950 Waterbird Way, Martinez, CA 94553",38.02532,-122.0873,Active,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/217,,,,2026-10-17
+sonoma-central,49-AA-0001,Central Disposal Site,3621,"500 Meacham Road, Petaluma, CA 94952",38.29964,-122.74951,Active,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3621,1004123,38.297175,-122.741432,2026-10-17
+shoreline,43-AA-0006,Shoreline Regional SLF/Mountain View SLF,3374,"1780 Amphitheater Parkway, Mountain View, CA 94043",37.42788,-122.08513,Closed,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3374,1005910,37.43319,-122.08271,2026-10-17
+potrero-hills,48-AA-0075,Potrero Hills Landfill,3591,"3675 Potrero Hills Lane, Suisun City, CA 94585",38.21188,-121.98081,Active,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3591,1007345,38.225239,-121.976742,2026-10-17

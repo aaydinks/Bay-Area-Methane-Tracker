@@ -1,0 +1,33 @@
+{
+  "endpoint": "https://api.carbonmapper.org/api/v1/catalog/plume-csv; https://api.carbonmapper.org/api/v1/stac/search",
+  "files": {
+    "plumes_all-sectors.csv": "3dc966bff97b3bf9c9800fcfa1c91ec3fde2918a9ec89a82aa0cc595d982c68d",
+    "plumes_solid-waste.csv": "ddc7f14369078a90d78f49fee8e14b768896d1c31a3b5477501f061f76d63cf5",
+    "scenes_l2b-ch4-mfa-v3e.json": "e9644c3c198660e7e5f2a90dc960ee26807f5dd1a1e6b042da2967e18f93a357"
+  },
+  "finished_at": "2026-10-18T03:42:36.980593+00:00",
+  "git_sha": "02fb8649c8b7786f418433b45908256d0a133fd9",
+  "n_records": 1409,
+  "params": {
+    "bbox": [
+      -123.64,
+      36.89,
+      -121.2,
+      38.87
+    ],
+    "end": "2026-10-17",
+    "plume_gas": "CH4",
+    "plume_pulls": {
+      "all-sectors": null,
+      "solid-waste": [
+        "6A"
+      ]
+    },
+    "scene_collection": "l2b-ch4-mfa-v3e",
+    "start": "2022-08-01",
+    "token_used": false
+  },
+  "pull_id": "carbonmapper-20261018T034234Z",
+  "source": "carbonmapper",
+  "started_at": "2026-10-18T03:42:34.843624+00:00"
+}
