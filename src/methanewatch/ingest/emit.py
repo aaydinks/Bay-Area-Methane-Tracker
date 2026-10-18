@@ -15,6 +15,7 @@ release probability.
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
 from pathlib import Path
 
@@ -163,12 +164,26 @@ def data_urls(record: dict) -> dict[str, str]:
 
 
 def earthdata_session():
-    """Requests session logged in through ~/.netrc; raises if the login is missing."""
+    """HTTPS session for LP DAAC files.
+
+    Uses the Earthdata bearer token in ``EARTHDATA_TOKEN`` (set in ``.env``) when
+    present, otherwise the login in ``~/.netrc``. The token is never logged.
+    """
+    token = os.environ.get("EARTHDATA_TOKEN")
+    if token:
+        import requests
+
+        session = requests.Session()
+        session.headers["Authorization"] = f"Bearer {token}"
+        return session
     import earthaccess
 
     auth = earthaccess.login(strategy="netrc")
     if not auth or not auth.authenticated:
-        raise PermissionError("Earthdata login failed; add urs.earthdata.nasa.gov to ~/.netrc")
+        raise PermissionError(
+            "no Earthdata login: set EARTHDATA_TOKEN in .env or add urs.earthdata.nasa.gov "
+            "to ~/.netrc"
+        )
     return earthaccess.get_requests_https_session()
 
 
@@ -179,21 +194,26 @@ def plume_metadata(record: dict, session) -> dict:
     return r.json()
 
 
-def gdal_env(cookie_file: Path) -> dict[str, str]:
-    """GDAL settings for windowed reads of LP DAAC files through the Earthdata redirect."""
-    return {
-        "GDAL_HTTP_NETRC": "YES",
-        "GDAL_HTTP_COOKIEFILE": str(cookie_file),
-        "GDAL_HTTP_COOKIEJAR": str(cookie_file),
-        "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
-        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
-        "GDAL_HTTP_UNSAFESSL": "NO",
-    }
+GDAL_ENV = {
+    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+    "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+    "GDAL_HTTP_UNSAFESSL": "NO",
+}
 
 
-def site_window(
-    record: dict, lon: float, lat: float, half_m: float, out: Path, cookie_file: Path
-) -> Path:
+def signed_url(session, url: str) -> str:
+    """Follow LP DAAC's login redirect once and return the short-lived signed file link.
+
+    GDAL drops the Authorization header on that redirect, so the session resolves it
+    and GDAL reads windows from the signed link. The link is never written to disk.
+    """
+    r = session.get(url, stream=True, allow_redirects=True, timeout=120)
+    r.close()
+    r.raise_for_status()
+    return r.url
+
+
+def site_window(record: dict, lon: float, lat: float, half_m: float, out: Path, session) -> Path:
     """Write enhancement, uncertainty and sensitivity around (lon, lat) as one 3-band GeoTIFF."""
     import numpy as np
     import rasterio
@@ -205,9 +225,9 @@ def site_window(
     x, y = Transformer.from_crs("EPSG:4326", "EPSG:32610", always_xy=True).transform(lon, lat)
     xs, ys = to_ll.transform([x - half_m, x + half_m], [y - half_m, y + half_m])
     layers, profile = [], None
-    with rasterio.Env(**gdal_env(cookie_file)):
+    with rasterio.Env(**GDAL_ENV):
         for part in ENH_LAYERS:
-            with rasterio.open(f"/vsicurl/{urls[part]}") as src:
+            with rasterio.open(f"/vsicurl/{signed_url(session, urls[part])}") as src:
                 if src.crs.to_epsg() != 4326:
                     raise ValueError(f"unexpected CRS {src.crs} for {urls[part]}")
                 w = from_bounds(xs[0], ys[0], xs[1], ys[1], src.transform).round_offsets()

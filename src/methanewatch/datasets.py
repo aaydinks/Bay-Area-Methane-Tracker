@@ -260,7 +260,6 @@ def build_emit_files(raw: Path, root: Path, sites: gpd.GeoDataFrame, half_m: flo
         for r in emit.load_pull(p)
     }
     scenes = emit.footprints(list(enh.values()))
-    cookie = raw / "emit" / ".gdal_cookies"
     index = []
     for site in sites.to_crs("EPSG:32610").itertuples():
         ref = sites[sites["site_id"] == site.site_id].iloc[0]
@@ -271,7 +270,7 @@ def build_emit_files(raw: Path, root: Path, sites: gpd.GeoDataFrame, half_m: flo
             path = out / "windows" / site.site_id / f"{sc.scene_id}.tif"
             if not path.exists():
                 emit.site_window(
-                    enh[sc.scene_id], ref["longitude"], ref["latitude"], half_m, path, cookie
+                    enh[sc.scene_id], ref["longitude"], ref["latitude"], half_m, path, session
                 )
             written.append(path)
             index.append(
