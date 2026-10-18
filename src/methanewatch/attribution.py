@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+import geopandas as gpd
+import pandas as pd
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
 
@@ -54,3 +56,31 @@ def classify(
     if d <= search_radius_m:
         return Attribution(nearest, "nearby", d)
     return Attribution(None, "none", d)
+
+
+def attribute_plumes(
+    plumes: pd.DataFrame,
+    sites: gpd.GeoDataFrame,
+    neighbors: gpd.GeoDataFrame,
+    *,
+    buffer_m: float,
+    search_radius_m: float,
+    metric_crs: str,
+) -> pd.DataFrame:
+    """Fill ``site_id``, ``attribution`` and ``distance_m`` for every plume origin."""
+    site_geoms = dict(zip(sites["site_id"], sites.to_crs(metric_crs).geometry, strict=True))
+    nb = neighbors.to_crs(metric_crs) if len(neighbors) else neighbors
+    key = "name" if "name" in nb else "site_id"
+    neighbor_geoms = dict(zip(nb[key], nb.geometry, strict=True)) if len(nb) else {}
+    origins = gpd.GeoSeries(
+        gpd.points_from_xy(plumes["origin_lon"], plumes["origin_lat"]), crs="EPSG:4326"
+    ).to_crs(metric_crs)
+    res = [
+        classify(o, site_geoms, neighbor_geoms, buffer_m=buffer_m, search_radius_m=search_radius_m)
+        for o in origins
+    ]
+    return plumes.assign(
+        site_id=[r.site_id for r in res],
+        attribution=[r.label for r in res],
+        distance_m=[r.distance_m for r in res],
+    )

@@ -30,3 +30,9 @@ reports/site/
 .DS_Store
 .idea/
 .vscode/
+
+# Carbon Mapper data are non-commercial and not for redistribution: only the README and
+# pull manifests are tracked (datasets/carbonmapper/README.md)
+datasets/carbonmapper/*
+!datasets/carbonmapper/README.md
+!datasets/carbonmapper/pulls/

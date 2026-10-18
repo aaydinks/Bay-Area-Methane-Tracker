@@ -1,0 +1,28 @@
+{
+  "endpoint": "https://www2.calrecycle.ca.gov/SolidWaste/Site/_GridRead; https://www2.calrecycle.ca.gov/SolidWaste/SiteActivity/_GridRead; https://www2.calrecycle.ca.gov/SolidWaste/Site/Details",
+  "files": {
+    "activities.json": "48cc74503aeeef9065dc0383bb00df14a22ddcc2ab447982e6a0906889d201b9",
+    "details.json": "06e50c6eb3f8222e3363facb5f1760d9617c337a0fce5bfe2c59d7687b64937b",
+    "sites.json": "666a6329ae204556a0fc892f978a4c4702f991504a1ea057e3b38f6838a490a9"
+  },
+  "finished_at": "2026-10-18T05:11:17.154550+00:00",
+  "git_sha": "bc773fa63752f0875e0d3a6e4f90a78d175d4c7e",
+  "n_records": 379,
+  "params": {
+    "activity": "Solid Waste Landfill",
+    "counties": [
+      "Alameda",
+      "Contra Costa",
+      "Marin",
+      "Napa",
+      "San Francisco",
+      "San Mateo",
+      "Santa Clara",
+      "Solano",
+      "Sonoma"
+    ]
+  },
+  "pull_id": "calrecycle-20261018T050917Z",
+  "source": "calrecycle",
+  "started_at": "2026-10-18T05:09:17.494612+00:00"
+}

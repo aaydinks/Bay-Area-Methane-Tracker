@@ -1,1 +1,6 @@
 site_id,ghgrp_facility_id,carb_mrr_id,notes
+newby-island,1006179,,"GHGRP: NEWBY ISLAND LANDFILL, Milpitas; subpart HH CH4 2010-2023 (Envirofacts pub_dim_facility, checked 2026-10-03)"
+acme-fill,,,"No GHGRP facility found with a name containing ACME reporting subpart HH (checked 2026-10-03)"
+sonoma-central,1004123,,"GHGRP: SONOMA COUNTY CENTRAL DISPOSAL SITE, Petaluma; subpart HH CH4 2010-2023 (checked 2026-10-03)"
+shoreline,1005910,,"GHGRP: CITY OF MOUNTAIN VIEW (SHORELINE LANDFILL); subpart HH CH4 2010-2018 only (checked 2026-10-03)"
+potrero-hills,1007345,,"GHGRP: POTRERO HILLS LANDFILL, Suisun City; subpart HH CH4 2010-2023 (checked 2026-10-03)"

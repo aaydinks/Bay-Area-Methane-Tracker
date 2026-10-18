@@ -1,0 +1,14 @@
+# Plume-rate quantification by integrated mass enhancement (docs/PLAN.md section 5, phase 4).
+#   Q = U_eff * IME / L,  L = sqrt(plume area),  U_eff = a * U10 + b
+# The U_eff calibration depends on the instrument and retrieval; record the source in
+# ADR 0002 and set confirmed: true once checked against the paper.
+
+ueff:
+  a: { value: 0.33, source: "Sentinel-2 calibration in Varon et al. 2021 (to verify)", confirmed: false }
+  b: { value: 0.45, source: "Sentinel-2 calibration in Varon et al. 2021 (to verify), m/s", confirmed: false }
+  relative_sigma: 0.15 # spread applied to U_eff in the Monte Carlo
+
+u10_sigma_ms: 1.5 # wind error when the product gives none
+min_u10_ms: 0.5 # draws below this are clipped; IME is unreliable in near-calm air
+surface_pressure_pa: 101325 # used when no surface pressure is supplied
+n_draws: 2000

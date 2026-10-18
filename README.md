@@ -55,8 +55,9 @@ docs/               plan, decision records, technical note, briefing
 | Overpasses | `mw coverage build` | `mw validate gate1` |
 | Sentinel-2 | `mw s2 search …` | `mw validate gate2` |
 | Persistence model | `mw model fit` | `mw validate synthetic` (85–95% coverage), `mw validate holdout` |
+| Dashboard preview | `mw model demo`, then `mw report build --run-id demo-…` | — (SYNTHETIC, labelled) |
 | Repair verification | `mw repair count …` | `mw validate placebo` (false-positive rate ≤ 10%) |
-| Report | `mw report build --run-id …` | — |
+| Report | `mw report build --run-id …` | every page passes the wording check |
 
 Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 
