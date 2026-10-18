@@ -1,20 +1,19 @@
 # Bay Area Landfill Methane Watch
 
-A retrospective tracker that ranks Bay Area landfills by how persistently they emit methane, and
+A retrospective tracker that ranks Bay Area (and surrounding) landfills by how persistently they emit methane, and
 tests whether recorded repairs are followed by a measurable drop, using only public satellite and
-aircraft data.
+aircraft data. It solves three central issues that aren't currently addressed:
+**Persistence.** Previous and current efforts fail to register persistent detections within 
+landfills and casually forget how often one emits. This dashboard takes note of past issues
+and saves them for later.
+**Repair verification.** A before/after test for repairs against control sites, anchored to 
+  documented repair dates and calibrated with placebo dates. No fingers are pointed, but a
+  supposed repair that did not reduce the rate and size of methane emissions is dubious.
+**Reality check.** Site-by-site comparison with operator-reported emissions (EPA GHGRP).
 
-- **Persistence.** A hierarchical Bayesian model turns sparse, detection-limited overpasses into an
-  annual emission estimate per site, with a 90% interval.
-- **Repair verification.** A before/after test against control sites, anchored to documented repair
-  dates and calibrated with placebo dates. The test reports an effect size with an interval, or
-  "inconclusive" when the data are thin.
-- **Reality check.** Site-by-site comparison with operator-reported emissions (EPA GHGRP).
-
-Results are **screening indications** for investigation, not compliance findings. Data arrive
-with about a 30-day lag, so this is not real-time monitoring.
-
-The full build plan is in [docs/PLAN.md](docs/PLAN.md).
+Results are screening indications for investigation, not compliance findings. Data arrive
+with about a 10-30 day lag, so this is not real-time monitoring; it's more so retrospective
+reasoning.
 
 ## Setup
 
@@ -64,8 +63,7 @@ Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 ## Data use
 
 This project is **non-commercial**. Carbon Mapper data are free for non-commercial use only, and
-raw pulls are not redistributed in this repository. See [DATA_TERMS.md](DATA_TERMS.md) for terms
-and credit lines for every source.
+raw pulls are not redistributed in this repository. See [DATA_TERMS.md](DATA_TERMS.md) for terms.
 
 ## License
 
