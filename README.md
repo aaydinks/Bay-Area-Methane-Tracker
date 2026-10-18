@@ -11,9 +11,8 @@ and saves them for later.
   supposed repair that did not reduce the rate and size of methane emissions is dubious.
 **Reality check.** Site-by-site comparison with operator-reported emissions (EPA GHGRP).
 
-Results are screening indications for investigation, not compliance findings. Data arrive
-with about a 10-30 day lag, so this is not real-time monitoring; it's more so retrospective
-reasoning.
+Results are screening indications for investigation, and data arrives with about a 10-30 day lag, 
+so this is not real-time monitoring; it's more so retrospective reasoning.
 
 ## Setup
 
