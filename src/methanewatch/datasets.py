@@ -290,3 +290,17 @@ def build_emit_files(raw: Path, root: Path, sites: gpd.GeoDataFrame, half_m: flo
     manifest.finish(out, written, n_records=len(written))
     (out / "manifest.json").rename(pull_dir / f"{manifest.pull_id}.json")
     return {"emit_plume_metadata": len(plm), "emit_windows": len(index)}
+
+
+def build_calrecycle(raw: Path, out: Path) -> dict[str, int]:
+    """Screening list: every SWIS site in the nine counties with a landfill activity."""
+    from methanewatch.ingest import calrecycle
+
+    pulls = sorted((raw / "calrecycle").glob("calrecycle-*"))
+    if not pulls:
+        raise FileNotFoundError("no CalRecycle pull yet; run `mw ingest calrecycle`")
+    out.mkdir(parents=True, exist_ok=True)
+    df = calrecycle.landfills(pulls[-1])
+    df.to_csv(out / "swis_landfills.csv", index=False)
+    _copy_manifests([pulls[-1]], out)
+    return {"calrecycle_landfills": len(df)}

@@ -176,6 +176,15 @@ def ingest_emit(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@ingest_app.command("calrecycle")
+def ingest_calrecycle() -> None:
+    """CalRecycle SWIS sites with a landfill activity in the nine counties (about 2 minutes)."""
+    from methanewatch.ingest import calrecycle
+
+    project = config.load_project()
+    typer.echo(f"wrote {calrecycle.pull(project.resolve(project.paths.raw))}")
+
+
 @ingest_app.command("ghgrp")
 def ingest_ghgrp(year: Annotated[int, typer.Option(help="Facility-list year")] = 2023) -> None:
     """EPA GHGRP subpart HH facilities and operator-reported methane for crosswalked sites."""
@@ -447,7 +456,8 @@ def datasets_build(
     only: Annotated[
         list[str] | None,
         typer.Option(
-            help="emit, sentinel2, carbonmapper, ghgrp, census, sentinel2-crops, emit-files"
+            help="emit, sentinel2, carbonmapper, ghgrp, calrecycle, census, "
+            "sentinel2-crops, emit-files"
         ),
     ] = None,
 ) -> None:
@@ -468,6 +478,7 @@ def datasets_build(
         "sentinel2": lambda: datasets.build_sentinel2(raw, root / "sentinel2"),
         "carbonmapper": lambda: datasets.build_carbonmapper(raw, root / "carbonmapper"),
         "ghgrp": lambda: datasets.build_ghgrp(raw, interim, root / "ghgrp"),
+        "calrecycle": lambda: datasets.build_calrecycle(raw, root / "calrecycle"),
         "census": lambda: datasets.build_census(raw, root / "census", sites, radius_km=6),
         "sentinel2-crops": lambda: datasets.build_sentinel2_crops(root, interim, sites),
         "emit-files": lambda: datasets.build_emit_files(raw, root, sites),

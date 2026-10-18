@@ -1,0 +1,37 @@
+swis_number,name,county,site_status,landfill_status,regulatory_status,address,latitude,longitude,swis_url
+01-AA-0008,Tri Cities Recycling & Disposal Fac,Alameda,Closed,Closed,Permitted,"7010 Auto Mall Pkwy Fremont, CA 94538",37.49277,-121.99229,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/6
+01-AA-0009,Altamont Landfill & Resource Recovery,Alameda,Active,Active,Permitted,"10840 Altamont Pass Rd Livermore, CA 94551",37.75389,-121.65165,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/7
+01-AA-0010,Vasco Road Sanitary Landfill,Alameda,Active,Active,Permitted,"4001 N Vasco Rd Livermore, CA 94551",37.75333,-121.72333,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/8
+01-AA-0288,U.S. Pipe Foundry,Alameda,Closed,Closed,Unpermitted,"1287 Whipple Rd Union City, CA 94587",37.61066,-122.04184,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/27
+07-AA-0001,West Contra Costa Landfill,Contra Costa,Closed,Closed,Permitted,"Parr Blvd & Garden Tract Rd Richmond, CA 94806",37.972,-122.37639,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/216
+07-AA-0002,Acme Landfill,Contra Costa,Active,Active,Permitted,"950 Waterbird Way Martinez, CA 94553",38.02532,-122.0873,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/217
+07-AA-0003,Contra Costa SLF (Pittsburg LF & GBF LF),Contra Costa,Closed,Closed,Permitted,"James Donlon Bl 1/4mi E/O Somersville Rd Antioch, CA 94509",37.9875,-121.84528,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/218
+07-AA-0032,Keller Canyon Landfill,Contra Costa,Active,Active,Permitted,"901 Bailey Rd Bay Point, CA 94565",37.99763,-121.93623,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/228
+07-AC-0042,USS-Posco Industries Waste Mgmt Unit II,Contra Costa,Active,Active,Exempt,"900 Loveridge Rd Pittsburg, CA 94565",38.02633,-121.86496,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/250
+21-AA-0001,Redwood Landfill,Marin,Active,Active,Permitted,"8950 Redwood Highway Novato, CA 94945",38.16564,-122.56835,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1727
+21-AA-0002,West Marin Sanitary Landfill,Marin,Closed,Closed,Permitted,"Hwy 1; 1 Mi N Pt Reyes Station Point Reyes Station, CA 94956",38.09595,-122.78883,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1728
+28-AA-0001,American Canyon Sanitary Landfill,Napa,Closed,Closed,Permitted,"Western Terminus Of Eucalyptus Drive Napa, CA 94589",38.18056,-122.27556,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2014
+28-AA-0002,Clover Flat Resource Recovery Park,Napa,Active,Active,Permitted,"4380 Silverado Trail Road Calistoga, CA 94515",38.584,-122.534,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2015
+28-AA-0003,Berryessa Garbage Service Disposal Site,Napa,Closed,Closed,Permitted,"Steele Canyon Road Napa, CA 94558",38.452,-122.1829,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2016
+41-AA-0002,Corinda Los Trancos Landfill ( Ox Mtn),San Mateo,Active,Active,Permitted,"2 Mi N-E Half Moon Bay Off Hwy 92 Half Moon Bay, CA 94019",37.50057,-122.41078,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3223
+41-AA-0008,Hillside Class III Disposal Site,San Mateo,Closed,Closed,Permitted,"#1 Sandfill Road (1500 Hillside Blvd) Colma, CA 94014",37.683,-122.444,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3228
+41-AA-0009,Burlingame Refuse Disposal Area,San Mateo,Closed,Closed,Permitted,"Airport Blvd Near Broadway Burlingame, CA 94010",37.59043,-122.35454,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3229
+41-AA-0010,3rd Ave LF/San Mateo Composting Site,San Mateo,Closed,Closed,Permitted,"East Third Ave; Along The Sf Bay San Mateo, CA 94404",37.5708,-122.2766,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3230
+43-AA-0004,Recology Pacheco Pass,Santa Clara,Closed,Closed,Permitted,"3675 Pacheco Pass Hwy Gilroy, CA 95020",36.99577,-121.4789,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3372
+43-AA-0006,Shoreline Regional SLF/Mountain View SLF,Santa Clara,Closed,Closed,Unpermitted,"1780 Amphitheater Parkway Mountain View, CA 94043",37.42788,-122.08513,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3374
+43-AA-0007,City Of Sunnyvale Landfill,Santa Clara,Closed,Closed,Permitted,"North Side Caribbean Dr Near Mathilda Av Sunnyvale, CA 94089",37.41956,-122.02081,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3375
+43-AA-0041,Shah Ranch,Santa Clara,Active,Active,Unpermitted,"4217 and 4221 Quimby Road San Jose, CA 95148-3303",37.331864,-121.75202305,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5775
+43-AM-0001,City of Palo Alto Refuse Disposal Site,Santa Clara,Closed,Closed,Permitted,"2830 Embarcadero Road Palo Alto, CA 94303",37.44932,-122.1074,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3385
+43-AN-0001,Zanker Material Processing Facility,Santa Clara,Active,Active,Permitted,"675 Los Esteros Road San Jose, CA 95134",37.43615,-121.95122,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3386
+43-AN-0003,Newby Island Sanitary Landfill,Santa Clara,Active,Active,Permitted,"1601 Dixon Landing Road Milpitas(SJ), CA 95035",37.45897,-121.94108,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3388
+43-AN-0007,Zanker Road Resource Recovery Operation,Santa Clara,Active,Closing,Permitted,"705 Los Esteros Road, Near Zanker Road San Jose, CA 95134",37.43325,-121.95713,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3392
+43-AN-0008,Kirby Canyon Recycl.& Disp. Facility,Santa Clara,Active,Active,Permitted,"910 Coyote Creek Golf Drive Coyote (In San Jose), CA 95037",37.18507,-121.67109,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3393
+43-AN-0015,Guadalupe Sanitary Landfill,Santa Clara,Active,Active,Permitted,"15999 Guadalupe Mines Road San Jose, CA 95120",37.21481,-121.89837,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3399
+43-AO-0001,All Purpose Landfill,Santa Clara,Closed,Closed,Permitted,"5500 Lafayette St Santa Clara, CA 95054",37.41639,-121.97056,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3404
+48-AA-0002,Recology Hay Road,Solano,Active,Active,Permitted,"6426 Hay Road; 1/4 Mi W Hwy 113 Vacaville, CA 95687",38.312,-121.83722,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3582
+48-AA-0004,Rio Vista Sanitary Landfill,Solano,Closed,Closed,Permitted,"301 Airport Road Rio Vista, CA 94571",38.1775,-121.68944,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3583
+48-AA-0075,Potrero Hills Landfill,Solano,Active,Active,Permitted,"3675 Potrero Hills Lane Suisun City, CA 94585",38.21188,-121.98081,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3591
+49-AA-0001,Central Disposal Site,Sonoma,Active,Active,Permitted,"500 Meacham Road Petaluma, CA 94952",38.29964,-122.74951,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3621
+49-AA-0002,Annapolis Landfill,Sonoma,Closed,Closed,Permitted,"33549 Annapolis Road Annapolis, CA 95412",38.70667,-123.33944,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3622
+49-AA-0004,Healdsburg Disposal Site,Sonoma,Closed,Closed,Permitted,"2 Mi N Healdburg, 166 Alexander Rd. Healdsburg, CA 95448",38.65028,-122.86472,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3624
+49-AA-0009,Casa Grande Site,Sonoma,Closed,Closed,Permitted,"West End Of Casa Grande Road Petaluma, CA 94954",38.22944,-122.60861,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3629

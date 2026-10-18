@@ -12,7 +12,7 @@ built from: the endpoint, the query, the time, and a sha256 hash of each raw fil
 | [`sentinel2/`](sentinel2/) | ESA Copernicus Sentinel-2 Level-1C | Scene list, and small band crops around the pilot sites on plume days and reference days | Yes |
 | [`census/`](census/) | US Census 2020 blocks (TIGER/Line) | Block population for the nine Bay Area counties, block outlines near the pilot sites | Yes |
 | [`ghgrp/`](ghgrp/) | US EPA Greenhouse Gas Reporting Program | Operator-reported emissions for the crosswalked sites, Bay Area landfill list | Yes |
-| [`calrecycle/`](calrecycle/) | CalRecycle Solid Waste Information System | Reference point, address and status of each pilot site | Yes |
+| [`calrecycle/`](calrecycle/) | CalRecycle Solid Waste Information System | Reference points for the pilot sites; screening list of 36 Bay Area landfills | Yes |
 
 ## How it is built
 

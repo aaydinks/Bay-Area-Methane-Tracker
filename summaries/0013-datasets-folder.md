@@ -30,6 +30,8 @@ satellite looks, plume lists and population counts before any real fit can start
   landfills that report.
 - **Site reference points:** the state's (CalRecycle) location and address for each pilot site, including
   Acme Fill, which EPA does not list.
+- **A screening list:** the 36 Bay Area sites that the state's records list as landfills (19 active, 16 closed,
+  1 closing), with locations. It stands in for the Air District's list until that arrives.
 - One command rebuilds the folder from fresh downloads.
 
 ## What we learned

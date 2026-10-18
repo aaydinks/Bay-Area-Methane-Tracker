@@ -129,3 +129,16 @@ def test_choose_targets_pairs_plume_days_with_quiet_references():
     refs = t[t["role"] == "reference"]
     assert refs["product_uri"].tolist() == ["ref1", "ref2", "ref3"]
     assert (refs["for_day"] == date(2024, 4, 8)).all()
+
+
+def test_swis_details_page_parsing():
+    from methanewatch.ingest import calrecycle
+
+    page = (
+        "<div>Site Location Address</div><div>1 Example Rd<br>Town, CA 90000</div>"
+        "<div>County</div><div>Nowhere</div><div>Site Coordinates</div>"
+        "<div>Latitude: 37.5 Longitude: -122.25</div>"
+    )
+    d = calrecycle.parse_details(page)
+    assert d == {"address": "1 Example Rd Town, CA 90000", "latitude": 37.5, "longitude": -122.25}
+    assert calrecycle.parse_details("<p>nothing</p>")["latitude"] is None
