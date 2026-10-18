@@ -22,6 +22,8 @@ def test_fit_refuses_unconfirmed_pod_curves():
 
 
 def test_repair_synthetic_command_is_registered():
-    result = runner.invoke(app, ["validate", "repair-synthetic", "--help"])
-    assert result.exit_code == 0
-    assert "--worlds" in result.output
+    import typer.main
+
+    validate = typer.main.get_command(app).commands["validate"]
+    params = {p.name for p in validate.commands["repair-synthetic"].params}
+    assert {"worlds", "per_world", "power"} <= params
