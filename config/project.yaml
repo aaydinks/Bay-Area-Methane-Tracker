@@ -22,3 +22,7 @@ repair:
   window_months: 12
   gap_days: 14 # overpasses this close to a repair are excluded
   min_overpasses_per_window: 5
+  # Call "drop" when P(decrease) >= call_probability, "rise" when P(decrease) <= 1 - it.
+  # 0.975 is a two-sided 95% test (nominal false-positive rate 5%), leaving room under the
+  # 10% placebo gate. The reported interval stays at interval_mass (90%). ADR 0006.
+  call_probability: 0.975

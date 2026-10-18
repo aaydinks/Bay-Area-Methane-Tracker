@@ -378,7 +378,7 @@ The repair date is **known**, so this is a before/after comparison with controls
   ```
   The common shifts `γ` are estimated from **control sites**: other landfills seen by the same instruments over the same windows. They absorb instrument changes, such as Tanager-1 coming online, and seasonal effects.
 - **Effect reported:** the posterior of `log(E_after/E_before)` net of controls, with its median, 90% interval, and probability of a decrease. Also convert to t/yr for impact accounting.
-- **Call rule:** "drop" if the 90% interval is entirely below 0, "rise" if entirely above, and **"inconclusive" otherwise**.
+- **Call rule:** "drop" if P(effect < 0) ≥ 0.975, "rise" if P(effect < 0) ≤ 0.025, and **"inconclusive" otherwise**. This is a two-sided 95% test with a nominal false-positive rate of 5%. The effect is still reported with its 90% interval. An earlier rule called a result whenever the 90% interval excluded 0, which has a nominal false-positive rate of exactly the 10% gate; see ADR 0006.
 - **Placebo test (`repair/placebo.py`):** draw ≥200 random pseudo-repair dates at control sites, with the same windows and the same real overpass schedule.
   - In each placebo fit, **remove the pseudo-treated site from the control set** used to estimate γ. Otherwise it partly cancels its own effect.
   - False-positive rate = the share called "drop" or "rise". **Gate 5: FPR ≤ 10%**, with a Wilson interval reported. No repair result is published before this passes.
@@ -422,7 +422,7 @@ All tests live under `mw validate <name>`. Each writes `reports/validation/<name
 
 ### 8.5 Placebo repairs (`validate placebo`): Gate 5
 
-See §7. **Pass: FPR ≤ 10%.**
+See §7. **Pass: FPR ≤ 10%** under the 97.5% call rule (nominal 5%). On synthetic data, run placebos across independent simulated worlds and bootstrap over worlds.
 
 ---
 
