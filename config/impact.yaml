@@ -18,3 +18,12 @@ usd_per_t_co2e:
   confirmed: false
 
 population_radius_km: [1, 3, 5]
+
+# GWP EPA applied when converting GHGRP methane to the published t CO2e, by reporting year.
+# Used only to recover tonnes of CH4 from GHGRP figures. Confirm against EPA's GHGRP
+# documentation; reporting years after 2023 are not configured until checked.
+ghgrp_gwp_ch4:
+  years: [2010, 2023]
+  value: 25
+  source: "IPCC AR4 100-year GWP, as used in GHGRP publications for these years (to confirm)"
+  confirmed: false

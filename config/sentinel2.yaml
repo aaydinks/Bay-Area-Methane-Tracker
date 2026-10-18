@@ -1,0 +1,18 @@
+# Sentinel-2 retrieval settings (docs/PLAN.md section 5, phase 3).
+# Thresholds are starting values to tune against scenes where Carbon Mapper also saw a
+# plume (Gate 2). Record changes in ADR 0004.
+
+masks:
+  min_b12_reflectance: 0.05 # darker pixels (water, shadow, dark roofs) give false plumes
+  max_b12_reflectance: 0.60 # very bright or saturated surfaces
+  max_ndwi: 0.0 # (B03 - B08) / (B03 + B08) above this is water
+  max_b02_reflectance: 0.25 # crude cloud screen for L1C, which has no scene classification
+
+detection:
+  k_sigma: 2.0 # pixels above median + k * robust sigma are plume candidates
+  min_pixels: 5 # smaller connected components are ignored
+
+# Lookup from fractional absorption (-dR) to column enhancement (ppb), from the radiative
+# transfer used by the chosen pipeline. Path relative to the repo root. Unset until
+# ADR 0004 picks the pipeline; retrieval stops at fractional absorption until then.
+ppb_lookup_table: null

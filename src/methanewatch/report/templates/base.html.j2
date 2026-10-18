@@ -4,18 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bay Area Landfill Methane Watch{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    :root {
+      --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e3e0d8;
+      --accent: #2f6f62; --warn-bg: #fff4d6; --warn-fg: #6b4e00; --card: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161615; --fg: #ecebe6; --muted: #a3a29c; --line: #34332f;
+        --accent: #7cc4b2; --warn-bg: #3a3014; --warn-fg: #f3d98b; --card: #1e1e1c;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg);
+           font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 48px; }
+    header.site { border-bottom: 1px solid var(--line); padding: 20px 0 12px; margin-bottom: 20px; }
+    header.site h1 { font-size: 1.35rem; margin: 0 0 6px; }
+    header.site h1 a { color: inherit; text-decoration: none; }
+    nav a { margin-right: 16px; color: var(--accent); }
+    .note { color: var(--muted); font-size: 0.92rem; margin: 6px 0 0; }
+    .banner { background: var(--warn-bg); color: var(--warn-fg); padding: 10px 14px;
+              border-radius: 6px; margin: 0 0 18px; font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .table-scroll { overflow-x: auto; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+            padding: 14px 16px; margin: 16px 0; }
+    .chart { width: 100%; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    pre { overflow-x: auto; background: var(--card); border: 1px solid var(--line);
+          border-radius: 6px; padding: 12px; }
+    a { color: var(--accent); }
+    footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line);
+             margin-top: 32px; padding-top: 12px; }
+  </style>
 </head>
 <body>
-  <header>
-    <p>
-      Retrospective tracker built from public satellite and aircraft data (about a 30-day lag).
-      Results are screening indications for investigation, not compliance findings.
-    </p>
-  </header>
-  <main>{% block content %}{% endblock %}</main>
-  <footer>
-    <p>Data: Carbon Mapper (non-commercial use), NASA EMIT, ESA Copernicus Sentinel-2, US EPA GHGRP.
-       Run {{ run_id }}.</p>
-  </footer>
+  <div class="wrap">
+    <header class="site">
+      <h1><a href="{{ prefix }}index.html">Bay Area Landfill Methane Watch</a></h1>
+      <nav><a href="{{ prefix }}index.html">Sites</a><a href="{{ prefix }}methods.html">Methods</a></nav>
+      <p class="note">
+        Retrospective tracker built from public satellite and aircraft data (about a 30-day lag).
+        Results are screening indications for investigation, not compliance findings.
+      </p>
+    </header>
+    {% if is_demo %}
+    <div class="banner">SYNTHETIC DEMO: simulated sites with known truth, not real landfills.</div>
+    {% elif provisional %}
+    <div class="banner">Provisional: some instrument detection curves are not yet confirmed.</div>
+    {% endif %}
+    <main>{% block content %}{% endblock %}</main>
+    <footer>
+      Data: Carbon Mapper (non-commercial use), NASA EMIT, ESA Copernicus Sentinel-2, US EPA GHGRP.
+      Run {{ run_id }}{% if git_sha %} · code {{ git_sha }}{% endif %}{% if created_at %} · {{ created_at }}{% endif %}.
+    </footer>
+  </div>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

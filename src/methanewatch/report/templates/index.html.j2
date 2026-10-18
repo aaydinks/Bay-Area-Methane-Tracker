@@ -1,0 +1,60 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Sites ranked by estimated annual methane</h2>
+<p>
+  Median and 90% interval of methane emitted above the detection floor during observable
+  (daytime, clear-sky) conditions, annualized. This is a screening indication, not a site's
+  total emissions. Sites with too little data are listed separately rather than ranked.
+</p>
+
+{% if chart %}
+<div class="card"><div id="ranking" class="chart"></div></div>
+{% endif %}
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Site</th>
+      <th class="num">t/yr, median</th>
+      <th class="num">90% interval</th>
+      <th class="num">Emitting share</th>
+      <th class="num">Overpasses</th>
+      <th class="num">Detections</th>
+      {% if latest_ops %}<th class="num">Operator-reported t CH4</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in ranked %}
+    <tr>
+      <td><a href="sites/{{ r.site_id }}.html">{{ r.site_id }}</a></td>
+      <td class="num">{{ r.E_t_yr_med | num }}</td>
+      <td class="num">{{ r.E_t_yr_lo | num }} – {{ r.E_t_yr_hi | num }}</td>
+      <td class="num">{{ (r.f_med * 100) | round | int }}%</td>
+      <td class="num">{{ r.n_usable_overpasses }}</td>
+      <td class="num">{{ r.n_detections }}</td>
+      {% if latest_ops %}
+      <td class="num">{% if r.site_id in latest_ops %}{{ latest_ops[r.site_id].ch4_t | num }} ({{ latest_ops[r.site_id].year }}){% else %}–{% endif %}</td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if thin %}
+<h3>Insufficient data</h3>
+<p class="note">Too few usable overpasses, an interval spanning more than two orders of magnitude, or a fit that failed diagnostics.</p>
+<ul>
+{% for r in thin %}
+  <li><a href="sites/{{ r.site_id }}.html">{{ r.site_id }}</a>: {{ r.n_usable_overpasses }} usable overpasses, {{ r.n_detections }} detections</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if chart %}
+<script>vegaEmbed("#ranking", {{ chart | safe }}, {actions: false});</script>
+{% endif %}
+{% endblock %}

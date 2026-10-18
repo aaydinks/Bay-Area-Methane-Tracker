@@ -75,6 +75,11 @@ def to_usd(co2e_t: np.ndarray | float, cfg: ImpactConfig | None = None) -> Conve
     return Converted(np.asarray(co2e_t, dtype=float) * price.value, price.confirmed, price.source)
 
 
-def population_within(site_id: str, radius_km: float) -> int:
-    """ACS block-group population inside the site buffer (context, not a health effect)."""
-    raise NotImplementedError("population context: week 10, PLAN section 9.3")
+def population_within(site_geometry, radii_km: list[float], metric_crs: str) -> dict[float, int]:
+    """Residents within each radius of a site (context, not a health effect).
+
+    See ``methanewatch.population`` for the method and data sources.
+    """
+    from methanewatch.population import residents_within
+
+    return residents_within(site_geometry, radii_km, metric_crs)

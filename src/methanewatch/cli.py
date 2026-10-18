@@ -10,8 +10,12 @@ from datetime import date
 from typing import Annotated, Any
 
 import typer
+from dotenv import load_dotenv
 
 from methanewatch import __version__, config
+
+# API keys (Carbon Mapper, Census) live in the git-ignored .env at the repo root.
+load_dotenv(config.REPO_ROOT / ".env")
 
 app = typer.Typer(no_args_is_help=True, help="Bay Area Landfill Methane Watch pipeline.")
 config_app = typer.Typer(no_args_is_help=True, help="Inspect configuration.")
@@ -23,6 +27,8 @@ model_app = typer.Typer(no_args_is_help=True, help="Persistence model (phase 5).
 repair_app = typer.Typer(no_args_is_help=True, help="Repair verification (phase 6).")
 validate_app = typer.Typer(no_args_is_help=True, help="Validation tests and phase gates.")
 report_app = typer.Typer(no_args_is_help=True, help="Dashboard and publications (phase 7).")
+wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantification (phase 4).")
+population_app = typer.Typer(no_args_is_help=True, help="Residents near each site (context only).")
 
 for name, sub in [
     ("config", config_app),
@@ -34,6 +40,8 @@ for name, sub in [
     ("repair", repair_app),
     ("validate", validate_app),
     ("report", report_app),
+    ("wind", wind_app),
+    ("population", population_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -46,6 +54,15 @@ def _run(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         return fn(*args, **kwargs)
     except NotImplementedError as exc:
         typer.secho(f"not implemented yet: {exc}", fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=2) from exc
+
+
+def _run_or_exit(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """Like _run, but missing inputs exit with a message instead of a traceback."""
+    try:
+        return _run(fn, *args, **kwargs)
+    except FileNotFoundError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
 
 
@@ -91,11 +108,18 @@ def sites_build() -> None:
     from methanewatch.sites import registry
 
     project = config.load_project()
-    _run(
-        registry.build_registry,
-        project.resolve(project.paths.registry),
-        project.resolve(project.paths.interim) / "sites.parquet",
-    )
+    registry_dir = project.resolve(project.paths.registry)
+    missing = registry.missing_polygons(registry_dir)
+    if missing:
+        typer.secho(f"no boundary polygon yet: {', '.join(missing)}", fg=typer.colors.YELLOW)
+    try:
+        sites = registry.build_registry(
+            registry_dir, project.resolve(project.paths.interim), metric_crs=project.crs_metric
+        )
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {len(sites)} sites to data/interim/sites.parquet")
 
 
 @ingest_app.command("carbonmapper")
@@ -110,40 +134,79 @@ def ingest_carbonmapper(
     _run(carbonmapper.pull_plumes, site, radius_km, date.fromisoformat(since) if since else None)
 
 
-@ingest_app.command("emit")
-def ingest_emit(site: Site, radius_km: Annotated[float, typer.Option()] = 5.0) -> None:
-    """Pull NASA EMIT v2 plume complexes near a site."""
-    from methanewatch.ingest import emit
+BBoxOpt = Annotated[
+    str | None,
+    typer.Option(help="minlon,minlat,maxlon,maxlat; defaults to site polygons plus search radius"),
+]
 
-    _run(emit.pull_plumes, site, radius_km)
+
+def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
+    from methanewatch.ingest.pipeline import registry_bbox
+
+    if bbox:
+        parts = tuple(float(x) for x in bbox.split(","))
+        if len(parts) != 4:
+            raise typer.BadParameter("bbox needs four comma-separated numbers")
+        return parts  # type: ignore[return-value]
+    found = registry_bbox(project)
+    if found is None:
+        typer.secho("no site polygons yet; pass --bbox", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    return found
+
+
+@ingest_app.command("emit")
+def ingest_emit(
+    start: Annotated[str, typer.Option(help="YYYY-MM-DD")] = "2022-08-01",
+    end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
+    bbox: BBoxOpt = None,
+) -> None:
+    """EMIT v2 scene footprints and plume-complex outlines (CMR metadata, no login)."""
+    from methanewatch.ingest import pipeline
+
+    project = config.load_project()
+    stop = date.fromisoformat(end) if end else date.today()
+    counts = pipeline.ingest_emit(project, _bbox(project, bbox), date.fromisoformat(start), stop)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @ingest_app.command("ghgrp")
-def ingest_ghgrp() -> None:
-    """Pull EPA GHGRP subpart HH reports for registry facilities."""
-    from methanewatch.ingest import ghgrp
+def ingest_ghgrp(year: Annotated[int, typer.Option(help="Facility-list year")] = 2023) -> None:
+    """EPA GHGRP subpart HH facilities and operator-reported methane for crosswalked sites."""
+    from methanewatch.ingest import pipeline
 
-    _run(ghgrp.pull_reports, [])
+    counts = pipeline.ingest_ghgrp(config.load_project(), year)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @coverage_app.command("build")
 def coverage_build() -> None:
-    """Build the overpasses and detections tables."""
-    from methanewatch.coverage import overpasses
+    """Build overpasses, attributed plumes and detections from interim footprints and plumes."""
+    from methanewatch.coverage import build
 
-    _run(overpasses.build_detections, None, None)
+    counts = _run_or_exit(build.build, config.load_project())
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @s2_app.command("search")
 def s2_search(
-    site: Site,
     start: Annotated[str, typer.Option(help="YYYY-MM-DD")],
     end: Annotated[str, typer.Option(help="YYYY-MM-DD")],
+    bbox: BBoxOpt = None,
+    max_cloud: Annotated[float, typer.Option(help="Tile cloud cover limit, percent")] = 100.0,
 ) -> None:
-    """Search Sentinel-2 scenes over a site."""
-    from methanewatch.sentinel2 import search
+    """Sentinel-2 L1C scene footprints from the public Earth Search catalog."""
+    from methanewatch.ingest import pipeline
 
-    _run(search.search_scenes, site, date.fromisoformat(start), date.fromisoformat(end))
+    project = config.load_project()
+    counts = pipeline.ingest_sentinel2(
+        project,
+        _bbox(project, bbox),
+        date.fromisoformat(start),
+        date.fromisoformat(end),
+        max_cloud=max_cloud,
+    )
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 @model_app.command("fit")
@@ -152,7 +215,9 @@ def model_fit(
         bool, typer.Option(help="Fit with unconfirmed POD curves; stamps outputs provisional.")
     ] = False,
 ) -> None:
-    """Fit the persistence model to real detections."""
+    """Fit the persistence model to data/interim/detections.parquet."""
+    from methanewatch.model import run
+
     instruments = config.load_instruments()
     if instruments.unconfirmed() and not allow_unconfirmed:
         typer.secho(
@@ -163,9 +228,27 @@ def model_fit(
             err=True,
         )
         raise typer.Exit(code=1)
-    from methanewatch.model import persistence
+    try:
+        run_id = _run_or_exit(
+            run.fit_real,
+            config.load_project(),
+            config.load_model(),
+            instruments,
+            allow_unconfirmed,
+        )
+    except run.ConfigNotReadyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"run {run_id}")
 
-    _run(persistence.fit, None, config.load_model())
+
+@model_app.command("demo")
+def model_demo(seed: Annotated[int, typer.Option()] = 11) -> None:
+    """Fit SYNTHETIC sites so the dashboard can be previewed (never real data)."""
+    from methanewatch.model import run
+
+    run_id = run.fit_synthetic_demo(config.load_project(), config.load_model(), seed=seed)
+    typer.echo(f"run {run_id}")
 
 
 @repair_app.command("count")
@@ -210,7 +293,7 @@ def validate_gate1() -> None:
     """Plume and overpass counts per instrument per year for the pilot sites."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.gate1_plume_table))
+    _gate(_run_or_exit(gates.gate1_plume_table))
 
 
 @validate_app.command("gate2")
@@ -222,19 +305,21 @@ def validate_gate2() -> None:
 
 
 @validate_app.command("matched-pairs")
-def validate_matched_pairs() -> None:
-    """Sentinel-2 hit and false-positive rates by reference rate bin."""
+def validate_matched_pairs(
+    max_days: Annotated[float, typer.Option(help="Pairing window in days.")] = 1.0,
+) -> None:
+    """Sentinel-2 hit and false-positive rates by reference rate bin (no threshold)."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.matched_pairs))
+    _gate(_run_or_exit(gates.matched_pairs, max_days))
 
 
 @validate_app.command("operator")
-def validate_operator() -> None:
-    """Compare model annual totals with operator-reported figures."""
+def validate_operator(run_id: Annotated[str, typer.Option(help="Model run to compare.")]) -> None:
+    """Compare a run's annual totals with GHGRP figures; every gap needs a written note."""
     from methanewatch.validate import gates
 
-    _gate(_run(gates.operator_comparison))
+    _gate(_run_or_exit(gates.operator_comparison, run_id))
 
 
 @validate_app.command("synthetic")
@@ -251,23 +336,23 @@ def validate_synthetic(
 
 
 @validate_app.command("holdout")
-def validate_holdout() -> None:
+def validate_holdout(
+    folds: Annotated[int, typer.Option()] = 5,
+    synthetic: Annotated[bool, typer.Option(help="Dry run on SYNTHETIC sites.")] = False,
+    allow_unconfirmed: Annotated[bool, typer.Option()] = False,
+) -> None:
     """Fit on 80% of overpasses, predict detections in the held-out 20%."""
+    from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.validate import gates
 
-    _gate(_run(gates.holdout))
-
-
-@validate_app.command("repair-synthetic")
-def validate_repair_synthetic(
-    worlds: Annotated[int, typer.Option(help="Independent simulated worlds.")] = 40,
-    per_world: Annotated[int, typer.Option(help="Pseudo-repairs per world.")] = 4,
-    power: Annotated[int, typer.Option(help="Fits per injected-drop factor.")] = 15,
-) -> None:
-    """Dry run of the repair test on synthetic data: placebo false-positive rate and power."""
-    from methanewatch.validate import repair_synthetic
-
-    _run(repair_synthetic.run, worlds, per_world, power, (0.75, 0.5, 0.25, 0.1))
+    try:
+        passed = _run_or_exit(
+            gates.holdout, folds, synthetic=synthetic, allow_unconfirmed=allow_unconfirmed
+        )
+    except ConfigNotReadyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    _gate(passed)
 
 
 @validate_app.command("placebo")
@@ -280,11 +365,75 @@ def validate_placebo() -> None:
 
 @report_app.command("build")
 def report_build(run_id: Annotated[str, typer.Option()]) -> None:
-    """Build the static dashboard for a model run."""
+    """Build the static dashboard for a model run into reports/site."""
     from methanewatch.report import build
 
     project = config.load_project()
-    _run(build.build_site, run_id, project.resolve(project.paths.reports) / "site")
+    out = project.resolve(project.paths.reports) / "site"
+    try:
+        index = _run_or_exit(build.build_site, project, run_id, out)
+    except build.LintError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"wrote {index}")
+
+
+@wind_app.command("get")
+def wind_get(
+    lon: Annotated[float, typer.Option()],
+    lat: Annotated[float, typer.Option()],
+    time: Annotated[str, typer.Option(help="UTC, e.g. 2025-06-27T19:04")],
+    product: Annotated[str, typer.Option(help="hrrr or era5")] = "hrrr",
+) -> None:
+    """10 m wind at a point (downloads and caches a small GRIB or NetCDF subset)."""
+    import pandas as pd
+
+    from methanewatch.wind.era5 import Era5Provider
+    from methanewatch.wind.hrrr import HrrrProvider
+
+    project = config.load_project()
+    cache = project.resolve(project.paths.raw) / "wind" / product
+    providers = {"hrrr": HrrrProvider, "era5": Era5Provider}
+    if product not in providers:
+        raise typer.BadParameter("product must be hrrr or era5")
+    w = providers[product](cache).get(lon, lat, pd.Timestamp(time, tz="UTC"))
+    typer.echo(
+        f"{w.product} {w.product_version}: u10 {w.u10:.2f} m/s, v10 {w.v10:.2f} m/s, "
+        f"speed {w.speed:.2f} m/s"
+    )
+
+
+@population_app.command("build")
+def population_build() -> None:
+    """Residents within the configured radii of each site -> data/interim/population.csv."""
+    import geopandas as gpd
+    import pandas as pd
+
+    from methanewatch.population import LABEL, MissingCensusKeyError, residents_within
+
+    project = config.load_project()
+    radii = config.load_impact().population_radius_km
+    path = project.resolve(project.paths.interim) / "sites.parquet"
+    if not path.exists():
+        typer.secho("run `mw sites build` first", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    sites = gpd.read_parquet(path)
+    if sites.empty:
+        typer.secho("no site polygons yet", fg=typer.colors.YELLOW)
+        raise typer.Exit(code=2)
+    rows = []
+    try:
+        for site in sites.itertuples():
+            counts = residents_within(site.geometry, radii, project.crs_metric)
+            rows += [
+                {"site_id": site.site_id, "radius_km": r, "residents": n} for r, n in counts.items()
+            ]
+    except MissingCensusKeyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+    out = project.resolve(project.paths.interim) / "population.csv"
+    pd.DataFrame(rows).assign(label=LABEL).to_csv(out, index=False)
+    typer.echo(f"wrote {out}")
 
 
 if __name__ == "__main__":
