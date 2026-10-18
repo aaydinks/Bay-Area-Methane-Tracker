@@ -3,7 +3,7 @@
 ## Screening list: `swis_landfills.csv`
 
 Every SWIS site in the nine Bay Area counties that has a "Solid Waste Landfill" activity:
-36 sites (19 active, 16 closed, 1 closing), including all five pilots. Columns: SWIS
+36 sites (16 active, 19 closed, 1 closing), including all five pilots. Columns: SWIS
 number, name, county, site and landfill status, regulatory status, address, latitude and
 longitude, page URL. Rebuild with `mw ingest calrecycle` then
 `mw datasets build --only calrecycle`.
