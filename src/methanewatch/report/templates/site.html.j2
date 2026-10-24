@@ -43,6 +43,27 @@
 </table>
 </div>
 
+{% if repairs %}
+<h3>Documented repairs</h3>
+<p class="note">
+  Each row asks whether measured emissions fell after a dated repair, compared with control
+  sites over the same months. It does not say why. "Inconclusive" means these passes could not
+  tell; the smallest detectable drop is the change they could have picked up 80% of the time.
+</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Repair date</th><th>Result</th><th class="num">Change after (90% range)</th>
+    <th class="num">Smallest detectable drop</th><th class="num">Passes before / after</th></tr></thead>
+  <tbody>
+  {% for r in repairs %}
+    <tr><td>{{ r.date }}</td><td>{{ r.call }}</td><td class="num">{{ r.change }}</td>
+        <td class="num">{{ r.mde }}</td><td class="num">{{ r.passes }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
 {% if ops %}
 <h3>Operator-reported methane (EPA GHGRP)</h3>
 <p class="note">

@@ -48,9 +48,10 @@ class Repair:
     date_start: datetime
     date_end: datetime | None = None
     repair_id: str = "repair"
+    date_confidence: str = "exact"
 
 
-def _utc(t: datetime) -> pd.Timestamp:
+def to_utc(t: datetime) -> pd.Timestamp:
     ts = pd.Timestamp(t)
     return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
 
@@ -60,13 +61,17 @@ def assign_periods(
 ) -> pd.DataFrame:
     """Label each overpass ``before`` / ``after`` and drop those outside both windows.
 
-    before = [start - W, start), after = (end + gap, end + gap + W]. Overpasses
-    during the repair and the gap that follows are excluded.
+    before = [start - u - W, start - u), after = (end + gap + u, end + gap + u + W],
+    where u is the date uncertainty for the repair's ``date_confidence`` (0 when
+    the date is exact). Overpasses during the repair and the gaps are excluded.
     """
+    if repair.date_confidence not in windows.date_uncertainty_days:
+        raise ValueError(f"unknown date_confidence {repair.date_confidence!r}")
+    u = timedelta(days=windows.date_uncertainty_days[repair.date_confidence])
     w = timedelta(days=round(windows.window_months * 30.4375))
-    start = _utc(repair.date_start)
-    end = _utc(repair.date_end or repair.date_start)
-    after_start = end + timedelta(days=windows.gap_days)
+    start = to_utc(repair.date_start) - u
+    end = to_utc(repair.date_end or repair.date_start)
+    after_start = end + timedelta(days=windows.gap_days) + u
     t = detections["acquired_utc"]
     period = np.select(
         [(t >= start - w) & (t < start), (t > after_start) & (t <= after_start + w)],

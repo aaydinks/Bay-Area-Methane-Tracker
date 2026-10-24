@@ -19,6 +19,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from methanewatch.config import ProjectConfig
+from methanewatch.repair.run import latest_outcomes
 from methanewatch.report.lint import check_page
 
 TEMPLATES = Path(__file__).parent / "templates"
@@ -48,6 +49,39 @@ def num(x: float | None, digits: int = 3) -> str:
         return "0"
     places = digits - 1 - int(np.floor(np.log10(abs(x))))  # negative rounds to tens, hundreds
     return f"{round(x, places):,.{max(0, places)}f}"
+
+
+CALL_LABELS = {
+    "drop": "drop after the repair",
+    "rise": "rise after the repair",
+    "inconclusive": "inconclusive",
+    "insufficient_data": "insufficient data",
+}
+
+
+def repair_rows(outcomes: pd.DataFrame | None, site: str) -> list[dict]:
+    """Repair outcomes for one site, as display strings (% change = exp(effect) - 1)."""
+    if outcomes is None or not len(outcomes):
+        return []
+    rows = []
+    for r in outcomes[outcomes["site_id"] == site].sort_values("date_start").itertuples():
+        has = pd.notna(r.effect_med)
+        pct = (lambda e: f"{(np.exp(e) - 1) * 100:+.0f}%") if has else None
+        rows.append(
+            {
+                "date": pd.Timestamp(r.date_start).strftime("%Y-%m-%d")
+                + ("" if r.date_confidence == "exact" else f" (to the {r.date_confidence})"),
+                "call": CALL_LABELS[r.call],
+                "change": f"{pct(r.effect_med)} ({pct(r.effect_lo)} to {pct(r.effect_hi)})"
+                if has
+                else MISSING,
+                "mde": f"{r.mde_pct:.0f}%"
+                if pd.notna(r.mde_pct)
+                else ("none tested" if has else MISSING),
+                "passes": f"{r.n_before} / {r.n_after}",
+            }
+        )
+    return rows
 
 
 def load_run(project: ProjectConfig, run_id: str) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
@@ -160,6 +194,8 @@ def render_pages(project: ProjectConfig, run_id: str, out_dir: Path) -> dict[Pat
             for r in last.itertuples()
         }
 
+    outcomes = None if is_demo else latest_outcomes(project)
+
     ranked = est[est["status"] != "insufficient_data"].sort_values("E_t_yr_med", ascending=False)
     thin = est[est["status"] == "insufficient_data"]
     pages: dict[Path, tuple[str, str]] = {
@@ -196,6 +232,7 @@ def render_pages(project: ProjectConfig, run_id: str, out_dir: Path) -> dict[Pat
                 row=row,
                 counts=counts,
                 ops=site_ops,
+                repairs=repair_rows(outcomes, site),
                 truth=manifest.get("truth_E_t_yr", {}).get(site) if is_demo else None,
                 chart=json.dumps(timeline_chart(sdet)),
             ),

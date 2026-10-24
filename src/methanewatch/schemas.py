@@ -89,6 +89,41 @@ repairs = pa.DataFrameSchema(
     coerce=True,
 )
 
+REPAIR_CALLS = ["drop", "rise", "inconclusive", "insufficient_data"]
+
+# The engineered remediation outcome: one row per documented repair (PLAN section 7).
+# effect = log(E_after / E_counterfactual); mde_pct = smallest tested drop called in at
+# least 80% of simulated fits on this repair's own pass schedule (null when none was).
+repair_outcomes = pa.DataFrameSchema(
+    {
+        "repair_id": pa.Column(str, unique=True),
+        "site_id": pa.Column(str),
+        "date_start": pa.Column("datetime64[ns]"),
+        "date_confidence": pa.Column(str, pa.Check.isin(["exact", "week", "month"])),
+        "call": pa.Column(str, pa.Check.isin(REPAIR_CALLS)),
+        "effect_med": pa.Column(float, nullable=True),
+        "effect_lo": pa.Column(float, nullable=True),
+        "effect_hi": pa.Column(float, nullable=True),
+        "p_decrease": pa.Column(float, _frac, nullable=True),
+        "dE_t_yr_med": pa.Column(float, nullable=True),
+        "dE_t_yr_lo": pa.Column(float, nullable=True),
+        "dE_t_yr_hi": pa.Column(float, nullable=True),
+        "mde_pct": pa.Column(float, pa.Check.in_range(0, 100), nullable=True),
+        "n_before": pa.Column(int, _nonneg),
+        "n_after": pa.Column(int, _nonneg),
+        "controls": pa.Column(str),
+        "diag_ok": pa.Column("boolean", nullable=True),
+        "reason": pa.Column(str),
+        "run_id": pa.Column(str),
+    },
+    checks=pa.Check(
+        lambda df: (df["call"] == "insufficient_data") | df["effect_med"].notna(),
+        error="an outcome other than insufficient_data needs an effect",
+    ),
+    strict=False,
+    coerce=True,
+)
+
 operator_reports = pa.DataFrameSchema(
     {
         "site_id": pa.Column(str),
