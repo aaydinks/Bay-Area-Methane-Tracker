@@ -268,6 +268,42 @@ def model_demo(seed: Annotated[int, typer.Option()] = 11) -> None:
     typer.echo(f"run {run_id}")
 
 
+@repair_app.command("run")
+def repair_run(
+    allow_unconfirmed: Annotated[
+        bool, typer.Option(help="Use unconfirmed POD curves; stamps outputs provisional.")
+    ] = False,
+    power_fits: Annotated[int, typer.Option(help="Simulated fits per tested drop.")] = 15,
+) -> None:
+    """Outcome of every documented repair, with its minimum detectable drop."""
+    from methanewatch.model.run import ConfigNotReadyError
+    from methanewatch.repair import run
+
+    instruments = config.load_instruments()
+    if instruments.unconfirmed() and not allow_unconfirmed:
+        typer.secho(
+            "unconfirmed POD curves: "
+            + ", ".join(instruments.unconfirmed())
+            + " (rerun with --allow-unconfirmed for provisional output)",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    try:
+        run_id = _run_or_exit(
+            run.run_real,
+            config.load_project(),
+            config.load_model(),
+            instruments,
+            allow_unconfirmed=allow_unconfirmed,
+            n_power_fits=power_fits,
+        )
+    except ConfigNotReadyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"run {run_id}")
+
+
 @repair_app.command("count")
 def repair_count(
     site: Site,

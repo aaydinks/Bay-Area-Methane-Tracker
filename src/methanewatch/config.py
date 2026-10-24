@@ -57,6 +57,10 @@ class RepairWindows(_Strict):
     gap_days: int = Field(ge=0)
     min_overpasses_per_window: int = Field(gt=0)
     call_probability: float = Field(gt=0.5, lt=1)
+    # Extra days excluded on both sides of a repair whose date is known only roughly
+    date_uncertainty_days: dict[str, int] = Field(
+        default_factory=lambda: {"exact": 0, "week": 7, "month": 31}
+    )
 
 
 class ProjectConfig(_Strict):

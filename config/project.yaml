@@ -27,3 +27,9 @@ repair:
   # 0.975 is a two-sided 95% test (nominal false-positive rate 5%), leaving room under the
   # 10% placebo gate. The reported interval stays at interval_mass (90%). ADR 0006.
   call_probability: 0.975
+  # A repair dated only to the week or month: drop this many extra days of overpasses on
+  # both sides of it, so a misdated repair cannot leak "after" passes into "before".
+  date_uncertainty_days:
+    exact: 0
+    week: 7
+    month: 31
