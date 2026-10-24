@@ -73,6 +73,19 @@ detections = pa.DataFrameSchema(
     coerce=True,
 )
 
+site_features = pa.DataFrameSchema(
+    {
+        "site_id": pa.Column(str, unique=True),
+        "status": pa.Column(str),
+        "closed": pa.Column(bool),
+        "area_km2": pa.Column(float, pa.Check.gt(0)),
+        "ghgrp_reporter": pa.Column(bool),
+        "dist_neighbor_m": pa.Column(float, _nonneg, nullable=True),
+    },
+    strict=False,
+    coerce=True,
+)
+
 repairs = pa.DataFrameSchema(
     {
         "repair_id": pa.Column(str, unique=True),

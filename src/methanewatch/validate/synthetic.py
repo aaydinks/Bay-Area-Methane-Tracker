@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from methanewatch import features
 from methanewatch.config import ModelConfig, SyntheticConfig, load_model, load_synthetic
 from methanewatch.model import persistence, simulate
 from methanewatch.model.grid import LogRateGrid
@@ -56,6 +58,7 @@ def fit_replicate(
     cfg: ModelConfig,
     rng: np.random.Generator,
     seed: int,
+    covariates: Sequence[str] = (),
 ) -> pd.DataFrame:
     """Simulate, fit and score one replicate; one row per site."""
     schedule = simulate.poisson_schedule(sites["site_id"].tolist(), syn, rng)
@@ -67,7 +70,10 @@ def fit_replicate(
         release={k: v.release_prob for k, v in syn.instruments.items()},
         meas_sigma_log={k: v.meas_sigma_log for k, v in syn.instruments.items()},
     )
-    idata = persistence.fit(persistence.build_model(data, cfg.priors), syn.sampler, seed=seed)
+    cov = features.design_synthetic(sites, covariates) if covariates else None
+    model = persistence.build_model(data, cfg.priors, cov, beta_sd=cfg.covariates.beta_sd)
+    sampler = cfg.covariates.sampler(syn.sampler, active=bool(covariates))
+    idata = persistence.fit(model, sampler, seed=seed)
     diag = persistence.diagnostics(idata, cfg)
 
     truth = sites.set_index("site_id").loc[data.site_ids]
@@ -91,14 +97,29 @@ def fit_replicate(
     return out
 
 
-def run(n_replicates: int, *, seed: int | None = None, progress: bool = True) -> pd.DataFrame:
+def run(
+    n_replicates: int,
+    *,
+    seed: int | None = None,
+    progress: bool = True,
+    covariates: Sequence[str] = (),
+) -> pd.DataFrame:
     cfg, syn = load_model(), load_synthetic()
     rng = np.random.default_rng(syn.sampler.seed if seed is None else seed)
     frames = []
     t0 = time.time()
     for r in range(n_replicates):
-        sites, hyper = simulate.sites_from_prior(syn.n_sites, cfg.priors, syn, rng)
-        res = fit_replicate(sites, syn, cfg, rng, seed=int(rng.integers(2**31)))
+        sites, hyper = simulate.sites_from_prior(
+            syn.n_sites,
+            cfg.priors,
+            syn,
+            rng,
+            covariates=covariates,
+            beta_sd=cfg.covariates.beta_sd,
+        )
+        res = fit_replicate(
+            sites, syn, cfg, rng, seed=int(rng.integers(2**31)), covariates=covariates
+        )
         frames.append(res.assign(replicate=r, **{f"hyper_{k}": v for k, v in hyper.items()}))
         if progress:
             cov = pd.concat(frames)["E_t_yr_covered"].mean()
@@ -142,6 +163,7 @@ def write_report(
     gate: GateResult,
     out_dir: Path,
     run_id: str,
+    covariates: Sequence[str] = (),
 ) -> Path:
     import matplotlib
 
@@ -215,7 +237,10 @@ def write_report(
     plt.close(fig)
 
     band = syn.coverage_target
-    manifest = run_manifest(run_id, extra={"n_replicates": gate.n_fits, "gate": asdict(gate)})
+    manifest = run_manifest(
+        run_id,
+        extra={"n_replicates": gate.n_fits, "gate": asdict(gate), "covariates": list(covariates)},
+    )
     lines = [
         f"# Gate 3: synthetic recovery ({run_id})",
         "",
@@ -226,6 +251,11 @@ def write_report(
         f"{gate.n_fits} replicates x {syn.n_sites} sites = {gate.n_site_fits} site fits. "
         "Truths drawn from the model's priors; instrument settings from "
         "`config/synthetic.yaml` (SYNTHETIC, not measured values).",
+        "",
+        f"Site covariates: {', '.join(covariates)} (made-up values; coefficients drawn from "
+        f"their Normal(0, {cfg.covariates.beta_sd}) prior, ADR 0008)."
+        if covariates
+        else "Site covariates: none.",
         "",
         "| Quantity | Coverage | 95% Wilson interval |",
         "|---|---|---|",
@@ -267,11 +297,19 @@ def write_report(
     return report
 
 
-def gate(n_replicates: int, out_root: Path, *, n_scenario_replicates: int = 0) -> GateResult:
+def gate(
+    n_replicates: int,
+    out_root: Path,
+    *,
+    n_scenario_replicates: int = 0,
+    covariates: Sequence[str] = (),
+) -> GateResult:
     run_id = new_id("synthetic")
-    results = run(n_replicates)
+    results = run(n_replicates, covariates=covariates)
     scenarios = run_scenarios(n_scenario_replicates) if n_scenario_replicates else None
     result = evaluate(results, load_synthetic())
-    report = write_report(results, scenarios, result, out_root / "synthetic", run_id)
+    report = write_report(
+        results, scenarios, result, out_root / "synthetic", run_id, covariates=covariates
+    )
     print(f"wrote {report}")
     return result

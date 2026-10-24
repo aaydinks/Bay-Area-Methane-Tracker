@@ -141,6 +141,21 @@ class InsufficientData(_Strict):
     max_interval_orders_of_magnitude: float
 
 
+class CovariateSettings(_Strict):
+    """Site-level covariates in the persistence model (ADR 0008). Empty = none."""
+
+    names: tuple[str, ...] = ()
+    beta_sd: float = Field(default=0.5, gt=0)
+    # Covariate fits diverge slightly more often; a smaller step size fixes most of it
+    target_accept: float = Field(default=0.95, gt=0, lt=1)
+
+    def sampler(self, base: Sampler, active: bool) -> Sampler:
+        """``base`` with the covariate target_accept when covariates are in the fit."""
+        if not active or base.target_accept >= self.target_accept:
+            return base
+        return base.model_copy(update={"target_accept": self.target_accept})
+
+
 class ModelConfig(_Strict):
     grid: Grid
     priors: Priors
@@ -148,6 +163,7 @@ class ModelConfig(_Strict):
     diagnostics: Diagnostics
     insufficient_data: InsufficientData
     interval_mass: float = Field(gt=0, lt=1)
+    covariates: CovariateSettings = CovariateSettings()
 
 
 # --- impact.yaml ------------------------------------------------------------

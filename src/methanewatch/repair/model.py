@@ -33,6 +33,7 @@ import pymc as pm
 import pytensor.tensor as pt
 
 from methanewatch.config import ModelConfig, PodCurve, Priors, RepairWindows, Sampler
+from methanewatch.features import Covariates
 from methanewatch.impact import HOURS_PER_YEAR, KG_PER_T
 from methanewatch.model import persistence
 from methanewatch.model.grid import LogRateGrid
@@ -40,6 +41,7 @@ from methanewatch.model.grid import LogRateGrid
 Call = Literal["drop", "rise", "inconclusive", "insufficient_data"]
 PERIODS = ("before", "after")
 REPAIR_PARAMS = ("alpha_f", "alpha_mu", "sigma", "gamma_f", "gamma_mu", "delta_f", "delta_mu")
+COVARIATE_PARAMS = ("beta_f", "beta_mu")
 
 
 @dataclass(frozen=True)
@@ -117,9 +119,19 @@ class RepairResult:
 
 
 def build_model(
-    data: persistence.ModelData, units: pd.DataFrame, treated: str, priors: Priors
+    data: persistence.ModelData,
+    units: pd.DataFrame,
+    treated: str,
+    priors: Priors,
+    covariates: Covariates | None = None,
+    *,
+    beta_sd: float = 0.5,
 ) -> pm.Model:
-    """``units`` has one row per data.site_ids entry with columns site_id, period."""
+    """``units`` has one row per data.site_ids entry with columns site_id, period.
+
+    Site covariates (ADR 0008) shift a site's baseline in both periods, so they
+    never enter the effect itself.
+    """
     sites = sorted(units["site_id"].unique())
     s_idx = pd.Index(sites).get_indexer(units["site_id"])
     after = (units["period"] == "after").to_numpy(float)
@@ -139,8 +151,11 @@ def build_model(
         delta_f = pm.Normal("delta_f", 0, 1.5)
         delta_mu = pm.Normal("delta_mu", 0, 1)
 
-        base_f = alpha_f + tau_f * z_f
-        base_mu = alpha_mu + tau_mu * z_mu
+        names = covariates.names if covariates is not None else ()
+        X = covariates.rows(sites) if covariates is not None else np.zeros((len(sites), 0))
+        shift_f, shift_mu = persistence.covariate_shift(X, names, beta_sd)
+        base_f = alpha_f + shift_f + tau_f * z_f
+        base_mu = alpha_mu + shift_mu + tau_mu * z_mu
         logit_f = base_f[s_idx] + after * (gamma_f + delta_f * is_treated)
         mu = base_mu[s_idx] + after * (gamma_mu + delta_mu * is_treated)
         f = pm.math.sigmoid(logit_f)
@@ -174,6 +189,7 @@ def verify_repair(
     sampler: Sampler,
     seed: int | None = None,
     allow_unconfirmed: bool = False,
+    covariates: Covariates | None = None,
 ) -> RepairResult:
     controls = [c for c in controls if c != repair.site_id]
     sub = detections[detections["site_id"].isin([repair.site_id, *controls])]
@@ -215,9 +231,13 @@ def verify_repair(
         allow_unconfirmed=allow_unconfirmed,
     )
     units = pd.DataFrame([u.split("|") for u in data.site_ids], columns=["site_id", "period"])
-    model = build_model(data, units, repair.site_id, cfg.priors)
-    idata = persistence.fit(model, sampler, seed=seed)
-    diag = persistence.diagnostics(idata, cfg, list(REPAIR_PARAMS))
+    model = build_model(
+        data, units, repair.site_id, cfg.priors, covariates, beta_sd=cfg.covariates.beta_sd
+    )
+    active = covariates is not None and bool(covariates.names)
+    idata = persistence.fit(model, cfg.covariates.sampler(sampler, active=active), seed=seed)
+    checked = [*REPAIR_PARAMS, *(COVARIATE_PARAMS if covariates and covariates.names else ())]
+    diag = persistence.diagnostics(idata, cfg, checked)
     if not diag.ok:
         return empty("fit failed diagnostics", diag_ok=False)
 
