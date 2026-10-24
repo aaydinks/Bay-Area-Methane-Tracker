@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from methanewatch import features
 from methanewatch.config import (
     InstrumentsConfig,
     ModelConfig,
@@ -97,7 +98,15 @@ def fit_real(
         allow_unconfirmed=allow_unconfirmed,
     )
     run_id = new_id("fit")
-    idata = persistence.fit(persistence.build_model(data, cfg.priors), cfg.sampler)
+    cov = None
+    if cfg.covariates.names:
+        feat_path = project.resolve(project.paths.interim) / "site_features.parquet"
+        if not feat_path.exists():
+            raise FileNotFoundError(f"missing {feat_path}; run `mw features build` first")
+        table = pd.read_parquet(feat_path)
+        cov = features.design(table[table["site_id"].isin(data.site_ids)], cfg.covariates.names)
+    model = persistence.build_model(data, cfg.priors, cov, beta_sd=cfg.covariates.beta_sd)
+    idata = persistence.fit(model, cfg.covariates.sampler(cfg.sampler, active=cov is not None))
     diag = persistence.diagnostics(idata, cfg)
     provisional = bool(instruments.unconfirmed(used))
     est = summarize(idata, data, diag, cfg, run_id=run_id, provisional=provisional)
@@ -113,6 +122,7 @@ def fit_real(
             "kind": "real",
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
+            "covariates": cov.manifest() if cov is not None else None,
         },
     )
     return run_id

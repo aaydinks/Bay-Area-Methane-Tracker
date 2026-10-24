@@ -10,6 +10,7 @@ detection reports q * exp(N(0, tau)).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
@@ -18,6 +19,7 @@ from scipy.optimize import brentq
 from scipy.special import expit
 from scipy.stats import truncnorm
 
+from methanewatch import features
 from methanewatch.config import Priors, SyntheticConfig
 from methanewatch.impact import HOURS_PER_YEAR, KG_PER_T
 from methanewatch.model.grid import LogRateGrid, mean_rate, rate_density
@@ -42,9 +44,20 @@ def mu_for_qbar(qbar: float, sigma: float, grid: LogRateGrid) -> float:
 
 
 def sites_from_prior(
-    n_sites: int, priors: Priors, syn: SyntheticConfig, rng: np.random.Generator
+    n_sites: int,
+    priors: Priors,
+    syn: SyntheticConfig,
+    rng: np.random.Generator,
+    *,
+    covariates: Sequence[str] = (),
+    beta_sd: float = 0.5,
 ) -> tuple[pd.DataFrame, dict[str, float]]:
-    """Draw hyperparameters, then site parameters, from the model's priors."""
+    """Draw hyperparameters, then site parameters, from the model's priors.
+
+    With ``covariates``, each site also gets made-up covariate values (one column
+    per name) and the coefficients are drawn from their Normal(0, beta_sd) prior,
+    applied to the covariates as the model standardizes them (ADR 0008).
+    """
     hyper = {
         "alpha_f": rng.normal(priors.alpha_f_mu, priors.alpha_f_sd),
         "tau_f": abs(rng.normal(0, priors.tau_f_sd)),
@@ -52,16 +65,21 @@ def sites_from_prior(
         "tau_mu": abs(rng.normal(0, priors.tau_mu_sd)),
         "sigma": float(np.exp(rng.normal(priors.sigma_log_mu, priors.sigma_log_sd))),
     }
-    f = expit(hyper["alpha_f"] + hyper["tau_f"] * rng.normal(size=n_sites))
-    mu = hyper["alpha_mu"] + hyper["tau_mu"] * rng.normal(size=n_sites)
-    sites = pd.DataFrame(
-        {
-            "site_id": [f"synth-{i:02d}" for i in range(n_sites)],
-            "f": f,
-            "mu": mu,
-            "sigma": hyper["sigma"],
-        }
-    )
+    site_ids = [f"synth-{i:02d}" for i in range(n_sites)]
+    shift_f = shift_mu = np.zeros(n_sites)
+    cols = pd.DataFrame(index=range(n_sites))
+    if covariates:
+        cols = features.synthetic_columns(covariates, n_sites, rng)
+        X = features.design_synthetic(cols.assign(site_id=site_ids), covariates).X
+        beta_f = rng.normal(0, beta_sd, len(covariates))
+        beta_mu = rng.normal(0, beta_sd, len(covariates))
+        shift_f, shift_mu = X @ beta_f, X @ beta_mu
+        hyper |= {f"beta_f_{n}": b for n, b in zip(covariates, beta_f, strict=True)}
+        hyper |= {f"beta_mu_{n}": b for n, b in zip(covariates, beta_mu, strict=True)}
+    f = expit(hyper["alpha_f"] + shift_f + hyper["tau_f"] * rng.normal(size=n_sites))
+    mu = hyper["alpha_mu"] + shift_mu + hyper["tau_mu"] * rng.normal(size=n_sites)
+    sites = pd.DataFrame({"site_id": site_ids, "f": f, "mu": mu, "sigma": hyper["sigma"]})
+    sites = pd.concat([sites, cols], axis=1)
     return with_truth(sites, syn), hyper
 
 

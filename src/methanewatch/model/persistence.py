@@ -14,6 +14,7 @@ the number of detections, not overpasses.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -23,6 +24,7 @@ import pytensor.tensor as pt
 import xarray as xr
 
 from methanewatch.config import ModelConfig, PodCurve, Priors, Sampler
+from methanewatch.features import Covariates
 from methanewatch.impact import HOURS_PER_YEAR, KG_PER_T
 from methanewatch.model.grid import LogRateGrid
 from methanewatch.model.pod import pod_matrix
@@ -135,7 +137,32 @@ def mean_rate(mu, sigma, grid: LogRateGrid):
     return pt.exp(log_rate_weights(mu, sigma, grid)) @ pt.as_tensor(grid.q)
 
 
-def build_model(data: ModelData, priors: Priors) -> pm.Model:
+def covariate_shift(X: np.ndarray, names: Sequence[str], beta_sd: float):
+    """``X . beta_f`` and ``X . beta_mu`` for site covariates (ADR 0008); zeros when none.
+
+    Call inside a model context. With no covariates no variables are added, so the
+    model is exactly the one without covariates.
+    """
+    if X.shape[1] == 0:
+        return 0.0, 0.0
+    model = pm.modelcontext(None)
+    if "covariate" not in model.coords:
+        model.add_coord("covariate", list(names))
+    beta_f = pm.Normal("beta_f", 0, beta_sd, dims="covariate")
+    beta_mu = pm.Normal("beta_mu", 0, beta_sd, dims="covariate")
+    Xt = pt.as_tensor(X)
+    return Xt @ beta_f, Xt @ beta_mu
+
+
+def build_model(
+    data: ModelData,
+    priors: Priors,
+    covariates: Covariates | None = None,
+    *,
+    beta_sd: float = 0.5,
+) -> pm.Model:
+    names = covariates.names if covariates is not None else ()
+    X = covariates.rows(data.site_ids) if covariates is not None else np.zeros((data.n_sites, 0))
     with pm.Model(coords={"site": data.site_ids}) as model:
         alpha_f = pm.Normal("alpha_f", priors.alpha_f_mu, priors.alpha_f_sd)
         tau_f = pm.HalfNormal("tau_f", priors.tau_f_sd)
@@ -144,9 +171,10 @@ def build_model(data: ModelData, priors: Priors) -> pm.Model:
         sigma = pm.LogNormal("sigma", priors.sigma_log_mu, priors.sigma_log_sd)
         z_f = pm.Normal("z_f", 0, 1, dims="site")
         z_mu = pm.Normal("z_mu", 0, 1, dims="site")
+        shift_f, shift_mu = covariate_shift(X, names, beta_sd)
 
-        f = pm.Deterministic("f", pm.math.sigmoid(alpha_f + tau_f * z_f), dims="site")
-        mu = pm.Deterministic("mu", alpha_mu + tau_mu * z_mu, dims="site")
+        f = pm.Deterministic("f", pm.math.sigmoid(alpha_f + shift_f + tau_f * z_f), dims="site")
+        mu = pm.Deterministic("mu", alpha_mu + shift_mu + tau_mu * z_mu, dims="site")
         qbar = pm.Deterministic("qbar", mean_rate(mu, sigma, data.grid), dims="site")
         pm.Deterministic("E_t_yr", f * qbar * HOURS_PER_YEAR / KG_PER_T, dims="site")
         pm.Potential("loglik", loglik(f, mu, sigma, data))
@@ -181,7 +209,8 @@ def diagnostics(
 ) -> Diagnostics:
     import arviz as az
 
-    names = var_names or [*HYPER, "f", "mu"]
+    present = set(idata["posterior"].to_dataset().data_vars)
+    names = var_names or [*HYPER, *(b for b in ("beta_f", "beta_mu") if b in present), "f", "mu"]
     rhat = az.rhat(idata, var_names=names).to_dataset()
     ess = az.ess(idata, var_names=names, method="bulk").to_dataset()
     rhat_max = max(float(v.max()) for v in rhat.data_vars.values())

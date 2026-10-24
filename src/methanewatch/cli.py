@@ -30,6 +30,7 @@ report_app = typer.Typer(no_args_is_help=True, help="Dashboard and publications 
 wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantification (phase 4).")
 population_app = typer.Typer(no_args_is_help=True, help="Residents near each site (context only).")
 datasets_app = typer.Typer(no_args_is_help=True, help="Committed copy of each source dataset.")
+features_app = typer.Typer(no_args_is_help=True, help="Site traits for model covariates.")
 
 for name, sub in [
     ("config", config_app),
@@ -44,6 +45,7 @@ for name, sub in [
     ("wind", wind_app),
     ("population", population_app),
     ("datasets", datasets_app),
+    ("features", features_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -378,12 +380,17 @@ def validate_synthetic(
     quick: Annotated[bool, typer.Option(help="20 replicates instead of 200.")] = False,
     replicates: Annotated[int | None, typer.Option(help="Override the replicate count.")] = None,
     scenario_replicates: Annotated[int, typer.Option(help="Fixed-truth scenario fits.")] = 20,
+    covariates: Annotated[
+        str | None,
+        typer.Option(help="Comma-separated site covariates to simulate and fit (ADR 0008)."),
+    ] = None,
 ) -> None:
     """Gate 3: 90% intervals cover the truth 85-95% of the time on simulated data."""
     from methanewatch.validate import gates
 
     n = replicates or (20 if quick else 200)
-    _gate(_run(gates.synthetic_recovery, n, 0 if quick else scenario_replicates))
+    names = tuple(c.strip() for c in covariates.split(",") if c.strip()) if covariates else ()
+    _gate(_run(gates.synthetic_recovery, n, 0 if quick else scenario_replicates, names))
 
 
 @validate_app.command("holdout")
@@ -497,6 +504,46 @@ def population_build() -> None:
     out = project.resolve(project.paths.interim) / "population.csv"
     pd.DataFrame(rows).assign(label=LABEL).to_csv(out, index=False)
     typer.echo(f"wrote {out}")
+
+
+@features_app.command("build")
+def features_build() -> None:
+    """One row of traits per site -> data/interim/site_features.parquet (ADR 0008)."""
+    import geopandas as gpd
+    import pandas as pd
+
+    from methanewatch import features
+
+    project = config.load_project()
+    interim = project.resolve(project.paths.interim)
+    path = interim / "sites.parquet"
+    if not path.exists():
+        typer.secho("run `mw sites build` first", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    sites = gpd.read_parquet(path)
+    if sites.empty:
+        typer.secho("no site polygons yet", fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=2)
+    neighbors_path = interim / "neighbors.parquet"
+    neighbors = (
+        gpd.read_parquet(neighbors_path)
+        if neighbors_path.exists()
+        else gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+    )
+    registry = project.resolve(project.paths.registry)
+    crosswalk = pd.read_csv(registry / "operator_crosswalk.csv", dtype=str)
+    swis = project.resolve(project.paths.datasets) / "calrecycle" / "swis_pilot_sites.csv"
+    fallback = (
+        pd.read_csv(swis).rename(columns={"operational_status": "status"})[["site_id", "status"]]
+        if swis.exists()
+        else None
+    )
+    table = features.build_site_features(
+        sites, neighbors, crosswalk, fallback, metric_crs=project.crs_metric
+    )
+    out = interim / "site_features.parquet"
+    table.to_parquet(out)
+    typer.echo(f"wrote {len(table)} sites to {out}")
 
 
 @datasets_app.command("build")

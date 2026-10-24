@@ -35,3 +35,11 @@ insufficient_data:
   max_interval_orders_of_magnitude: 2.0
 
 interval_mass: 0.90
+
+# Site-level covariates (ADR 0008): shift each site's emitting share and typical rate
+# by beta . X_s. Choose from closed, log_area, ghgrp_reporter, log_dist_neighbor; at most
+# two or three for ~36 sites. Empty = the model without covariates.
+covariates:
+  names: []
+  beta_sd: 0.5 # Normal(0, beta_sd) prior on each standardized coefficient
+  target_accept: 0.95 # used instead of the sampler's when covariates are on (ADR 0008)

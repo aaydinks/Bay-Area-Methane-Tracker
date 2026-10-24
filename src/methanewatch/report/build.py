@@ -167,6 +167,9 @@ def validation_summaries(reports_root: Path) -> list[dict]:
         # Repair dry runs from before ADR 0006 used the 90%-interval call rule.
         if md.parent.name == "repair-synthetic" and "Call rule:" not in text:
             summary += " (superseded: earlier call rule, see ADR 0006)"
+        covs = re.search(r"Site covariates: ([^(\n]+?)\s*(\(|\.?$)", text, re.M)
+        if covs and covs.group(1).strip(" .") != "none":
+            summary += f" (with site covariates {covs.group(1).strip()}, see ADR 0008)"
         out.append({"title": title, "path": f"{md.parent.name}/{md.name}", "result": summary})
     return out
 
