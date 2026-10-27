@@ -101,8 +101,11 @@ def build_detections(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Join attributed plumes to usable overpasses on (site, instrument, UTC day).
 
-    Returns ``(detections, unmatched_plumes)``. Several plumes from one site on one
-    overpass are summed; their errors add in quadrature.
+    Returns ``(detections, unmatched_plumes)``. Several plumes from one site in one
+    scene (same acquisition time) are summed: they are separate sources seen at
+    once, and their errors add in quadrature. Aircraft fly several lines over a
+    site in one day, and each line sees the same sources again, so the per-scene
+    totals of one day are averaged, not summed.
     """
     usable = overpasses[overpasses["usable"]].copy()
     usable["day"] = pd.to_datetime(usable["acquired_utc"], utc=True).dt.floor("D")
@@ -113,10 +116,16 @@ def build_detections(
     no_rate = pl[pl["q_kg_hr"].isna()].assign(reason="no emission rate")
     pl = pl[pl["q_kg_hr"].notna()]
     pl["var"] = pl["q_sigma_kg_hr"] ** 2
-    per_pass = pl.groupby(["site_id", "instrument", "day"], as_index=False).agg(
-        q_obs_kg_hr=("q_kg_hr", "sum"),
-        var=("var", "sum"),
+    per_scene = pl.groupby(["site_id", "instrument", "day", "acquired_utc"], as_index=False).agg(
+        q=("q_kg_hr", "sum"),
+        var=("var", lambda v: v.sum(min_count=len(v))),  # NaN if any error is missing
         n_plumes=("plume_id", "size"),
+    )
+    per_pass = per_scene.groupby(["site_id", "instrument", "day"], as_index=False).agg(
+        q_obs_kg_hr=("q", "mean"),
+        var=("var", lambda v: v.sum(min_count=len(v)) / len(v) ** 2),
+        n_plumes=("n_plumes", "sum"),
+        n_scenes=("q", "size"),
     )
     per_pass["q_sigma_kg_hr"] = np.sqrt(per_pass["var"])
 
@@ -126,6 +135,7 @@ def build_detections(
     # Missing reported errors stay NaN; the model falls back to the instrument default.
     det["q_sigma_log"] = q_sigma_log(det["q_obs_kg_hr"], det["q_sigma_kg_hr"])
     det["n_plumes"] = det["n_plumes"].fillna(0).astype(int)
+    det["n_scenes"] = det["n_scenes"].fillna(0).astype(int)
     det["multi_plume"] = det["n_plumes"] > 1
 
     matched = per_pass.merge(usable[keys], on=keys, how="left", indicator=True)
@@ -142,6 +152,7 @@ def build_detections(
         "q_obs_kg_hr",
         "q_sigma_log",
         "n_plumes",
+        "n_scenes",
         "multi_plume",
     ]
     return schemas.detections.validate(det[cols]), unmatched

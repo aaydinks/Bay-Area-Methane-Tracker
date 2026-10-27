@@ -11,6 +11,13 @@ paths:
   datasets: datasets # committed copy of each source dataset, one folder per source
   reports: reports
 
+# What `mw refresh` pulls each time. Every refresh repeats the full window up to today,
+# so late-published data and reprocessed plumes are picked up; earlier pulls are kept.
+ingest:
+  start: 2022-08-01 # EMIT's first methane scenes are from 2022-08-10
+  bbox: [-123.64, 36.89, -121.20, 38.87] # the nine Bay Area counties (Census TIGERweb extent)
+  sentinel2_bbox: [-122.8, 37.3, -121.8, 38.4] # around the five pilot sites; scenes are many
+
 attribution:
   buffer_m: 500 # plume origin within polygon + buffer -> attributed to the site
   search_radius_km: 5 # pull every plume within this distance of a site

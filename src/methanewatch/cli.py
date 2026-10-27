@@ -80,6 +80,40 @@ def version() -> None:
     typer.echo(__version__)
 
 
+@app.command()
+def refresh(
+    end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
+    skip: Annotated[
+        list[str] | None, typer.Option(help="Source to leave out: emit, sentinel2, carbonmapper")
+    ] = None,
+    csv: Annotated[bool, typer.Option(help="Also write CSV copies to data/interim/csv")] = True,
+) -> None:
+    """Pull every source again and rebuild the interim tables. Safe to repeat on a schedule.
+
+    Exits 1 if any step failed; the tables then come from the earlier pulls on disk.
+    """
+    from methanewatch import refresh as refresh_mod
+
+    project = config.load_project()
+    try:
+        manifest = refresh_mod.run(
+            project,
+            end=date.fromisoformat(end) if end else None,
+            skip=skip or (),
+            csv=csv,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    for name, result in manifest["steps"].items():
+        if not result["ok"]:
+            typer.secho(f"{name}: FAILED {result['error']}", fg=typer.colors.RED, err=True)
+            continue
+        detail = {k: v for k, v in result.items() if k != "ok"}
+        typer.echo(f"{name}: ok " + ", ".join(f"{k}={v}" for k, v in detail.items()))
+    typer.echo(f"manifest: data/interim/refresh/{manifest['run_id']}.json")
+    raise typer.Exit(code=0 if manifest["ok"] else 1)
+
+
 @config_app.command("check")
 def config_check() -> None:
     """Validate every config file and list constants that are still unconfirmed."""
@@ -137,15 +171,22 @@ def ingest_carbonmapper(
     start: Annotated[str, typer.Option(help="YYYY-MM-DD")] = "2022-08-01",
     end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
     bbox: BBoxOpt = None,
+    offline: Annotated[
+        bool, typer.Option(help="Rebuild the interim tables from the newest pull, no download")
+    ] = False,
 ) -> None:
     """Carbon Mapper CH4 plumes (solid-waste and all sectors) and scene footprints."""
-    from methanewatch.ingest import carbonmapper
+    from methanewatch.ingest import pipeline
 
     project = config.load_project()
-    stop = date.fromisoformat(end) if end else date.today()
-    raw = project.resolve(project.paths.raw)
-    pull_dir = carbonmapper.pull(_bbox(project, bbox), date.fromisoformat(start), stop, raw)
-    typer.echo(f"wrote {pull_dir}")
+    if offline:
+        counts = pipeline.write_carbonmapper(project)
+    else:
+        stop = date.fromisoformat(end) if end else date.today()
+        counts = pipeline.ingest_carbonmapper(
+            project, _bbox(project, bbox), date.fromisoformat(start), stop
+        )
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
@@ -509,41 +550,10 @@ def population_build() -> None:
 @features_app.command("build")
 def features_build() -> None:
     """One row of traits per site -> data/interim/site_features.parquet (ADR 0008)."""
-    import geopandas as gpd
-    import pandas as pd
-
     from methanewatch import features
 
-    project = config.load_project()
-    interim = project.resolve(project.paths.interim)
-    path = interim / "sites.parquet"
-    if not path.exists():
-        typer.secho("run `mw sites build` first", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
-    sites = gpd.read_parquet(path)
-    if sites.empty:
-        typer.secho("no site polygons yet", fg=typer.colors.YELLOW, err=True)
-        raise typer.Exit(code=2)
-    neighbors_path = interim / "neighbors.parquet"
-    neighbors = (
-        gpd.read_parquet(neighbors_path)
-        if neighbors_path.exists()
-        else gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
-    )
-    registry = project.resolve(project.paths.registry)
-    crosswalk = pd.read_csv(registry / "operator_crosswalk.csv", dtype=str)
-    swis = project.resolve(project.paths.datasets) / "calrecycle" / "swis_pilot_sites.csv"
-    fallback = (
-        pd.read_csv(swis).rename(columns={"operational_status": "status"})[["site_id", "status"]]
-        if swis.exists()
-        else None
-    )
-    table = features.build_site_features(
-        sites, neighbors, crosswalk, fallback, metric_crs=project.crs_metric
-    )
-    out = interim / "site_features.parquet"
-    table.to_parquet(out)
-    typer.echo(f"wrote {len(table)} sites to {out}")
+    table = _run_or_exit(features.write_site_features, config.load_project())
+    typer.echo(f"wrote {len(table)} sites to data/interim/site_features.parquet")
 
 
 @datasets_app.command("build")

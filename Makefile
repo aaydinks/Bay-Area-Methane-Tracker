@@ -1,4 +1,4 @@
-.PHONY: setup lint format test test-all check validate-quick all clean
+.PHONY: setup lint format test test-all check refresh validate-quick all clean
 
 setup: ## install the locked environment and git hooks
 	uv sync --all-extras
@@ -20,6 +20,9 @@ test-all:
 
 check: lint test
 	uv run mw config check
+
+refresh: ## pull every source again and rebuild data/interim (safe to repeat)
+	uv run mw refresh
 
 validate-quick: ## 20-replicate synthetic coverage check
 	uv run mw validate synthetic --quick
