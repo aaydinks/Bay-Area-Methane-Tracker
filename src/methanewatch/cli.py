@@ -189,7 +189,8 @@ def ingest_calrecycle() -> None:
 
 @ingest_app.command("boundaries")
 def ingest_boundaries() -> None:
-    """Census 2025 counties, places, tracts, roads and water, and the CARB Bay Area district."""
+    """Census 2025 counties, places, tracts, roads and water, and CARB's Bay Area district
+    outline (as of 2004; check against current BAAQMD)."""
     from methanewatch.ingest import boundaries
 
     project = config.load_project()
@@ -600,6 +601,13 @@ def datasets_build(
     for name in only or [s for s in steps if s not in network]:
         counts = _run_or_exit(steps[name])
         typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+        if name == "boundaries":
+            from methanewatch.ingest.boundaries import DISTRICT_AS_OF, DISTRICT_CAVEAT
+
+            typer.secho(
+                f"air district outline is as of {DISTRICT_AS_OF}: {DISTRICT_CAVEAT}",
+                fg=typer.colors.YELLOW,
+            )
 
 
 if __name__ == "__main__":

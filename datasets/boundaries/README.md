@@ -24,8 +24,8 @@ Both files are EPSG:4326, coordinates rounded to 6 decimals (about 0.1 m).
 
 ## What the outline shows
 
-Share of each county's land inside the 2004 district outline, from these two files at
-full detail:
+Share of each county's area inside the 2004 district outline, from the full-detail county
+outline (which includes inlets such as Tomales Bay) and the district file:
 
 | County | Share inside |
 |---|---|

@@ -9,10 +9,10 @@ outline dates from March 2004, so it is labelled "check against current BAAQMD" 
 
 ## Why it was needed
 
-Maps of the project data were drawn from boundary files downloaded by hand, with no record of where they
-came from. A later step will also say which air district each landfill sits in, purely as a description,
-never as a model input. Both need the same outlines, pulled the same way as every other source: from a
-recorded address, at a recorded time, with a fingerprint of each file.
+Maps of the project data were drawn from boundary files downloaded by hand, outside the pipeline and
+without a pull record. A later step will also say which air district each landfill sits in, purely as a
+description, never as a model input. Both need the same outlines, pulled the same way as every other source:
+from a recorded address, at a recorded time, with a fingerprint of each file.
 
 ## What it adds
 
@@ -25,7 +25,7 @@ recorded address, at a recorded time, with a fingerprint of each file.
 
 ## What we learned
 
-- **Split counties.** CARB's 2004 outline takes in about 40% of Solano's and Sonoma's land. The other seven
+- **Split counties.** CARB's 2004 outline takes in about 40% of Solano's and Sonoma's area. The other seven
   counties are 96.6 to 99.7% inside. The gaps are where the 2004 outline and the 2025 county lines disagree:
   along shorelines, inlets such as Tomales Bay, and county lines.
 - **Landfills.** 32 of the 36 landfills in the screening list fall inside the 2004 outline. One of the four
