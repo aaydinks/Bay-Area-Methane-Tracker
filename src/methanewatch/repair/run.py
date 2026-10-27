@@ -11,6 +11,9 @@ that repair's own pass schedule:
 3. Run the same repair test on each simulation; the MDE is the mildest drop
    called in at least ``target`` of the fits.
 
+Site covariates chosen in ``config/model.yaml`` (ADR 0008) enter all three
+fits, so the MDE comes from the same model as the call.
+
 An "inconclusive" outcome then reads as "a drop smaller than the MDE could not
 have been seen", not "nothing changed". The outcomes are screening indications
 for investigation; they say whether measured emissions fell after the dated
@@ -26,7 +29,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import truncnorm
 
-from methanewatch import schemas
+from methanewatch import features, schemas
 from methanewatch.config import (
     InstrumentsConfig,
     ModelConfig,
@@ -56,6 +59,12 @@ class Settings:
     windows: RepairWindows
     sampler: Sampler
     allow_unconfirmed: bool = False
+    covariates: features.Covariates | None = None
+
+    def fit_sampler(self) -> Sampler:
+        """``sampler``, with the covariate target_accept when covariates are in the fit."""
+        active = self.covariates is not None and bool(self.covariates.names)
+        return self.cfg.covariates.sampler(self.sampler, active=active)
 
     def verify(self, det: pd.DataFrame, rep: Repair, controls: list[str], seed: int):
         return verify_repair(
@@ -71,6 +80,7 @@ class Settings:
             sampler=self.sampler,
             seed=seed,
             allow_unconfirmed=self.allow_unconfirmed,
+            covariates=self.covariates,
         )
 
 
@@ -100,9 +110,10 @@ def baseline_params(labelled: pd.DataFrame, settings: Settings, seed: int) -> pd
         meas_sigma_log=settings.meas_sigma_log,
         allow_unconfirmed=settings.allow_unconfirmed,
     )
-    idata = persistence.fit(
-        persistence.build_model(data, settings.cfg.priors), settings.sampler, seed=seed
+    model = persistence.build_model(
+        data, settings.cfg.priors, settings.covariates, beta_sd=settings.cfg.covariates.beta_sd
     )
+    idata = persistence.fit(model, settings.fit_sampler(), seed=seed)
     f = np.median(persistence.posterior_draws(idata, "f"), axis=0)
     mu = np.median(persistence.posterior_draws(idata, "mu"), axis=0)
     sigma = float(np.median(persistence.posterior_draws(idata, "sigma")))
@@ -120,6 +131,9 @@ def simulate_on_schedule(
     factor: float = 1.0,
 ) -> pd.DataFrame:
     """New detections on the real passes; ``treated``'s f times ``factor`` from ``after``."""
+    # Site covariates need no handling here: the per-site f and mu from
+    # baseline_params already include each site's covariate shift, and a site's
+    # covariates are the same before and after the repair.
     p = params.set_index("site_id").loc[passes["site_id"]]
     f = p["f"].to_numpy().copy()
     if treated is not None:
@@ -238,6 +252,19 @@ def run_all(
     return outcomes, power
 
 
+def site_covariates(
+    project: ProjectConfig, cfg: ModelConfig, sites: Sequence[str]
+) -> features.Covariates | None:
+    """The configured covariates over ``sites``, or None when the list is empty."""
+    if not cfg.covariates.names:
+        return None
+    path = project.resolve(project.paths.interim) / "site_features.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"missing {path}; run `mw features build` first")
+    table = pd.read_parquet(path)
+    return features.design(table[table["site_id"].isin(sites)], cfg.covariates.names)
+
+
 def run_real(
     project: ProjectConfig,
     cfg: ModelConfig,
@@ -263,6 +290,7 @@ def run_real(
     if not det_path.exists():
         raise FileNotFoundError(f"missing {det_path}; run `mw coverage build` first")
     det = pd.read_parquet(det_path)
+    cov = site_covariates(project, cfg, sorted(det["site_id"].unique()))
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
     used = sorted(det["instrument"].unique())
@@ -279,6 +307,7 @@ def run_real(
         windows=project.repair,
         sampler=cfg.sampler,
         allow_unconfirmed=allow_unconfirmed,
+        covariates=cov,
     )
     run_id = new_id("repairs")
     outcomes, power = run_all(
@@ -300,6 +329,7 @@ def run_real(
             "n_power_fits": n_power_fits,
             "power_factors": list(POWER_FACTORS),
             "power_target": POWER_TARGET,
+            "covariates": cov.manifest() if cov is not None else None,
         },
     )
     (out / f"{run_id}.json").write_text(json.dumps(manifest, indent=2, default=str))
