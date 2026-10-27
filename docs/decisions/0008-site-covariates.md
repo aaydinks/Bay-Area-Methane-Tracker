@@ -75,6 +75,7 @@ sampler's 0.90.
   site polygons.
 - **Repair runner:** `mw repair run` passes the configured covariates to the repair fit, the "before" baseline
   fit and the power-curve fits, so the minimum detectable drop comes from the same model as the call. It
-  records them in its run manifest, and it stops with exit code 2 if `site_features.parquet` is missing.
+  records them in its run manifest. When covariates are set and `site_features.parquet` is missing, it stops
+  with exit code 2.
 - **Re-checks:** any change to the covariate list or `beta_sd` means rerunning the prior predictive check
   (ADR 0005), Gate 3 and the hold-out test.
