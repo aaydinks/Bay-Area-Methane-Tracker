@@ -187,6 +187,20 @@ def ingest_calrecycle() -> None:
     typer.echo(f"wrote {calrecycle.pull(project.resolve(project.paths.raw))}")
 
 
+@ingest_app.command("boundaries")
+def ingest_boundaries() -> None:
+    """Census 2025 counties, places, tracts, roads and water, and the CARB Bay Area district."""
+    from methanewatch.ingest import boundaries
+
+    project = config.load_project()
+    typer.echo(f"wrote {boundaries.pull(project.resolve(project.paths.raw))}")
+    typer.secho(
+        f"air district outline is CARB's as of {boundaries.DISTRICT_AS_OF}: "
+        f"{boundaries.DISTRICT_CAVEAT}",
+        fg=typer.colors.YELLOW,
+    )
+
+
 @ingest_app.command("ghgrp")
 def ingest_ghgrp(year: Annotated[int, typer.Option(help="Facility-list year")] = 2023) -> None:
     """EPA GHGRP subpart HH facilities and operator-reported methane for crosswalked sites."""
@@ -551,7 +565,7 @@ def datasets_build(
     only: Annotated[
         list[str] | None,
         typer.Option(
-            help="emit, sentinel2, carbonmapper, ghgrp, calrecycle, census, "
+            help="emit, sentinel2, carbonmapper, ghgrp, calrecycle, census, boundaries, "
             "sentinel2-crops, emit-files"
         ),
     ] = None,
@@ -575,6 +589,7 @@ def datasets_build(
         "ghgrp": lambda: datasets.build_ghgrp(raw, interim, root / "ghgrp"),
         "calrecycle": lambda: datasets.build_calrecycle(raw, root / "calrecycle"),
         "census": lambda: datasets.build_census(raw, root / "census", sites, radius_km=6),
+        "boundaries": lambda: datasets.build_boundaries(raw, root / "boundaries"),
         "sentinel2-crops": lambda: datasets.build_sentinel2_crops(root, interim, sites),
         "emit-files": lambda: datasets.build_emit_files(raw, root, sites),
     }

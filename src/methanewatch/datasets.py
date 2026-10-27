@@ -303,3 +303,19 @@ def build_calrecycle(raw: Path, out: Path) -> dict[str, int]:
     df.to_csv(out / "swis_landfills.csv", index=False)
     _copy_manifests([pulls[-1]], out)
     return {"calrecycle_landfills": len(df)}
+
+
+def build_boundaries(raw: Path, out: Path) -> dict[str, int]:
+    """Nine-county outlines and the Bay Area air district; tracts, roads and water stay raw."""
+    from methanewatch.ingest import boundaries
+
+    pulls = sorted((raw / "boundaries").glob("boundaries-*"))
+    if not pulls:
+        raise FileNotFoundError("no boundaries pull yet; run `mw ingest boundaries`")
+    out.mkdir(parents=True, exist_ok=True)
+    counties = boundaries.counties(pulls[-1] / boundaries.COUNTY_FILE, "EPSG:32610")
+    _geojson(counties, out / f"counties_{boundaries.VINTAGE}.geojson")
+    district = boundaries.district(pulls[-1] / boundaries.DISTRICT_FILE)
+    _geojson(district, out / "air_district_bay_area.geojson")
+    _copy_manifests([pulls[-1]], out)
+    return {"boundaries_counties": len(counties), "boundaries_air_district": len(district)}
