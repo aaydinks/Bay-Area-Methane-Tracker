@@ -248,8 +248,13 @@ def test_restricted_defaults_to_true_on_source_tables(db):
     defaults = rows(
         db,
         """
-        select table_name, column_default from information_schema.columns
-        where table_schema = 'public' and column_name = 'restricted' order by 1
+        select c.table_name, c.column_default
+        from information_schema.columns c
+        join information_schema.tables t
+          on t.table_schema = c.table_schema and t.table_name = c.table_name
+        where c.table_schema = 'public' and c.column_name = 'restricted'
+          and t.table_type = 'BASE TABLE'
+        order by 1
         """,
     )
     assert [t for t, _ in defaults] == ["check_results", "passes", "plumes", "site_estimates"]
