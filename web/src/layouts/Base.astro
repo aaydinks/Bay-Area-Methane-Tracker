@@ -72,7 +72,7 @@ const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWi
     </header>
 
     {isFixture && <Banner tone="warn" marker="fixture">Sample data for development. Nothing on this build is a real result.</Banner>}
-    {publication?.simulated && <Banner tone="warn" marker="simulated">Simulated data: these sites and figures were generated with known truths to test the method. They are not real landfills.</Banner>}
+    {publication?.simulated && <Banner tone="warn" marker="simulated">Simulated data: these sites and figures come from a simulation with known true values, used to test the method. They are not real landfills.</Banner>}
     {!publication && <Banner>{EXPECTED.publication}</Banner>}
     {publication?.provisional && (
       <Banner>Provisional: site outlines are placeholders and some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
