@@ -14,4 +14,5 @@ One short file per decision: context, options, choice, consequences. Copy `0000-
 | 0008 | [Site traits as model covariates](0008-site-covariates.md) (accepted): closed, log area; empty by default | Month 2 |
 | 0009 | [Public website and publishing database](0009-website-and-database.md) (accepted): Cloudflare Pages behind Access, Astro, Supabase snapshots with visibility and restricted flags, build-time data | Month 2 |
 | 0010 | [Dated checks as the unit of the before/after test](0010-dated-checks.md) (accepted): one registry of inspections, notices, repairs and plume notices, one test | Month 2 |
+| 0011 | [Chunked and out-of-core processing](0011-chunked-processing.md) (accepted): measured; tables stay in pandas; Sentinel-2 search pages of 100 and parallel band reads | Month 2 |
 | 0012 | [Telling clouds from plumes in the Sentinel-2 retrieval: feasibility](0012-cloud-plume-feasibility.md) (accepted): CloudSEN12+ (CC0) for cloud labels, no real plume labels usable for training, pixels from the Google mirror or Copernicus Data Space, a small tree model against Sen2Cor and s2cloudless | Month 2 |
