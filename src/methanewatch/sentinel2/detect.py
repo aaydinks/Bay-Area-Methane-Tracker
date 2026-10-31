@@ -37,6 +37,26 @@ def robust_sigma(values: np.ndarray) -> float:
     return float(1.4826 * np.median(np.abs(v - np.median(v))))
 
 
+def candidate_components(
+    vals: np.ndarray, cfg: S2Detection | None = None
+) -> tuple[list[np.ndarray], float]:
+    """Boolean masks of every candidate component in ``vals`` (NaN = masked), and sigma.
+
+    Candidates are pixels above median + k * robust sigma, grouped 8-neighbour, with at
+    least ``min_pixels`` pixels. Empty when the background has no spread.
+    """
+    cfg = cfg or load_sentinel2().detection
+    sigma = robust_sigma(vals)
+    if not np.isfinite(sigma) or sigma == 0:
+        return [], sigma
+    threshold = np.nanmedian(vals) + cfg.k_sigma * sigma
+    above = np.nan_to_num(vals, nan=-np.inf) > threshold
+    labels, n = ndimage.label(above, structure=np.ones((3, 3), dtype=int))
+    sizes = np.bincount(labels.ravel(), minlength=n + 1)
+    comps = [labels == lab for lab in range(1, n + 1) if sizes[lab] >= cfg.min_pixels]
+    return comps, sigma
+
+
 def detect_plume(
     enhancement: xr.DataArray,
     valid: xr.DataArray,
@@ -46,22 +66,13 @@ def detect_plume(
     cfg: S2Detection | None = None,
 ) -> Detection | None:
     """Largest qualifying plume whose origin falls in ``site_area``, or None."""
-    cfg = cfg or load_sentinel2().detection
     vals = np.where(valid.values, enhancement.values, np.nan)
-    sigma = robust_sigma(vals)
-    if not np.isfinite(sigma) or sigma == 0:
-        return None
-    threshold = np.nanmedian(vals) + cfg.k_sigma * sigma
-    candidates = np.nan_to_num(vals, nan=-np.inf) > threshold
-    labels, n = ndimage.label(candidates, structure=np.ones((3, 3), dtype=int))
+    comps, sigma = candidate_components(vals, cfg)
 
     ys, xs = enhancement["y"].values, enhancement["x"].values
     best = None
-    for lab in range(1, n + 1):
-        comp = labels == lab
+    for comp in comps:
         size = int(comp.sum())
-        if size < cfg.min_pixels:
-            continue
         iy, ix = np.nonzero(comp)
         if wind_uv is not None:
             u, v = wind_uv
