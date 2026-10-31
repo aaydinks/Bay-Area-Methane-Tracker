@@ -54,3 +54,9 @@
 .maplibregl-ctrl-group button { filter: none; }
 :root[data-theme="dark"] .maplibregl-ctrl-group button span { filter: invert(1); }
 .maplibregl-ctrl-attrib { font-size: 0.75rem; }
+
+.map-placeholder {
+  min-height: 24rem; display: grid; place-content: center; gap: 0.75rem; text-align: center;
+  border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); padding: 1rem;
+}
+.map-placeholder p { margin: 0; color: var(--muted); }
