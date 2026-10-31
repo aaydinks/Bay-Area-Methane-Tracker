@@ -1,5 +1,7 @@
 ---
+import '../../styles/charts.css';
 import Base from '../../layouts/Base.astro';
+import RangeChart from '../../components/RangeChart.astro';
 import Card from '../../components/Card.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import Range from '../../components/Range.astro';
@@ -9,6 +11,10 @@ import { estimateFor, hasPublication, latestCheckFor, sites } from '../../lib/da
 const withEstimate = sites.filter((s) => estimateFor(s.site_id ?? '')?.e_t_yr_med != null)
   .sort((a, b) => (estimateFor(b.site_id ?? '')?.e_t_yr_med ?? 0) - (estimateFor(a.site_id ?? '')?.e_t_yr_med ?? 0));
 const without = sites.filter((s) => !withEstimate.includes(s));
+const chartItems = withEstimate.map((s) => {
+  const e = estimateFor(s.site_id ?? '')!;
+  return { label: (s.name ?? '').replace(' Landfill', ''), med: e.e_t_yr_med as number, lo: e.e_t_yr_lo ?? (e.e_t_yr_med as number), hi: e.e_t_yr_hi ?? (e.e_t_yr_med as number), provisional: Boolean(e.provisional) };
+});
 ---
 <Base title="Landfills" description="The five landfills studied in depth, with their persistence estimates and latest checks." kind="sites">
   <h1>Landfills</h1>
@@ -18,6 +24,8 @@ const without = sites.filter((s) => !withEstimate.includes(s));
       <section aria-labelledby="ranked">
         <h2 id="ranked">Sites with an estimate</h2>
         {withEstimate.length ? (
+          <>
+          <RangeChart items={chartItems} unit="t/yr" title="Annual methane above the floor, by site" />
           <div class="grid">
             {withEstimate.map((s) => {
               const e = estimateFor(s.site_id ?? '');
@@ -31,6 +39,7 @@ const without = sites.filter((s) => !withEstimate.includes(s));
               );
             })}
           </div>
+          </>
         ) : (
           <EmptyState title="No estimates yet" expected={EXPECTED.estimates} />
         )}

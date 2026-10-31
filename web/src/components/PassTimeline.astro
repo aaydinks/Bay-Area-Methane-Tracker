@@ -1,0 +1,70 @@
+---
+// Monthly passes per instrument for one site, with detections marked. Built from the monthly
+// counts the database publishes, so it needs no per-pass rows.
+import { INSTRUMENT } from '../config';
+import type { PassMonth } from '../lib/data';
+import { month as monthLabel } from '../lib/format';
+interface Props { rows: PassMonth[]; siteName: string }
+const { rows, siteName } = Astro.props;
+const months = [...new Set(rows.map((r) => String(r.month).slice(0, 7)))].sort();
+const instruments = [...new Set(rows.map((r) => r.instrument ?? ''))].sort();
+const byKey = new Map(rows.map((r) => [`${r.instrument}|${String(r.month).slice(0, 7)}`, r]));
+const left = 110, right = 16, top = 10, rowH = 40, labelH = 30;
+const cellW = Math.max(10, Math.min(26, Math.floor(600 / Math.max(months.length, 1))));
+const width = left + right + cellW * months.length;
+const height = top + rowH * instruments.length + labelH;
+const maxUsable = Math.max(1, ...rows.map((r) => r.n_usable ?? 0));
+const x = (i: number) => left + i * cellW;
+const yearStarts = months.map((m, i) => (m.endsWith('-01') || i === 0 ? i : -1)).filter((i) => i >= 0);
+const totalUsable = rows.reduce((n, r) => n + (r.n_usable ?? 0), 0);
+const totalDetected = rows.reduce((n, r) => n + (r.n_detected ?? 0), 0);
+---
+<figure class="chart">
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Passes over ${siteName} by instrument and month: ${totalUsable} usable passes, ${totalDetected} with a detection, from ${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}.`}>
+    {instruments.map((inst, r) => {
+      const y0 = top + r * rowH;
+      return (
+        <g>
+          <text class="label" x={left - 8} y={y0 + rowH / 2 + 4} text-anchor="end">{INSTRUMENT[inst] ?? inst}</text>
+          <line class="axis" x1={left} x2={width - right} y1={y0 + rowH - 4} y2={y0 + rowH - 4} />
+          {months.map((m, i) => {
+            const cell = byKey.get(`${inst}|${m}`);
+            if (!cell) return null;
+            const usable = cell.n_usable ?? 0;
+            const det = cell.n_detected ?? 0;
+            const h = Math.max(2, ((rowH - 10) * usable) / maxUsable);
+            return (
+              <g>
+                <rect class="bar" x={x(i) + 2} y={y0 + rowH - 4 - h} width={cellW - 4} height={h}>
+                  <title>{monthLabel(m)}: {usable} usable passes{det ? `, ${det} with a detection` : ''}</title>
+                </rect>
+                {det > 0 && <circle class="dot detected" cx={x(i) + cellW / 2} cy={y0 + rowH - 4 - h - 6} r={Math.min(6, 3 + det)} style="fill: var(--result-red)" />}
+              </g>
+            );
+          })}
+        </g>
+      );
+    })}
+    {yearStarts.map((i) => (
+      <text class="tick" x={x(i) + 2} y={height - 8}>{months[i].slice(0, 4)}</text>
+    ))}
+  </svg>
+  <figcaption>Bars: usable passes per month (taller is more). Red dots: months with at least one detection. A site observed more often shows more detections.</figcaption>
+  <details>
+    <summary>The same figures as a table</summary>
+    <table>
+      <thead><tr><th scope="col">Month</th>{instruments.map((i) => <th scope="col">{INSTRUMENT[i] ?? i}</th>)}</tr></thead>
+      <tbody>
+        {months.map((m) => (
+          <tr>
+            <th scope="row">{monthLabel(m)}</th>
+            {instruments.map((inst) => {
+              const c = byKey.get(`${inst}|${m}`);
+              return <td>{c ? `${c.n_usable ?? 0} usable${c.n_detected ? `, ${c.n_detected} detected` : ''}` : '–'}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </details>
+</figure>

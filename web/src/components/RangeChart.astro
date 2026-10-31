@@ -1,0 +1,40 @@
+---
+// Dot-and-whisker chart of a median with its 90% range per site, on a log scale.
+import { num } from '../lib/format';
+// Labels are plain text: an image must not hold links. The cards under the chart link to each site.
+interface Item { label: string; med: number; lo: number; hi: number; provisional?: boolean }
+interface Props { items: Item[]; unit: string; title: string }
+const { items, unit, title } = Astro.props;
+const width = 720, left = 190, right = 30, rowH = 34, top = 28, bottom = 36;
+const height = top + bottom + items.length * rowH;
+const lo = Math.min(...items.map((i) => i.lo)), hi = Math.max(...items.map((i) => i.hi));
+const minLog = Math.floor(Math.log10(Math.max(lo, 1)));
+const maxLog = Math.ceil(Math.log10(Math.max(hi, 10)));
+const x = (v: number) => left + ((Math.log10(Math.max(v, 1)) - minLog) / (maxLog - minLog)) * (width - left - right);
+const ticks: number[] = [];
+for (let e = minLog; e <= maxLog; e += 1) for (const m of [1, 2, 5]) if (m * 10 ** e >= 10 ** minLog && m * 10 ** e <= 10 ** maxLog) ticks.push(m * 10 ** e);
+const summary = items.map((i) => `${i.label}: ${num(i.med)} ${unit}, 90% range ${num(i.lo)} to ${num(i.hi)}`).join('; ');
+---
+<figure class="chart">
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${summary}.`}>
+    <line class="axis" x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} />
+    {ticks.map((t) => (
+      <g>
+        <line class="grid" x1={x(t)} x2={x(t)} y1={top - 6} y2={height - bottom} />
+        <text class="tick" x={x(t)} y={height - bottom + 16} text-anchor="middle">{num(t)}</text>
+      </g>
+    ))}
+    <text class="tick" x={width - right} y={height - 6} text-anchor="end">{unit}, log scale</text>
+    {items.map((i, k) => {
+      const y = top + k * rowH + rowH / 2;
+      return (
+        <g>
+          <text class="label" x={left - 10} y={y + 4} text-anchor="end">{i.label}{i.provisional ? ' *' : ''}</text>
+          <line class="whisker" x1={x(i.lo)} x2={x(i.hi)} y1={y} y2={y} />
+          <circle class="dot" cx={x(i.med)} cy={y} r="6" />
+        </g>
+      );
+    })}
+  </svg>
+  <figcaption>{title}. The dot is the median and the line its 90% range. {items.some((i) => i.provisional) ? '* provisional: detection curves not yet confirmed.' : ''}</figcaption>
+</figure>
