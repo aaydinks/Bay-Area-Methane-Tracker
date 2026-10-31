@@ -65,3 +65,14 @@ sources:
     checked_on: 2026-10-30
     terms_url: null
     credit_line: "CalRecycle Solid Waste Information System (SWIS)"
+  cloudsen12:
+    display_name: "CloudSEN12+ v1.1 expert cloud labels"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    # The v1.1 cards (tacofoundation/cloudsen12 at f9490f7, isp-uv-es/CloudSEN12Plus) say CC0;
+    # older copies state other terms (ADR 0012), so this stays unconfirmed: check
+    confirmed: false
+    checked_on: 2026-10-31
+    terms_url: "https://huggingface.co/datasets/tacofoundation/cloudsen12"
+    credit_line: "CloudSEN12+ (Aybar et al. 2024, Data in Brief 56:110852), CC0"

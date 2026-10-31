@@ -137,3 +137,14 @@ def test_cloud_model_rows_come_from_the_results_file(tmp_path):
 def test_a_cloud_model_rehearsal_is_never_published(tmp_path):
     _write_cloud_report(tmp_path, _cloud_result(passed1=True, rehearsal=True), "s2-cloud-model-r")
     assert validation_rows(tmp_path) == []
+
+
+def test_the_committed_cloud_model_test_gives_one_row_per_claim(rows):
+    cloud = {r["gate"]: r for r in rows.values() if r["gate"].startswith("s2_cloud")}
+    assert set(cloud) == {"s2_cloud_usable", "s2_cloud_detections"}
+    usable = cloud["s2_cloud_usable"]["metrics"]
+    # Every compared method has a rate with its 90% range, and every comparison a verdict
+    assert {"tile_rule", "threshold", "sen2cor", "s2cloudless", "model"} <= set(usable["rates"])
+    assert all(len(v["false_usable"]) == 3 for v in usable["rates"].values())
+    assert all(isinstance(c["passed"], bool) for c in usable["comparisons"].values())
+    assert len(usable["bay_area"]) == 15

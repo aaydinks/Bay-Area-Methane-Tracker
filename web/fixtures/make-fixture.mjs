@@ -49,6 +49,7 @@ const RUNS = [
 ];
 
 const DATA_TERMS = [
+  { source: 'cloudsen12', display_name: 'CloudSEN12+ v1.1 expert cloud labels', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-31', terms_url: 'https://huggingface.co/datasets/tacofoundation/cloudsen12', credit_line: 'CloudSEN12+ (Aybar et al. 2024, Data in Brief 56:110852), CC0' },
   { source: 'carbonmapper', display_name: 'Carbon Mapper (Tanager-1, aircraft)', raw_publishable: false, derived_publishable: false, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Carbon Mapper, non-commercial use' },
   { source: 'emit-v2', display_name: 'NASA EMIT L2B CH4 v002', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: 'https://lpdaac.usgs.gov/products/emitl2bch4plmv002/', credit_line: 'NASA EMIT L2B methane products, LP DAAC' },
   { source: 's2-local', display_name: 'ESA Copernicus Sentinel-2 L1C', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Contains modified Copernicus Sentinel data' },
@@ -163,8 +164,672 @@ const site_features = PUBS.flatMap((pub) => SITES.map((s) => ({
   publish_id: pub.publish_id, site_id: s.site_id, closed: s.status === 'closed', area_km2: 0.785, ghgrp_reporter: Boolean(s.ghgrp), dist_neighbor_m: s.site_id === 'newby-island' ? 1800 : null,
 })));
 
+// The Sentinel-2 cloud model's held-out test (ADR 0013), copied from what `mw publish` reads in
+// reports/validation/s2-cloud-model/ (values rounded to 4 decimals).
+const CLOUD_MODEL_CHECKS = [
+  {
+    "run_id": "s2-cloud-model-20261031T224123Z",
+    "superseded": false,
+    "created_at": "2026-10-31T22:41:24.338978+00:00",
+    "report_id": "s2-cloud-model-20261031T224123Z-claim1",
+    "gate": "s2_cloud_usable",
+    "result": "pass",
+    "metrics": {
+      "n_patches": 1095,
+      "n_sites": 219,
+      "n_truly_unusable": 684,
+      "n_tile_rule_scored": 1088,
+      "rates": {
+        "tile_rule": {
+          "false_usable": [
+            0.3691,
+            0.3397,
+            0.3997
+          ],
+          "false_unusable": [
+            0.2623,
+            0.226,
+            0.2979
+          ]
+        },
+        "threshold": {
+          "false_usable": [
+            0.5161,
+            0.482,
+            0.5516
+          ],
+          "false_unusable": [
+            0.1922,
+            0.1565,
+            0.2295
+          ]
+        },
+        "sen2cor": {
+          "false_usable": [
+            0.3567,
+            0.328,
+            0.3872
+          ],
+          "false_unusable": [
+            0.0925,
+            0.0678,
+            0.1194
+          ]
+        },
+        "s2cloudless": {
+          "false_usable": [
+            0.3026,
+            0.2766,
+            0.3296
+          ],
+          "false_unusable": [
+            0.0341,
+            0.0196,
+            0.049
+          ]
+        },
+        "model": {
+          "false_usable": [
+            0.0848,
+            0.0678,
+            0.1017
+          ],
+          "false_unusable": [
+            0.0487,
+            0.0318,
+            0.0663
+          ]
+        }
+      },
+      "comparisons": {
+        "tile_rule": {
+          "false_usable_diff": [
+            -0.2853,
+            -0.3187,
+            -0.254
+          ],
+          "false_unusable_diff": [
+            -0.2132,
+            -0.2512,
+            -0.1754
+          ],
+          "passed": true
+        },
+        "threshold": {
+          "false_usable_diff": [
+            -0.4313,
+            -0.4697,
+            -0.3936
+          ],
+          "false_unusable_diff": [
+            -0.1436,
+            -0.1845,
+            -0.1017
+          ],
+          "passed": true
+        },
+        "sen2cor": {
+          "false_usable_diff": [
+            -0.2719,
+            -0.3026,
+            -0.2424
+          ],
+          "false_unusable_diff": [
+            -0.0438,
+            -0.0695,
+            -0.0194
+          ],
+          "passed": true
+        },
+        "s2cloudless": {
+          "false_usable_diff": [
+            -0.2178,
+            -0.2456,
+            -0.1928
+          ],
+          "false_unusable_diff": [
+            0.0146,
+            -0.0048,
+            0.0331
+          ],
+          "passed": true
+        }
+      },
+      "west_coast": {
+        "n_patches": 155,
+        "n_sites": 31,
+        "n_truly_unusable": 104,
+        "n_tile_rule_scored": 155,
+        "rates": {
+          "tile_rule": {
+            "false_usable": [
+              0.2596,
+              0.1942,
+              0.3333
+            ],
+            "false_unusable": [
+              0.2157,
+              0.1224,
+              0.3036
+            ]
+          },
+          "threshold": {
+            "false_usable": [
+              0.5192,
+              0.422,
+              0.6139
+            ],
+            "false_unusable": [
+              0.2157,
+              0.0909,
+              0.3478
+            ]
+          },
+          "sen2cor": {
+            "false_usable": [
+              0.2885,
+              0.2165,
+              0.36
+            ],
+            "false_unusable": [
+              0.0588,
+              0.0182,
+              0.1132
+            ]
+          },
+          "s2cloudless": {
+            "false_usable": [
+              0.2788,
+              0.21,
+              0.3433
+            ],
+            "false_unusable": [
+              0.0196,
+              0.0,
+              0.0577
+            ]
+          },
+          "model": {
+            "false_usable": [
+              0.0481,
+              0.019,
+              0.0811
+            ],
+            "false_unusable": [
+              0.0196,
+              0.0,
+              0.0577
+            ]
+          }
+        },
+        "comparisons": {
+          "tile_rule": {
+            "false_usable_diff": [
+              -0.2115,
+              -0.2925,
+              -0.1359
+            ],
+            "false_unusable_diff": [
+              -0.1961,
+              -0.2857,
+              -0.1064
+            ],
+            "passed": true
+          },
+          "threshold": {
+            "false_usable_diff": [
+              -0.4712,
+              -0.5714,
+              -0.3711
+            ],
+            "false_unusable_diff": [
+              -0.1961,
+              -0.3396,
+              -0.0638
+            ],
+            "passed": true
+          },
+          "sen2cor": {
+            "false_usable_diff": [
+              -0.2404,
+              -0.3107,
+              -0.1683
+            ],
+            "false_unusable_diff": [
+              -0.0392,
+              -0.1053,
+              0.02
+            ],
+            "passed": true
+          },
+          "s2cloudless": {
+            "false_usable_diff": [
+              -0.2308,
+              -0.2941,
+              -0.1666
+            ],
+            "false_unusable_diff": [
+              0.0,
+              -0.0417,
+              0.0426
+            ],
+            "passed": true
+          }
+        }
+      },
+      "band_means": {
+        "bands": [
+          "B01",
+          "B02",
+          "B03",
+          "B04",
+          "B05",
+          "B06",
+          "B07",
+          "B08",
+          "B8A",
+          "B09",
+          "B10",
+          "B11",
+          "B12"
+        ],
+        "clear": [
+          0.1833,
+          0.1615,
+          0.1508,
+          0.1531,
+          0.1733,
+          0.2299,
+          0.2568,
+          0.248,
+          0.2744,
+          0.0946,
+          0.0054,
+          0.194,
+          0.1318
+        ],
+        "cloud": [
+          0.3173,
+          0.2994,
+          0.2816,
+          0.2918,
+          0.3049,
+          0.3487,
+          0.3747,
+          0.3598,
+          0.3899,
+          0.16,
+          0.0224,
+          0.283,
+          0.2154
+        ],
+        "shadow": [
+          0.1806,
+          0.1501,
+          0.1298,
+          0.1228,
+          0.1317,
+          0.1663,
+          0.1838,
+          0.1715,
+          0.191,
+          0.0609,
+          0.0053,
+          0.119,
+          0.0803
+        ],
+        "pixels": {
+          "clear": 36710623,
+          "cloud": 27238692,
+          "shadow": 6695705
+        }
+      },
+      "bay_area": [
+        {
+          "site": "ROI_00787",
+          "date": "20190902",
+          "true_clear": 1.0,
+          "clear_model": 0.9632,
+          "clear_sen2cor": 0.9908,
+          "clear_s2cloudless": 0.9938,
+          "clear_threshold": 0.9855,
+          "tile_cloud_cover": 40.3929
+        },
+        {
+          "site": "ROI_00787",
+          "date": "20200305",
+          "true_clear": 0.0,
+          "clear_model": 0.5388,
+          "clear_sen2cor": 0.2047,
+          "clear_s2cloudless": 0.2957,
+          "clear_threshold": 0.99,
+          "tile_cloud_cover": 79.0177
+        },
+        {
+          "site": "ROI_00787",
+          "date": "20200320",
+          "true_clear": 0.8373,
+          "clear_model": 0.8443,
+          "clear_sen2cor": 0.9434,
+          "clear_s2cloudless": 0.9213,
+          "clear_threshold": 0.9578,
+          "tile_cloud_cover": 8.7463
+        },
+        {
+          "site": "ROI_00787",
+          "date": "20200325",
+          "true_clear": 0.144,
+          "clear_model": 0.1577,
+          "clear_sen2cor": 0.2689,
+          "clear_s2cloudless": 0.1719,
+          "clear_threshold": 0.3149,
+          "tile_cloud_cover": 47.4957
+        },
+        {
+          "site": "ROI_00787",
+          "date": "20200519",
+          "true_clear": 0.3956,
+          "clear_model": 0.3543,
+          "clear_sen2cor": 0.5293,
+          "clear_s2cloudless": 0.3717,
+          "clear_threshold": 0.662,
+          "tile_cloud_cover": 49.4438
+        },
+        {
+          "site": "ROI_00911",
+          "date": "20190525",
+          "true_clear": 0.029,
+          "clear_model": 0.0803,
+          "clear_sen2cor": 0.1592,
+          "clear_s2cloudless": 0.1408,
+          "clear_threshold": 0.2651,
+          "tile_cloud_cover": 47.9689
+        },
+        {
+          "site": "ROI_00911",
+          "date": "20190629",
+          "true_clear": 0.5482,
+          "clear_model": 0.7852,
+          "clear_sen2cor": 0.9301,
+          "clear_s2cloudless": 0.9762,
+          "clear_threshold": 0.903,
+          "tile_cloud_cover": 22.6673
+        },
+        {
+          "site": "ROI_00911",
+          "date": "20200325",
+          "true_clear": 0.4903,
+          "clear_model": 0.5932,
+          "clear_sen2cor": 0.7407,
+          "clear_s2cloudless": 0.8011,
+          "clear_threshold": 0.8192,
+          "tile_cloud_cover": 19.9889
+        },
+        {
+          "site": "ROI_00911",
+          "date": "20200424",
+          "true_clear": 1.0,
+          "clear_model": 0.9816,
+          "clear_sen2cor": 0.9991,
+          "clear_s2cloudless": 1.0,
+          "clear_threshold": 0.9459,
+          "tile_cloud_cover": 0.0
+        },
+        {
+          "site": "ROI_00911",
+          "date": "20200529",
+          "true_clear": 0.5208,
+          "clear_model": 0.3661,
+          "clear_sen2cor": 0.662,
+          "clear_s2cloudless": 0.7933,
+          "clear_threshold": 0.8708,
+          "tile_cloud_cover": 69.7357
+        },
+        {
+          "site": "ROI_00927",
+          "date": "20190629",
+          "true_clear": 0.0486,
+          "clear_model": 0.0474,
+          "clear_sen2cor": 0.0077,
+          "clear_s2cloudless": 0.1917,
+          "clear_threshold": 0.917,
+          "tile_cloud_cover": 22.6673
+        },
+        {
+          "site": "ROI_00927",
+          "date": "20190828",
+          "true_clear": 0.4911,
+          "clear_model": 0.6864,
+          "clear_sen2cor": 0.9606,
+          "clear_s2cloudless": 0.936,
+          "clear_threshold": 0.9743,
+          "tile_cloud_cover": 15.2732
+        },
+        {
+          "site": "ROI_00927",
+          "date": "20191027",
+          "true_clear": 1.0,
+          "clear_model": 0.9908,
+          "clear_sen2cor": 0.9674,
+          "clear_s2cloudless": 1.0,
+          "clear_threshold": 0.9904,
+          "tile_cloud_cover": 3.0244
+        },
+        {
+          "site": "ROI_00927",
+          "date": "20200204",
+          "true_clear": 0.1585,
+          "clear_model": 0.1236,
+          "clear_sen2cor": 0.0009,
+          "clear_s2cloudless": 0.0841,
+          "clear_threshold": 0.6572,
+          "tile_cloud_cover": 62.3718
+        },
+        {
+          "site": "ROI_00927",
+          "date": "20200325",
+          "true_clear": 0.9578,
+          "clear_model": 0.948,
+          "clear_sen2cor": 0.9628,
+          "clear_s2cloudless": 0.9705,
+          "clear_threshold": 0.9725,
+          "tile_cloud_cover": 19.9889
+        }
+      ],
+      "reference": {
+        "n_patches": 975,
+        "rates": {
+          "model": {
+            "false_usable": [
+              0.0899,
+              0.0706,
+              0.1094
+            ],
+            "false_unusable": [
+              0.0535,
+              0.035,
+              0.0732
+            ]
+          },
+          "unetmobv2_v2": {
+            "false_usable": [
+              0.0466,
+              0.032,
+              0.0622
+            ],
+            "false_unusable": [
+              0.0374,
+              0.0222,
+              0.0528
+            ]
+          }
+        }
+      }
+    },
+    "note": "Sentinel-2 cloud model, held-out test (ADR 0013): cloudy windows wrongly counted as usable."
+  },
+  {
+    "run_id": "s2-cloud-model-20261031T224123Z",
+    "superseded": false,
+    "created_at": "2026-10-31T22:41:24.338978+00:00",
+    "report_id": "s2-cloud-model-20261031T224123Z-claim2",
+    "gate": "s2_cloud_detections",
+    "result": "pass",
+    "metrics": {
+      "n_sites": 217,
+      "n_targets": 868,
+      "n_plumes": 2131,
+      "rates": {
+        "none": {
+          "cloud_caused_per_target": [
+            21.9101,
+            19.5229,
+            24.1873
+          ],
+          "detection_share": [
+            0.2454,
+            0.2173,
+            0.2738
+          ]
+        },
+        "threshold": {
+          "cloud_caused_per_target": [
+            15.6532,
+            13.7137,
+            17.6305
+          ],
+          "detection_share": [
+            0.2384,
+            0.2071,
+            0.2704
+          ]
+        },
+        "sen2cor": {
+          "cloud_caused_per_target": [
+            12.2304,
+            10.5667,
+            13.9275
+          ],
+          "detection_share": [
+            0.2013,
+            0.1758,
+            0.2285
+          ]
+        },
+        "s2cloudless": {
+          "cloud_caused_per_target": [
+            12.6221,
+            11.0313,
+            14.233
+          ],
+          "detection_share": [
+            0.2421,
+            0.2129,
+            0.2731
+          ]
+        },
+        "model": {
+          "cloud_caused_per_target": [
+            8.28,
+            7.1923,
+            9.4578
+          ],
+          "detection_share": [
+            0.2562,
+            0.2268,
+            0.2871
+          ]
+        }
+      },
+      "comparisons": {
+        "none": {
+          "cloud_caused_diff": [
+            -13.6302,
+            -15.3595,
+            -11.9037
+          ],
+          "detection_share_diff": [
+            0.0108,
+            -0.0084,
+            0.0293
+          ],
+          "passed": true
+        },
+        "threshold": {
+          "cloud_caused_diff": [
+            -7.3733,
+            -8.749,
+            -6.023
+          ],
+          "detection_share_diff": [
+            0.0178,
+            0.0,
+            0.0349
+          ],
+          "passed": true
+        },
+        "sen2cor": {
+          "cloud_caused_diff": [
+            -3.9505,
+            -5.0876,
+            -2.812
+          ],
+          "detection_share_diff": [
+            0.0549,
+            0.0376,
+            0.0736
+          ],
+          "passed": true
+        },
+        "s2cloudless": {
+          "cloud_caused_diff": [
+            -4.3422,
+            -5.3018,
+            -3.3718
+          ],
+          "detection_share_diff": [
+            0.0141,
+            0.0,
+            0.0291
+          ],
+          "passed": true
+        }
+      },
+      "amplitude": 0.12,
+      "reference": {
+        "model": {
+          "cloud_caused_per_target": [
+            8.1438,
+            7.0179,
+            9.4135
+          ],
+          "detection_share": [
+            0.2603,
+            0.2291,
+            0.2949
+          ]
+        },
+        "unetmobv2_v2": {
+          "cloud_caused_per_target": [
+            3.6762,
+            3.1372,
+            4.2916
+          ],
+          "detection_share": [
+            0.2918,
+            0.2586,
+            0.3278
+          ]
+        }
+      }
+    },
+    "note": "Sentinel-2 cloud model, held-out test (ADR 0013): false detections caused by clouds."
+  }
+];
+
 // The method checks are the project's real ones; their numbers come from reports/validation.
 const validation_results = PUBS.flatMap((pub) => [
+  ...CLOUD_MODEL_CHECKS.map((r) => ({ publish_id: pub.publish_id, ...r })),
   { publish_id: pub.publish_id, report_id: 'synthetic-20261003T223204Z', gate: 'gate3', run_id: 'synthetic-20261003T223204Z', result: 'pass', metrics: { coverage_f: 0.91, coverage_qbar: 0.9, coverage_e: 0.895, diag_fail_frac: 0.07, replicates: 200, sites: 10, target: [0.85, 0.95] }, superseded: false, note: 'Gate 3: 90% ranges contain the simulated truth 85 to 95% of the time.', created_at: '2026-10-03T22:32:04Z' },
   { publish_id: pub.publish_id, report_id: 'synthetic-20261024T013708Z', gate: 'gate3', run_id: 'synthetic-20261024T013708Z', result: 'pass', metrics: { coverage_f: 0.898, coverage_qbar: 0.888, coverage_e: 0.889, diag_fail_frac: 0.045, replicates: 200, sites: 10, target: [0.85, 0.95], covariates: ['closed', 'log_area'] }, superseded: false, note: 'Gate 3 with site covariates.', created_at: '2026-10-24T01:37:08Z' },
   { publish_id: pub.publish_id, report_id: 'holdout-synthetic-20261004T001513Z', gate: 'holdout', run_id: 'holdout-synthetic-20261004T001513Z', result: 'pass', metrics: { share_inside: 0.98, folds: 50, target: 0.8 }, superseded: false, note: 'Dry run on simulated data, not Gate 4.', created_at: '2026-10-04T00:15:13Z' },

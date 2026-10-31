@@ -109,6 +109,16 @@ def _claim_metrics(block: dict, keys: tuple[str, ...], diff_keys: tuple[str, ...
     return out
 
 
+BAY_AREA_COLUMNS = (
+    "true_clear",
+    "clear_model",
+    "clear_sen2cor",
+    "clear_s2cloudless",
+    "clear_threshold",
+    "tile_cloud_cover",
+)
+
+
 def _cloud_model_rows(md: Path, run_id: str, created: str | None) -> list[dict]:
     """Two rows from the Sentinel-2 cloud model's held-out test (ADR 0013), one per claim.
 
@@ -129,6 +139,15 @@ def _cloud_model_rows(md: Path, run_id: str, created: str | None) -> list[dict]:
         ("false_usable_diff", "false_unusable_diff"),
     )
     m1["band_means"] = r.get("band_means")
+    # The held-out patches in the Bay Area: too few to test, listed one by one
+    m1["bay_area"] = [
+        {
+            "site": p["roi_id"],
+            "date": re.search(r"__(\d{8})T", p["sample_id"]).group(1),
+            **{k: p.get(k) for k in BAY_AREA_COLUMNS},
+        }
+        for p in r.get("bay_area_patches", [])
+    ]
     ref = c1["official_test_with_reference"]
     m1["reference"] = {
         "n_patches": ref["n_patches"],

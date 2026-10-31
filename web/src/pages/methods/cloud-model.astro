@@ -19,6 +19,7 @@ interface ClaimMetrics {
   west_coast?: { rates: Rates; n_patches?: number; n_sites?: number };
   reference?: { rates?: Rates; n_patches?: number } & Rates;
   band_means?: { bands: string[]; clear: number[]; cloud: number[]; shadow: number[] } | null;
+  bay_area?: { site: string; date: string; true_clear: number; clear_model: number; clear_sen2cor: number; clear_s2cloudless: number; tile_cloud_cover: number | null }[];
 }
 
 const latest = (gate: string): (ValidationResult & { m: ClaimMetrics }) | undefined =>
@@ -59,6 +60,10 @@ const chartItems = (rates: Rates, order: string[], key: string) =>
       return { label: NAMES[m] ?? m, value: t[0], lo: t[1], hi: t[2], highlight: m === 'model' };
     });
 const verdict = (r: ValidationResult | undefined) => (r?.result === 'pass' ? 'Passed' : 'Did not pass');
+const call = (share: number | null | undefined) => (share === null || share === undefined ? '–' : share >= 0.7 ? 'usable' : 'not usable');
+const tileCall = (cc: number | null | undefined) => (cc === null || cc === undefined ? '–' : cc <= 30 ? 'usable' : 'not usable');
+const isoDay = (d: string) => `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+const ref1 = usable?.m.reference?.rates;
 ---
 <Base title="Telling clouds from methane plumes" description="How the Sentinel-2 cloud model separates clouds from methane plumes, how it was tested on images it never saw, and how well it did." kind="methods">
   <p class="muted"><a href="/methods/">Methods and validation</a> › Cloud model</p>
@@ -76,7 +81,7 @@ const verdict = (r: ValidationResult | undefined) => (r?.result === 'pass' ? 'Pa
 
   <section aria-labelledby="how">
     <h2 id="how">How the model tells them apart</h2>
-    <p>Methane absorbs sunlight in band 12 and very little anywhere else Sentinel-2 measures. Clouds brighten almost every band, including the visible bands and the cirrus band (band 10); shadows darken them all. The model reads all 13 bands of each 20 m pixel, a few band ratios, and how bright and varied the neighbourhood is, then labels the pixel clear, cloud or cloud shadow. It never labels anything a plume: a plume is left alone because it changes only band 12, and the test checks that this holds.</p>
+    <p>Methane absorbs sunlight in band 12 and very little anywhere else Sentinel-2 measures. Clouds brighten every band, most of all the cirrus band (band 10); shadows darken every band except band 10, which sees only high in the atmosphere. The model reads all 13 bands of each 20 m pixel, a few band ratios, and how bright and varied the neighbourhood is, then labels the pixel clear, cloud or cloud shadow. It never labels anything a plume: a plume is left alone because it changes only band 12, and the test checks that this holds.</p>
     {usable?.m.band_means && detections?.m.amplitude ? (
       <BandChangeChart
         bands={usable.m.band_means.bands}
@@ -129,6 +134,29 @@ const verdict = (r: ValidationResult | undefined) => (r?.result === 'pass' ? 'Pa
         {usable.m.west_coast && (
           <p>On the West Coast patches alone, the model called {pct(usable.m.west_coast.rates.model?.false_usable?.[0])} of too-cloudy views usable, against {pct(usable.m.west_coast.rates.sen2cor?.false_usable?.[0])} for Sen2Cor and {pct(usable.m.west_coast.rates.s2cloudless?.false_usable?.[0])} for s2cloudless.</p>
         )}
+        {ref1?.unetmobv2_v2 && (
+          <p><strong>A larger model does better.</strong> On the dataset's own test sites, the deep network from the dataset's authors (UNetMobV2-V2) called {pct(ref1.unetmobv2_v2.false_usable?.[0])} of too-cloudy views usable and threw away {pct(ref1.unetmobv2_v2.false_unusable?.[0])} of clear ones, against {pct(ref1.model?.false_usable?.[0])} and {pct(ref1.model?.false_unusable?.[0])} for this model. It was a reference, not one of the pre-registered comparisons, and it needs a deep-learning library to run.</p>
+        )}
+        {usable.m.bay_area && usable.m.bay_area.length > 0 && (
+          <TableWrap label="Bay Area test patches">
+            <table>
+              <caption>The {usable.m.bay_area.length} held-out patches in the Bay Area (three sites near San Jose and the North Bay, not landfills): too few to test on their own. A view is usable when at least 70% of it is clear.</caption>
+              <thead><tr><th scope="col">Site and date</th><th scope="col">Expert labels</th><th scope="col">Cloud model</th><th scope="col">Sen2Cor</th><th scope="col">s2cloudless</th><th scope="col">Whole-tile figure</th></tr></thead>
+              <tbody>
+                {usable.m.bay_area.map((b) => (
+                  <tr>
+                    <th scope="row"><span class="mono">{b.site}</span>, {isoDay(b.date)}</th>
+                    <td>{call(b.true_clear)} ({pct(b.true_clear, 0)} clear)</td>
+                    <td>{call(b.clear_model)}</td>
+                    <td>{call(b.clear_sen2cor)}</td>
+                    <td>{call(b.clear_s2cloudless)}</td>
+                    <td>{tileCall(b.tile_cloud_cover)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        )}
       </>
     ) : (
       <EmptyState title="Not yet tested" expected="The held-out test results appear here once the test has run." />
@@ -171,16 +199,25 @@ const verdict = (r: ValidationResult | undefined) => (r?.result === 'pass' ? 'Pa
     {usable || detections ? (
       <ul>
         <li><strong>Usable passes:</strong> {usable?.result === 'pass'
-          ? 'the model passed, so its per-site judgement may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count.'
+          ? 'the model passed, so its judgement over each site may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count. That change has not been made yet; until it is, the site pages still use the whole-tile figure.'
           : 'the model did not pass, so it is not used to decide which passes count. A per-site cloud product is used instead of the whole-tile figure once that change is made.'}</li>
         <li><strong>Detections:</strong> {detections?.result === 'pass'
-          ? 'the model passed, so it may mask clouds before Sentinel-2 detection.'
+          ? 'the model passed, so it may mask clouds before Sentinel-2 detection. That change has not been made yet either.'
           : 'the model did not pass, so it is not used to mask clouds before Sentinel-2 detection.'}</li>
         <li>Sentinel-2 sees only plumes of about 2 tonnes per hour or more, so it is a check on large events, and any Sentinel-2 detection needs an EMIT or Carbon Mapper plume to back it.</li>
       </ul>
     ) : (
       <p>Nothing changes until the held-out test has run.</p>
     )}
+  </section>
+
+  <section aria-labelledby="before">
+    <h2 id="before">What changed before the test, and why</h2>
+    <ul>
+      <li><strong>One correction, found on tuning images.</strong> A rehearsal on separate tuning images showed the first version was too cautious: it threw away 16% of clear views, because it was trained on equal numbers of clear, cloud and shadow examples. Its answers were then re-weighted to the real shares (about 64% clear, 30% cloud and 7% shadow). On the tuning images that brought clear views thrown away down to 7% and raised too-cloudy views counted as usable from 4% to 8%. Nothing else was changed, and the test images were not looked at until the one run.</li>
+      <li><strong>The plume part of the test is weak.</strong> The image pairs are months apart, so even with no cloud mask only about a quarter of the simulated plumes were found. The rule for choosing plume strength (find 80% of plumes on clear tuning pairs) was never met, so the strongest pre-set value was used, as written down in advance. Only one tuning site had a clear pair to choose it with.</li>
+      <li><strong>The plume result was not robust in rehearsal.</strong> On the tuning images the model found 2 to 5 points fewer simulated plumes than two of the other methods, which would have failed result 2. On the test images it found slightly more. Treat result 2 as a sign that the model does not hide plumes, not as proof.</li>
+    </ul>
   </section>
 
   <section aria-labelledby="limits">

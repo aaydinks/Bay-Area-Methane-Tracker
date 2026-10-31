@@ -5,11 +5,14 @@ import { num } from '../lib/format';
 interface Item { label: string; value: number; lo: number; hi: number; highlight?: boolean }
 interface Props { items: Item[]; title: string; unit: 'percent' | 'count' }
 const { items, title, unit } = Astro.props;
-const width = 720, left = 250, right = 30, rowH = 34, top = 20, bottom = 36;
+const width = 720, left = 320, right = 30, rowH = 34, top = 20, bottom = 36;
 const height = top + bottom + items.length * rowH;
 const scale = unit === 'percent' ? 100 : 1;
 const maxV = Math.max(...items.map((i) => i.hi)) * scale;
-const step = unit === 'percent' ? (maxV > 50 ? 20 : maxV > 20 ? 10 : 5) : maxV > 4 ? 1 : 0.5;
+// A 1, 2 or 5 step that gives about five gridlines
+const rough = Math.max(maxV, 1e-9) / 5;
+const mag = 10 ** Math.floor(Math.log10(rough));
+const step = [1, 2, 5, 10].map((m) => m * mag).find((v) => v >= rough) ?? 10 * mag;
 const end = Math.max(step, Math.ceil(maxV / step) * step);
 const x = (v: number) => left + ((v * scale) / end) * (width - left - right);
 const ticks: number[] = [];
