@@ -10,8 +10,8 @@
   "scripts": {
     "fixture": "node fixtures/make-fixture.mjs",
     "fetch": "node scripts/fetch-data.mjs",
-    "dev": "npm run fetch && astro dev",
-    "prebuild": "node scripts/fetch-data.mjs",
+    "dev": "npm run fetch && node scripts/make-previews.mjs && astro dev",
+    "prebuild": "node scripts/fetch-data.mjs && node scripts/make-previews.mjs",
     "build": "astro build",
     "postbuild": "node scripts/check-wording.mjs && node scripts/check-public-output.mjs",
     "preview": "astro preview",
@@ -21,6 +21,7 @@
     "check:public": "node scripts/check-public-output.mjs",
     "test:a11y": "playwright test",
     "astro": "astro",
+    "previews": "node scripts/make-previews.mjs",
     "lighthouse": "lhci autorun"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-astro": "^1.7.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
+    "sharp": "^0.35.5",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1"
   }

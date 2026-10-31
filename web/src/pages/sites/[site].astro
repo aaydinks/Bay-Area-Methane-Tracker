@@ -30,7 +30,7 @@ const residents = populationFor(id);
 const neighbours = neighboursFor(id);
 const features = featuresFor(id);
 ---
-<Base title={site.name ?? id} description={`Persistence estimate, passes, checks and operator-reported figures for ${site.name}.`} kind="site">
+<Base title={site.name ?? id} description={`Persistence estimate, passes, checks and operator-reported figures for ${site.name}.`} kind="site" image={`/og/${id}.png`}>
   <h1>{site.name}</h1>
   <p class="lede">{site.city}, {site.county} County{site.operator ? ` · operated by ${site.operator}` : ''}{site.status ? ` · ${site.status}` : ''}. Everything on this page is a screening indication for investigation.</p>
   <dl class="facts">
