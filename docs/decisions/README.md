@@ -12,3 +12,4 @@ One short file per decision: context, options, choice, consequences. Copy `0000-
 | 0006 | [Repair call rule](0006-repair-call-rule.md): calls at P = 0.975, intervals at 90% | week 9 |
 | 0007 | [Public sources needing no login](0007-public-sources.md): EMIT CMR, Sentinel-2 STAC, EPA GHGRP | week 1–2 |
 | 0008 | [Site traits as model covariates](0008-site-covariates.md) (accepted): closed, log area; empty by default | Month 2 |
+| 0009 | [Public website and publishing database](0009-website-and-database.md) (accepted): Cloudflare Pages behind Access, Astro, Supabase snapshots with visibility and restricted flags, build-time data | Month 2 |
