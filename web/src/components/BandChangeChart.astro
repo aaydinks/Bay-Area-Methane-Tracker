@@ -1,0 +1,88 @@
+---
+// How a cloud, a cloud shadow and a methane plume change each Sentinel-2 band, as a ratio to
+// clear ground, on a log scale. Cloud and shadow are mean reflectances of expert-labelled
+// pixels in the held-out patches; the plume is clear ground with the test's injected
+// absorption in band 12 only. The table under the chart has every value.
+import { num } from '../lib/format';
+interface Props { bands: string[]; clear: number[]; cloud: number[]; shadow: number[]; absorption: number }
+const { bands, clear, cloud, shadow, absorption } = Astro.props;
+const series = [
+  { key: 'cloud', label: 'Cloud', values: cloud.map((v, i) => v / clear[i]) },
+  { key: 'shadow', label: 'Cloud shadow', values: shadow.map((v, i) => v / clear[i]) },
+  { key: 'plume', label: 'Methane plume (test strength)', values: bands.map((b) => (b === 'B12' ? 1 - absorption : 1)) },
+];
+const width = 720, left = 56, right = 190, top = 16, bottom = 40;
+const height = 300;
+const all = series.flatMap((s) => s.values).filter((v) => v > 0);
+const minE = Math.floor(Math.log2(Math.min(...all, 1)));
+const maxE = Math.ceil(Math.log2(Math.max(...all, 1)));
+const y = (v: number) => top + ((maxE - Math.log2(v)) / (maxE - minE)) * (height - top - bottom);
+const x = (i: number) => left + (i / (bands.length - 1)) * (width - left - right);
+const ticks: number[] = [];
+for (let e = minE; e <= maxE; e += 1) ticks.push(2 ** e);
+const path = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+const ratio = (v: number) => `${num(v, 2)} times`;
+const summary = series.map((s) => `${s.label}: ${bands.map((b, i) => `${b} ${num(s.values[i], 2)}`).join(', ')}`).join('; ');
+// Direct labels at the right edge, nudged apart so they never overlap
+const ends = series.map((s) => ({ key: s.key, label: s.label, y: y(s.values[s.values.length - 1]) })).sort((a, b) => a.y - b.y);
+for (let i = 1; i < ends.length; i += 1) if (ends[i].y - ends[i - 1].y < 16) ends[i].y = ends[i - 1].y + 16;
+---
+<figure class="chart bands">
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Change in each band compared with clear ground, as a ratio. ${summary}.`}>
+    {ticks.map((t) => (
+      <g>
+        <line class:list={['grid', { unity: t === 1 }]} x1={left} x2={width - right} y1={y(t)} y2={y(t)} />
+        <text class="tick" x={left - 8} y={y(t) + 4} text-anchor="end">{t >= 1 ? `×${t}` : `×1/${1 / t}`}</text>
+      </g>
+    ))}
+    {bands.map((b, i) => (
+      <text class="tick" x={x(i)} y={height - bottom + 16} text-anchor="middle">{b.replace(/^B0?/, '')}</text>
+    ))}
+    <text class="tick" x={(left + width - right) / 2} y={height - 6} text-anchor="middle">Sentinel-2 band, shortest wavelength on the left</text>
+    {series.map((s) => (
+      <g class={`series ${s.key}`}>
+        <path d={path(s.values)} />
+        {s.values.map((v, i) => (
+          <circle cx={x(i)} cy={y(v)} r="4">
+            <title>{`${s.label}, band ${bands[i]}: ${ratio(v)} clear ground`}</title>
+          </circle>
+        ))}
+      </g>
+    ))}
+    {ends.map((e) => (
+      <text class={`end ${e.key}`} x={width - right + 10} y={e.y + 4}>{e.label}</text>
+    ))}
+  </svg>
+  <figcaption>
+    Change in each band compared with clear ground (×1 means no change). Cloud and shadow are the average of expert-labelled pixels in the held-out patches. The plume line is clear ground with the test's simulated absorption ({Math.round(absorption * 100)}% at its centre), which falls on band 12 only.
+  </figcaption>
+  <details>
+    <summary>Table of the values</summary>
+    <table>
+      <thead><tr><th scope="col">Band</th>{series.map((s) => <th scope="col">{s.label}</th>)}</tr></thead>
+      <tbody>
+        {bands.map((b, i) => (
+          <tr><th scope="row">{b}</th>{series.map((s) => <td>{num(s.values[i], 2)}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+  </details>
+</figure>
+
+<style>
+  .bands { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; }
+  :global(:root[data-theme="dark"]) .bands { --s1: #3987e5; --s2: #d95926; --s3: #199e70; }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .bands { --s1: #3987e5; --s2: #d95926; --s3: #199e70; }
+  }
+  .series path { fill: none; stroke-width: 2; stroke-linejoin: round; }
+  .series circle { stroke: var(--bg); stroke-width: 2; }
+  .cloud path { stroke: var(--s1); }
+  .cloud circle { fill: var(--s1); }
+  .shadow path { stroke: var(--s2); }
+  .shadow circle { fill: var(--s2); }
+  .plume path { stroke: var(--s3); }
+  .plume circle { fill: var(--s3); }
+  .end { fill: var(--text); font-size: 12px; }
+  .grid.unity { stroke: var(--muted); stroke-dasharray: none; }
+</style>

@@ -1,0 +1,1286 @@
+{
+  "adr": "0013",
+  "run_id": "s2-cloud-model-20261031T224123Z",
+  "created_at": "2026-10-31T22:41:24.338978+00:00",
+  "git_sha": "3a818f91b20baf8691bf7ebaf01a2a72b9491150",
+  "git_dirty": false,
+  "config_sha256": {
+    "data_terms.yaml": "41caec6abd38881379ea68cabbdc9b822311ea1ebc75a5b945421814ff591a52",
+    "impact.yaml": "04043a72046ae032c34f072d49d808d2b5c5b8961dcc20c1df23c843420def29",
+    "instruments.yaml": "1a5a3da021ca9cfb6dde1deeb19a6d59f7137965cb8d931a0c04fe473f152129",
+    "model.yaml": "1f24562854d55d922e9a2e1a570708c8cdb12987d61315cda05c56e0689ac768",
+    "project.yaml": "226c90ce9ffd924d95d72b5e7b3c84bcabbc9e9bc71e90942c6102a8a7a45629",
+    "quantify.yaml": "b0db0f49668b7bc6d1637ae5096524d1152b0c244190e66b8478ae1d98923217",
+    "sentinel2.yaml": "a56d97cb7468c5ca73336ad31e40494f540e12aaeb14c9e05212097955ed3307",
+    "synthetic.yaml": "69785b159e118ff9e7b6128d161851119b966ff20b9d4becf0bf6b72a156a926"
+  },
+  "versions": {
+    "pymc": "6.3.2",
+    "pytensor": "3.3.3",
+    "numpy": "2.5.3"
+  },
+  "dataset": "tacofoundation/cloudsen12@f9490f7de11b4f387f72ef800e73ccbb754711de",
+  "model": {
+    "settings": {
+      "max_leaf_nodes": 127,
+      "learning_rate": 0.1,
+      "max_iter": 300,
+      "l2_regularization": 1.0
+    },
+    "trained_on": {
+      "class_shares_true": [
+        0.54,
+        0.37,
+        0.09
+      ],
+      "class_weights": [
+        1.4124257647169283,
+        1.1113837218358125,
+        0.31617086366758396
+      ],
+      "dataset": "tacofoundation/cloudsen12@f9490f7de11b4f387f72ef800e73ccbb754711de",
+      "train_sites": 600,
+      "train_patches": 3000,
+      "train_pixels": 2154539,
+      "validation_sites": 104,
+      "validation_patches": 520,
+      "grid": [
+        {
+          "max_leaf_nodes": 31,
+          "learning_rate": 0.1,
+          "max_iter": 300,
+          "l2_regularization": 1.0,
+          "validation_macro_f1": 0.7710921807153222
+        },
+        {
+          "max_leaf_nodes": 63,
+          "learning_rate": 0.1,
+          "max_iter": 300,
+          "l2_regularization": 1.0,
+          "validation_macro_f1": 0.7745034272838746
+        },
+        {
+          "max_leaf_nodes": 127,
+          "learning_rate": 0.1,
+          "max_iter": 300,
+          "l2_regularization": 1.0,
+          "validation_macro_f1": 0.7754764882523166
+        },
+        {
+          "max_leaf_nodes": 63,
+          "learning_rate": 0.05,
+          "max_iter": 600,
+          "l2_regularization": 1.0,
+          "validation_macro_f1": 0.7742400365287464
+        }
+      ],
+      "sklearn": "1.9.1",
+      "git_sha": "528aaabdd41d028b47fc86bac57b63757c208280"
+    }
+  },
+  "amplitude": {
+    "amplitude": 0.12,
+    "detection_share": {
+      "0.02": 0.0,
+      "0.03": 0.08333333333333333,
+      "0.05": 0.25,
+      "0.08": 0.4166666666666667,
+      "0.12": 0.5
+    },
+    "reached_target": false
+  },
+  "claim1": {
+    "all_heldout": {
+      "n_patches": 1095,
+      "n_sites": 219,
+      "n_truly_unusable": 684,
+      "n_tile_rule_scored": 1088,
+      "rates": {
+        "tile_rule": {
+          "false_usable": {
+            "value": 0.36911764705882355,
+            "interval": [
+              0.33967512914721404,
+              0.3997176820208024
+            ]
+          },
+          "false_unusable": {
+            "value": 0.2622549019607843,
+            "interval": [
+              0.22603613238907358,
+              0.2978723404255319
+            ]
+          }
+        },
+        "threshold": {
+          "false_usable": {
+            "value": 0.5160818713450293,
+            "interval": [
+              0.4819572461081895,
+              0.55157825561444
+            ]
+          },
+          "false_unusable": {
+            "value": 0.1922141119221411,
+            "interval": [
+              0.15647516193698652,
+              0.22946590358635782
+            ]
+          }
+        },
+        "sen2cor": {
+          "false_usable": {
+            "value": 0.3567251461988304,
+            "interval": [
+              0.3279636766859013,
+              0.3871931677313741
+            ]
+          },
+          "false_unusable": {
+            "value": 0.09245742092457421,
+            "interval": [
+              0.06779463012830667,
+              0.11940298507462686
+            ]
+          }
+        },
+        "s2cloudless": {
+          "false_usable": {
+            "value": 0.3026315789473684,
+            "interval": [
+              0.27662409670723415,
+              0.3295652748414376
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0340632603406326,
+            "interval": [
+              0.0196078431372549,
+              0.049019607843137254
+            ]
+          }
+        },
+        "model": {
+          "false_usable": {
+            "value": 0.0847953216374269,
+            "interval": [
+              0.06784533067718908,
+              0.10167423153880242
+            ]
+          },
+          "false_unusable": {
+            "value": 0.04866180048661801,
+            "interval": [
+              0.03178484107579462,
+              0.06633964856713671
+            ]
+          }
+        }
+      },
+      "comparisons": {
+        "tile_rule": {
+          "false_usable_diff": {
+            "value": -0.28529411764705886,
+            "interval": [
+              -0.31865226575984745,
+              -0.2540381791483113
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.21323529411764708,
+            "interval": [
+              -0.25117426518033953,
+              -0.1754320987654321
+            ]
+          },
+          "passed": true
+        },
+        "threshold": {
+          "false_usable_diff": {
+            "value": -0.4312865497076024,
+            "interval": [
+              -0.4697193500738553,
+              -0.3936300962394468
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.1435523114355231,
+            "interval": [
+              -0.18446965111493113,
+              -0.101684426917268
+            ]
+          },
+          "passed": true
+        },
+        "sen2cor": {
+          "false_usable_diff": {
+            "value": -0.27192982456140347,
+            "interval": [
+              -0.30260027536705275,
+              -0.24238026124818576
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.0437956204379562,
+            "interval": [
+              -0.069482181004576,
+              -0.019415124944168874
+            ]
+          },
+          "passed": true
+        },
+        "s2cloudless": {
+          "false_usable_diff": {
+            "value": -0.21783625730994152,
+            "interval": [
+              -0.24556472542302504,
+              -0.19275097852533585
+            ]
+          },
+          "false_unusable_diff": {
+            "value": 0.014598540145985404,
+            "interval": [
+              -0.004762473008296401,
+              0.03309692671394799
+            ]
+          },
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "west_coast": {
+      "n_patches": 155,
+      "n_sites": 31,
+      "n_truly_unusable": 104,
+      "n_tile_rule_scored": 155,
+      "rates": {
+        "tile_rule": {
+          "false_usable": {
+            "value": 0.25961538461538464,
+            "interval": [
+              0.1941747572815534,
+              0.3333333333333333
+            ]
+          },
+          "false_unusable": {
+            "value": 0.21568627450980393,
+            "interval": [
+              0.12244897959183673,
+              0.30357142857142855
+            ]
+          }
+        },
+        "threshold": {
+          "false_usable": {
+            "value": 0.5192307692307693,
+            "interval": [
+              0.4219958625652096,
+              0.6138974834983498
+            ]
+          },
+          "false_unusable": {
+            "value": 0.21568627450980393,
+            "interval": [
+              0.09090909090909091,
+              0.34782608695652173
+            ]
+          }
+        },
+        "sen2cor": {
+          "false_usable": {
+            "value": 0.28846153846153844,
+            "interval": [
+              0.2164544168182737,
+              0.36001801801801797
+            ]
+          },
+          "false_unusable": {
+            "value": 0.058823529411764705,
+            "interval": [
+              0.01818181818181818,
+              0.11320754716981132
+            ]
+          }
+        },
+        "s2cloudless": {
+          "false_usable": {
+            "value": 0.27884615384615385,
+            "interval": [
+              0.21,
+              0.3432531194295899
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0196078431372549,
+            "interval": [
+              0.0,
+              0.057692307692307696
+            ]
+          }
+        },
+        "model": {
+          "false_usable": {
+            "value": 0.04807692307692308,
+            "interval": [
+              0.01904761904761905,
+              0.08108108108108109
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0196078431372549,
+            "interval": [
+              0.0,
+              0.057692307692307696
+            ]
+          }
+        }
+      },
+      "comparisons": {
+        "tile_rule": {
+          "false_usable_diff": {
+            "value": -0.21153846153846156,
+            "interval": [
+              -0.29245283018867924,
+              -0.13592233009708737
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.19607843137254904,
+            "interval": [
+              -0.2857142857142857,
+              -0.10638297872340424
+            ]
+          },
+          "passed": true
+        },
+        "threshold": {
+          "false_usable_diff": {
+            "value": -0.4711538461538462,
+            "interval": [
+              -0.5714285714285714,
+              -0.37109583810614744
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.19607843137254904,
+            "interval": [
+              -0.33962264150943394,
+              -0.06382978723404255
+            ]
+          },
+          "passed": true
+        },
+        "sen2cor": {
+          "false_usable_diff": {
+            "value": -0.24038461538461536,
+            "interval": [
+              -0.31067961165048547,
+              -0.16831683168316833
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.0392156862745098,
+            "interval": [
+              -0.10526315789473684,
+              0.02
+            ]
+          },
+          "passed": true
+        },
+        "s2cloudless": {
+          "false_usable_diff": {
+            "value": -0.23076923076923078,
+            "interval": [
+              -0.29411764705882354,
+              -0.16659420289855079
+            ]
+          },
+          "false_unusable_diff": {
+            "value": 0.0,
+            "interval": [
+              -0.041666666666666664,
+              0.042553191489361694
+            ]
+          },
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "official_test_with_reference": {
+      "n_patches": 975,
+      "n_sites": 195,
+      "n_truly_unusable": 601,
+      "n_tile_rule_scored": 968,
+      "rates": {
+        "tile_rule": {
+          "false_usable": {
+            "value": 0.38358458961474035,
+            "interval": [
+              0.352117854228407,
+              0.4169555537001475
+            ]
+          },
+          "false_unusable": {
+            "value": 0.2722371967654987,
+            "interval": [
+              0.23203992709460614,
+              0.3128349714695426
+            ]
+          }
+        },
+        "threshold": {
+          "false_usable": {
+            "value": 0.5074875207986689,
+            "interval": [
+              0.46961579137791876,
+              0.5444219013490725
+            ]
+          },
+          "false_unusable": {
+            "value": 0.19786096256684493,
+            "interval": [
+              0.15964770523594052,
+              0.23560955429563518
+            ]
+          }
+        },
+        "sen2cor": {
+          "false_usable": {
+            "value": 0.3610648918469218,
+            "interval": [
+              0.32996632996632996,
+              0.3938931111760694
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0962566844919786,
+            "interval": [
+              0.06933333333333333,
+              0.12337291973118743
+            ]
+          }
+        },
+        "s2cloudless": {
+          "false_usable": {
+            "value": 0.30282861896838603,
+            "interval": [
+              0.27441077441077444,
+              0.33276464998232674
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0374331550802139,
+            "interval": [
+              0.02197802197802198,
+              0.05334046345811051
+            ]
+          }
+        },
+        "model": {
+          "false_usable": {
+            "value": 0.08985024958402663,
+            "interval": [
+              0.07058341369334618,
+              0.10942760942760943
+            ]
+          },
+          "false_unusable": {
+            "value": 0.053475935828877004,
+            "interval": [
+              0.03504043126684636,
+              0.07318067338282078
+            ]
+          }
+        },
+        "unetmobv2_v2": {
+          "false_usable": {
+            "value": 0.04658901830282862,
+            "interval": [
+              0.03198653198653199,
+              0.0622053872053872
+            ]
+          },
+          "false_unusable": {
+            "value": 0.0374331550802139,
+            "interval": [
+              0.022157603954637978,
+              0.05277777777777778
+            ]
+          }
+        }
+      },
+      "comparisons": {
+        "tile_rule": {
+          "false_usable_diff": {
+            "value": -0.29480737018425457,
+            "interval": [
+              -0.3311036789297659,
+              -0.259567387687188
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.21832884097035044,
+            "interval": [
+              -0.2613394429469901,
+              -0.17677347424572673
+            ]
+          },
+          "passed": true
+        },
+        "threshold": {
+          "false_usable_diff": {
+            "value": -0.4176372712146422,
+            "interval": [
+              -0.45733984222010854,
+              -0.37747404614755276
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.14438502673796794,
+            "interval": [
+              -0.18567639257294427,
+              -0.10203519424298646
+            ]
+          },
+          "passed": true
+        },
+        "sen2cor": {
+          "false_usable_diff": {
+            "value": -0.27121464226289516,
+            "interval": [
+              -0.305002854812398,
+              -0.23848359777015435
+            ]
+          },
+          "false_unusable_diff": {
+            "value": -0.0427807486631016,
+            "interval": [
+              -0.07086614173228346,
+              -0.016081501340482574
+            ]
+          },
+          "passed": true
+        },
+        "s2cloudless": {
+          "false_usable_diff": {
+            "value": -0.2129783693843594,
+            "interval": [
+              -0.24102937515558878,
+              -0.18429065452091767
+            ]
+          },
+          "false_unusable_diff": {
+            "value": 0.016042780748663103,
+            "interval": [
+              -0.005250034535156789,
+              0.037438172929420366
+            ]
+          },
+          "passed": true
+        },
+        "unetmobv2_v2": {
+          "false_usable_diff": {
+            "value": 0.04326123128119801,
+            "interval": [
+              0.026711185308848077,
+              0.06125827814569536
+            ]
+          },
+          "false_unusable_diff": {
+            "value": 0.016042780748663103,
+            "interval": [
+              -0.002688898575995348,
+              0.035523991316715325
+            ]
+          },
+          "passed": false
+        }
+      },
+      "passed": true
+    }
+  },
+  "claim2": {
+    "all_heldout": {
+      "n_sites": 217,
+      "n_targets": 868,
+      "n_plumes": 2131,
+      "rates": {
+        "none": {
+          "cloud_caused_per_target": {
+            "value": 21.910138248847925,
+            "interval": [
+              19.522926267281104,
+              24.187269585253453
+            ]
+          },
+          "detection_share": {
+            "value": 0.24542468324730174,
+            "interval": [
+              0.21731041499462464,
+              0.27379004585383704
+            ]
+          }
+        },
+        "threshold": {
+          "cloud_caused_per_target": {
+            "value": 15.653225806451612,
+            "interval": [
+              13.713709677419354,
+              17.63052995391705
+            ]
+          },
+          "detection_share": {
+            "value": 0.2383857343969967,
+            "interval": [
+              0.20707234555059809,
+              0.2703876600761492
+            ]
+          }
+        },
+        "sen2cor": {
+          "cloud_caused_per_target": {
+            "value": 12.23041474654378,
+            "interval": [
+              10.566705069124424,
+              13.927534562211981
+            ]
+          },
+          "detection_share": {
+            "value": 0.2013139371187236,
+            "interval": [
+              0.1758430400489766,
+              0.2284789181147886
+            ]
+          }
+        },
+        "s2cloudless": {
+          "cloud_caused_per_target": {
+            "value": 12.622119815668203,
+            "interval": [
+              11.03127880184332,
+              14.233006912442397
+            ]
+          },
+          "detection_share": {
+            "value": 0.24213984045049272,
+            "interval": [
+              0.21291804050871407,
+              0.27307070612754725
+            ]
+          }
+        },
+        "model": {
+          "cloud_caused_per_target": {
+            "value": 8.27995391705069,
+            "interval": [
+              7.192281105990784,
+              9.457834101382488
+            ]
+          },
+          "detection_share": {
+            "value": 0.25621773815110277,
+            "interval": [
+              0.22677081648113911,
+              0.2870950262780604
+            ]
+          }
+        }
+      },
+      "comparisons": {
+        "none": {
+          "cloud_caused_diff": {
+            "value": -13.630184331797235,
+            "interval": [
+              -15.359504608294932,
+              -11.903744239631337
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.01079305490380103,
+            "interval": [
+              -0.008447187626152344,
+              0.02932980457209176
+            ]
+          },
+          "passed": true
+        },
+        "threshold": {
+          "cloud_caused_diff": {
+            "value": -7.373271889400922,
+            "interval": [
+              -8.748963133640553,
+              -6.0229838709677415
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.01783200375410607,
+            "interval": [
+              0.0,
+              0.034937800136272575
+            ]
+          },
+          "passed": true
+        },
+        "sen2cor": {
+          "cloud_caused_diff": {
+            "value": -3.950460829493089,
+            "interval": [
+              -5.087615207373273,
+              -2.8120391705069125
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.05490380103237916,
+            "interval": [
+              0.03756752482561569,
+              0.07357177404534301
+            ]
+          },
+          "passed": true
+        },
+        "s2cloudless": {
+          "cloud_caused_diff": {
+            "value": -4.3421658986175125,
+            "interval": [
+              -5.3018433179723505,
+              -3.3718317972350236
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.014077897700610048,
+            "interval": [
+              0.0,
+              0.02909107973209336
+            ]
+          },
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "official_test_with_reference": {
+      "n_sites": 193,
+      "n_targets": 772,
+      "n_plumes": 1909,
+      "rates": {
+        "none": {
+          "cloud_caused_per_target": {
+            "value": 21.058290155440414,
+            "interval": [
+              18.945142487046635,
+              23.40693005181347
+            ]
+          },
+          "detection_share": {
+            "value": 0.24934520691461498,
+            "interval": [
+              0.22124960918025027,
+              0.2804402780266185
+            ]
+          }
+        },
+        "threshold": {
+          "cloud_caused_per_target": {
+            "value": 14.623056994818652,
+            "interval": [
+              12.806606217616581,
+              16.579598445595852
+            ]
+          },
+          "detection_share": {
+            "value": 0.23677317967522263,
+            "interval": [
+              0.20613085868465134,
+              0.26995052248989726
+            ]
+          }
+        },
+        "sen2cor": {
+          "cloud_caused_per_target": {
+            "value": 11.625647668393782,
+            "interval": [
+              9.957189119170986,
+              13.487564766839379
+            ]
+          },
+          "detection_share": {
+            "value": 0.20115243583027764,
+            "interval": [
+              0.17359679841688683,
+              0.2303572000342314
+            ]
+          }
+        },
+        "s2cloudless": {
+          "cloud_caused_per_target": {
+            "value": 12.207253886010363,
+            "interval": [
+              10.575000000000001,
+              13.949546632124353
+            ]
+          },
+          "detection_share": {
+            "value": 0.24358302776322682,
+            "interval": [
+              0.2142456368348912,
+              0.2767984566971539
+            ]
+          }
+        },
+        "model": {
+          "cloud_caused_per_target": {
+            "value": 8.143782383419689,
+            "interval": [
+              7.017940414507772,
+              9.413536269430052
+            ]
+          },
+          "detection_share": {
+            "value": 0.2603457307490833,
+            "interval": [
+              0.22905628051463423,
+              0.2949027949838082
+            ]
+          }
+        },
+        "unetmobv2_v2": {
+          "cloud_caused_per_target": {
+            "value": 3.6761658031088085,
+            "interval": [
+              3.137240932642487,
+              4.291580310880829
+            ]
+          },
+          "detection_share": {
+            "value": 0.29177579884756416,
+            "interval": [
+              0.2586054555793085,
+              0.3278076552224738
+            ]
+          }
+        }
+      },
+      "comparisons": {
+        "none": {
+          "cloud_caused_diff": {
+            "value": -12.914507772020725,
+            "interval": [
+              -14.66107512953368,
+              -11.308225388601036
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.011000523834468312,
+            "interval": [
+              -0.009356972678140537,
+              0.03125407963446475
+            ]
+          },
+          "passed": true
+        },
+        "threshold": {
+          "cloud_caused_diff": {
+            "value": -6.479274611398964,
+            "interval": [
+              -7.777396373056994,
+              -5.224028497409327
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.023572551073860665,
+            "interval": [
+              0.005238070567712095,
+              0.04270703839631288
+            ]
+          },
+          "passed": true
+        },
+        "sen2cor": {
+          "cloud_caused_diff": {
+            "value": -3.481865284974093,
+            "interval": [
+              -4.712435233160621,
+              -2.318523316062176
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.05919329491880565,
+            "interval": [
+              0.04055172170673587,
+              0.0788260946130588
+            ]
+          },
+          "passed": true
+        },
+        "s2cloudless": {
+          "cloud_caused_diff": {
+            "value": -4.063471502590675,
+            "interval": [
+              -5.094624352331605,
+              -3.0362046632124353
+            ]
+          },
+          "detection_share_diff": {
+            "value": 0.01676270298585647,
+            "interval": [
+              0.0010443591686335157,
+              0.032538733303469146
+            ]
+          },
+          "passed": true
+        },
+        "unetmobv2_v2": {
+          "cloud_caused_diff": {
+            "value": 4.46761658031088,
+            "interval": [
+              3.717357512953367,
+              5.294170984455959
+            ]
+          },
+          "detection_share_diff": {
+            "value": -0.03143006809848087,
+            "interval": [
+              -0.045455733498075385,
+              -0.01875928217821782
+            ]
+          },
+          "passed": false
+        }
+      },
+      "passed": true
+    }
+  },
+  "pixel_confusion": {
+    "threshold": {
+      "rows_truth_cols_pred_[clear,unusable]": [
+        [
+          30944777,
+          5765846
+        ],
+        [
+          19133122,
+          14801275
+        ]
+      ]
+    },
+    "sen2cor": {
+      "rows_truth_cols_pred_[clear,unusable]": [
+        [
+          32895240,
+          3815383
+        ],
+        [
+          13417010,
+          20517387
+        ]
+      ]
+    },
+    "s2cloudless": {
+      "rows_truth_cols_pred_[clear,unusable]": [
+        [
+          34486490,
+          2224133
+        ],
+        [
+          11664093,
+          22270304
+        ]
+      ]
+    },
+    "unetmobv2_v2": {
+      "rows_truth_cols_pred_[clear,unusable]": [
+        [
+          34769698,
+          1940925
+        ],
+        [
+          2569982,
+          31364415
+        ]
+      ]
+    },
+    "model": {
+      "rows_truth_cols_pred_[clear,unusable]": [
+        [
+          33982114,
+          2728509
+        ],
+        [
+          5599422,
+          28334975
+        ]
+      ]
+    }
+  },
+  "bay_area_patches": [
+    {
+      "roi_id": "ROI_00787",
+      "sample_id": "ROI_00787__20190902T184919_20190902T185948_T10SEG",
+      "true_clear": 1.0,
+      "clear_threshold": 0.9854764709529419,
+      "clear_sen2cor": 0.9908239816479633,
+      "clear_s2cloudless": 0.9938154876309753,
+      "clear_unetmobv2_v2": 1.0,
+      "clear_model": 0.9632184264368528,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 40.3929
+    },
+    {
+      "roi_id": "ROI_00787",
+      "sample_id": "ROI_00787__20200305T185241_20200305T185610_T10SEG",
+      "true_clear": 0.0,
+      "clear_threshold": 0.9899559799119598,
+      "clear_sen2cor": 0.2047244094488189,
+      "clear_s2cloudless": 0.2956630913261826,
+      "clear_unetmobv2_v2": 0.29846859693719385,
+      "clear_model": 0.5387810775621551,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 79.0177
+    },
+    {
+      "roi_id": "ROI_00787",
+      "sample_id": "ROI_00787__20200320T184959_20200320T190131_T10SFG",
+      "true_clear": 0.8372961745923492,
+      "clear_threshold": 0.9577779155558311,
+      "clear_sen2cor": 0.9434093868187736,
+      "clear_s2cloudless": 0.9213218426436853,
+      "clear_unetmobv2_v2": 0.8739537479074958,
+      "clear_model": 0.844255688511377,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 8.7463
+    },
+    {
+      "roi_id": "ROI_00787",
+      "sample_id": "ROI_00787__20200325T185011_20200325T185014_T10SFG",
+      "true_clear": 0.14401078802157605,
+      "clear_threshold": 0.3149451298902598,
+      "clear_sen2cor": 0.26894103788207574,
+      "clear_s2cloudless": 0.17189534379068758,
+      "clear_unetmobv2_v2": 0.17325934651869304,
+      "clear_model": 0.15768181536363074,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 47.4957
+    },
+    {
+      "roi_id": "ROI_00787",
+      "sample_id": "ROI_00787__20200519T184919_20200519T185619_T10SFG",
+      "true_clear": 0.3956227912455825,
+      "clear_threshold": 0.6620373240746481,
+      "clear_sen2cor": 0.5293415586831174,
+      "clear_s2cloudless": 0.3717217434434869,
+      "clear_unetmobv2_v2": 0.4190278380556761,
+      "clear_model": 0.3542687085374171,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 49.4438
+    },
+    {
+      "roi_id": "ROI_00911",
+      "sample_id": "ROI_00911__20190525T184929_20190525T185635_T10SEH",
+      "true_clear": 0.029047058094116188,
+      "clear_threshold": 0.26514353028706056,
+      "clear_sen2cor": 0.159247318494637,
+      "clear_s2cloudless": 0.14081778163556327,
+      "clear_unetmobv2_v2": 0.03479756959513919,
+      "clear_model": 0.08033666067332135,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 47.9689
+    },
+    {
+      "roi_id": "ROI_00911",
+      "sample_id": "ROI_00911__20190629T184921_20190629T185707_T10SEH",
+      "true_clear": 0.5481740963481927,
+      "clear_threshold": 0.9030473060946121,
+      "clear_sen2cor": 0.9300638601277202,
+      "clear_s2cloudless": 0.9761919523839048,
+      "clear_unetmobv2_v2": 0.8118916237832475,
+      "clear_model": 0.7851695703391407,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 22.6673
+    },
+    {
+      "roi_id": "ROI_00911",
+      "sample_id": "ROI_00911__20200325T185011_20200325T185014_T10SEH",
+      "true_clear": 0.4902969805939612,
+      "clear_threshold": 0.8191611383222767,
+      "clear_sen2cor": 0.7407154814309629,
+      "clear_s2cloudless": 0.8011036022072044,
+      "clear_unetmobv2_v2": 0.546996093992188,
+      "clear_model": 0.593232686465373,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 19.9889
+    },
+    {
+      "roi_id": "ROI_00911",
+      "sample_id": "ROI_00911__20200424T184921_20200424T185418_T10SEH",
+      "true_clear": 1.0,
+      "clear_threshold": 0.9459358918717837,
+      "clear_sen2cor": 0.9991319982639966,
+      "clear_s2cloudless": 1.0,
+      "clear_unetmobv2_v2": 1.0,
+      "clear_model": 0.9815704631409263,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 0.0
+    },
+    {
+      "roi_id": "ROI_00911",
+      "sample_id": "ROI_00911__20200529T184919_20200529T190015_T10SEH",
+      "true_clear": 0.5207855415710831,
+      "clear_threshold": 0.8708227416454833,
+      "clear_sen2cor": 0.661975323950648,
+      "clear_s2cloudless": 0.793260586521173,
+      "clear_unetmobv2_v2": 0.47163494326988653,
+      "clear_model": 0.3661262322524645,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 69.7357
+    },
+    {
+      "roi_id": "ROI_00927",
+      "sample_id": "ROI_00927__20190629T184921_20190629T185707_T10SEH",
+      "true_clear": 0.048561597123194244,
+      "clear_threshold": 0.917012834025668,
+      "clear_sen2cor": 0.007734515469030938,
+      "clear_s2cloudless": 0.1916733833467667,
+      "clear_unetmobv2_v2": 0.00658751317502635,
+      "clear_model": 0.04741459482918966,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 22.6673
+    },
+    {
+      "roi_id": "ROI_00927",
+      "sample_id": "ROI_00927__20190828T184921_20190828T185739_T10SEH",
+      "true_clear": 0.49108748217496434,
+      "clear_threshold": 0.974254448508897,
+      "clear_sen2cor": 0.9605834211668424,
+      "clear_s2cloudless": 0.9360468720937442,
+      "clear_unetmobv2_v2": 0.5465465930931862,
+      "clear_model": 0.6864343728687458,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 15.2732
+    },
+    {
+      "roi_id": "ROI_00927",
+      "sample_id": "ROI_00927__20191027T185501_20191027T190301_T10SEH",
+      "true_clear": 1.0,
+      "clear_threshold": 0.9903899807799615,
+      "clear_sen2cor": 0.9674344348688697,
+      "clear_s2cloudless": 0.999984499969,
+      "clear_unetmobv2_v2": 1.0,
+      "clear_model": 0.9908394816789634,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 3.0244
+    },
+    {
+      "roi_id": "ROI_00927",
+      "sample_id": "ROI_00927__20200204T185551_20200204T190203_T10SEH",
+      "true_clear": 0.158503317006634,
+      "clear_threshold": 0.657247814495629,
+      "clear_sen2cor": 0.00085250170500341,
+      "clear_s2cloudless": 0.08405666811333623,
+      "clear_unetmobv2_v2": 0.22290594581189163,
+      "clear_model": 0.12364374728749457,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 62.3718
+    },
+    {
+      "roi_id": "ROI_00927",
+      "sample_id": "ROI_00927__20200325T185011_20200325T185014_T10SEH",
+      "true_clear": 0.9577779155558311,
+      "clear_threshold": 0.9725184450368901,
+      "clear_sen2cor": 0.9628309256618514,
+      "clear_s2cloudless": 0.970518941037882,
+      "clear_unetmobv2_v2": 0.960226920453841,
+      "clear_model": 0.9479973959947919,
+      "split": "train",
+      "regional": true,
+      "tile_cloud_cover": 19.9889
+    }
+  ],
+  "band_means": {
+    "bands": [
+      "B01",
+      "B02",
+      "B03",
+      "B04",
+      "B05",
+      "B06",
+      "B07",
+      "B08",
+      "B8A",
+      "B09",
+      "B10",
+      "B11",
+      "B12"
+    ],
+    "clear": [
+      0.1833,
+      0.1615,
+      0.1508,
+      0.1531,
+      0.1733,
+      0.2299,
+      0.2568,
+      0.248,
+      0.2744,
+      0.0946,
+      0.0054,
+      0.194,
+      0.1318
+    ],
+    "cloud": [
+      0.3173,
+      0.2994,
+      0.2816,
+      0.2918,
+      0.3049,
+      0.3487,
+      0.3747,
+      0.3598,
+      0.3899,
+      0.16,
+      0.0224,
+      0.283,
+      0.2154
+    ],
+    "shadow": [
+      0.1806,
+      0.1501,
+      0.1298,
+      0.1228,
+      0.1317,
+      0.1663,
+      0.1838,
+      0.1715,
+      0.191,
+      0.0609,
+      0.0053,
+      0.119,
+      0.0803
+    ],
+    "pixels": {
+      "clear": 36710623,
+      "cloud": 27238692,
+      "shadow": 6695705
+    }
+  },
+  "published": {
+    "claim1_passed": true,
+    "claim2_passed": true
+  },
+  "rehearsal": false
+}

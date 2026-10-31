@@ -56,3 +56,95 @@ def test_placebo_and_power_rows(rows):
     assert "none of the tested drops reached 80% power" in power["note"]
     old = rows["repair-synthetic-20261003T232115Z-placebo"]
     assert old["superseded"] and old["metrics"]["false_positive_rate"] == 0.129
+
+
+def _cloud_result(passed1: bool, rehearsal: bool = False) -> dict:
+    def r(v):
+        return {"value": v, "interval": [v - 0.01, v + 0.01]}
+
+    def rates(keys):
+        return {m: {k: r(0.1) for k in keys} for m in ("tile_rule", "sen2cor", "model")}
+
+    c1_keys = ("false_usable", "false_unusable")
+    claim1 = {
+        "n_patches": 10,
+        "n_sites": 4,
+        "rates": rates(c1_keys),
+        "comparisons": {
+            "sen2cor": {
+                "false_usable_diff": r(-0.05),
+                "false_unusable_diff": r(0.0),
+                "passed": passed1,
+            }
+        },
+        "passed": passed1,
+    }
+    c2_keys = ("cloud_caused_per_target", "detection_share")
+    claim2 = {
+        "n_sites": 3,
+        "n_targets": 6,
+        "n_plumes": 18,
+        "rates": rates(c2_keys),
+        "comparisons": {
+            "sen2cor": {
+                "cloud_caused_diff": r(0.2),
+                "detection_share_diff": r(0.0),
+                "passed": False,
+            }
+        },
+        "passed": False,
+    }
+    ref1 = {
+        "n_patches": 5,
+        "rates": {**rates(c1_keys), "unetmobv2_v2": {k: r(0.05) for k in c1_keys}},
+    }
+    ref2 = {"rates": {**rates(c2_keys), "unetmobv2_v2": {k: r(0.05) for k in c2_keys}}}
+    return {
+        "rehearsal": rehearsal,
+        "amplitude": {"amplitude": 0.05},
+        "claim1": {
+            "all_heldout": claim1,
+            "west_coast": claim1,
+            "official_test_with_reference": ref1,
+        },
+        "claim2": {"all_heldout": claim2, "official_test_with_reference": ref2},
+    }
+
+
+def _write_cloud_report(root: Path, result: dict, run_id: str) -> None:
+    import json
+
+    folder = root / "validation" / "s2-cloud-model"
+    folder.mkdir(parents=True)
+    manifest = json.dumps({"run_id": run_id, "created_at": "2026-11-01T00:00:00+00:00"}, indent=2)
+    (folder / f"{run_id}.md").write_text(f"# Cloud model ({run_id})\n\n```json\n{manifest}\n```\n")
+    (folder / f"{run_id}.json").write_text(json.dumps(result))
+
+
+def test_cloud_model_rows_come_from_the_results_file(tmp_path):
+    _write_cloud_report(tmp_path, _cloud_result(passed1=True), "s2-cloud-model-x")
+    rows = {r["gate"]: r for r in validation_rows(tmp_path)}
+    usable, detections = rows["s2_cloud_usable"], rows["s2_cloud_detections"]
+    assert usable["result"] == "pass" and detections["result"] == "fail"
+    assert usable["report_id"] == "s2-cloud-model-x-claim1"
+    assert usable["metrics"]["rates"]["model"]["false_usable"] == pytest.approx([0.1, 0.09, 0.11])
+    assert usable["metrics"]["comparisons"]["sen2cor"]["passed"] is True
+    assert set(usable["metrics"]["reference"]["rates"]) == {"model", "unetmobv2_v2"}
+    assert detections["metrics"]["amplitude"] == 0.05
+    assert usable["created_at"] == "2026-11-01T00:00:00+00:00"
+
+
+def test_a_cloud_model_rehearsal_is_never_published(tmp_path):
+    _write_cloud_report(tmp_path, _cloud_result(passed1=True, rehearsal=True), "s2-cloud-model-r")
+    assert validation_rows(tmp_path) == []
+
+
+def test_the_committed_cloud_model_test_gives_one_row_per_claim(rows):
+    cloud = {r["gate"]: r for r in rows.values() if r["gate"].startswith("s2_cloud")}
+    assert set(cloud) == {"s2_cloud_usable", "s2_cloud_detections"}
+    usable = cloud["s2_cloud_usable"]["metrics"]
+    # Every compared method has a rate with its 90% range, and every comparison a verdict
+    assert {"tile_rule", "threshold", "sen2cor", "s2cloudless", "model"} <= set(usable["rates"])
+    assert all(len(v["false_usable"]) == 3 for v in usable["rates"].values())
+    assert all(isinstance(c["passed"], bool) for c in usable["comparisons"].values())
+    assert len(usable["bay_area"]) == 15
