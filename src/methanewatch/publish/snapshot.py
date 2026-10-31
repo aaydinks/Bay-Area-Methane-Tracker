@@ -95,6 +95,63 @@ def _day(ts: pd.Series) -> pd.Series:
     return pd.to_datetime(ts, utc=True).dt.strftime("%Y-%m-%d")
 
 
+def _pass_detections(ov: pd.DataFrame, det: pd.DataFrame) -> pd.DataFrame:
+    """``detected``, ``q_obs_kg_hr`` and ``n_plumes`` for every overpass; nothing seen if absent."""
+    cols = ["detected", "q_obs_kg_hr", "n_plumes"]
+    d = det.set_index("overpass_id") if len(det) else pd.DataFrame(columns=cols)
+    d = d.reindex(index=ov["overpass_id"], columns=cols)
+    return pd.DataFrame(
+        {
+            "detected": d["detected"].eq(True).to_numpy(),
+            "q_obs_kg_hr": pd.to_numeric(d["q_obs_kg_hr"]).to_numpy(dtype=float),
+            "n_plumes": pd.to_numeric(d["n_plumes"]).fillna(0).astype(int).to_numpy(),
+        },
+        index=ov.index,
+    )
+
+
+def _emit_complexes(project: ProjectConfig, interim: Path, sites) -> pd.DataFrame | None:
+    """NASA's own EMIT plume complexes as attributed plume rows, or None if there are none.
+
+    The complex metadata has an outline but no rate, so the origin is the outline's centroid
+    and the rate stays empty. Attribution uses the coverage step's rule and inputs.
+    """
+    import geopandas as gpd
+
+    from methanewatch.attribution import attribute_plumes
+
+    path = interim / "emit_plume_outlines.parquet"
+    if not path.exists():
+        return None
+    outlines = gpd.read_parquet(path).reset_index(drop=True)
+    if outlines.empty:
+        return None
+    nb_path = interim / "neighbors.parquet"
+    neighbors = gpd.read_parquet(nb_path) if nb_path.exists() else sites.iloc[0:0]
+    centre = outlines.geometry.to_crs(project.crs_metric).centroid.to_crs("EPSG:4326")
+    complexes = pd.DataFrame(
+        {
+            "plume_id": outlines["plume_id"],
+            "source": "emit-v2",
+            "instrument": "emit",
+            "acquired_utc": pd.to_datetime(outlines["acquired_utc"], utc=True),
+            "origin_lon": centre.x,
+            "origin_lat": centre.y,
+            "q_kg_hr": math.nan,
+            "q_sigma_kg_hr": math.nan,
+            "data_version": outlines["granule_ur"].str.extract(r"_CH4PLM_(\d+)_")[0],
+        }
+    )
+    return attribute_plumes(
+        complexes,
+        sites,
+        neighbors,
+        buffer_m=project.attribution.buffer_m,
+        search_radius_m=project.attribution.search_radius_km * 1000,
+        metric_crs=project.crs_metric,
+    )
+
+
 def latest_refresh(interim: Path) -> dict | None:
     path = interim / "refresh" / "latest.json"
     return _read_json(path) if path.exists() else None
@@ -228,10 +285,25 @@ def build(
         )
 
     # --- passes --------------------------------------------------------------------------
+    from methanewatch.coverage.overpasses import build_detections
+
     ov = pd.read_parquet(interim / "overpasses.parquet")
     det_path = interim / "detections.parquet"
     det = pd.read_parquet(det_path) if det_path.exists() else pd.DataFrame(columns=["overpass_id"])
-    det = det.set_index("overpass_id") if len(det) else det
+    pl_path = interim / "plumes_attributed.parquet"
+    pl = pd.read_parquet(pl_path) if pl_path.exists() else None
+    # detections.parquet pools plumes from every source, so a pass by an open instrument can
+    # carry a rate from Carbon Mapper's copy of the same plume. Those passes are counted again
+    # from the plumes of unrestricted sources only, with the coverage step's own rule.
+    pass_restricted = ov["instrument"].isin(restricted_instruments)
+    recorded = _pass_detections(ov, det)
+    open_only = _pass_detections(
+        ov,
+        build_detections(ov, pl[~pl["source"].isin(restricted_sources)])[0]
+        if pl is not None
+        else pd.DataFrame(),
+    )
+    seen = {c: recorded[c].where(pass_restricted, open_only[c]) for c in recorded.columns}
     tables["passes"] = pd.DataFrame(
         {
             "overpass_id": ov["overpass_id"],
@@ -242,21 +314,18 @@ def build(
             "coverage_frac": ov["coverage_frac"],
             "valid_frac": ov["valid_frac"],
             "coverage_source": ov["coverage_source"],
-            "detected": ov["overpass_id"].map(det["detected"]).fillna(False).astype(bool)
-            if len(det)
-            else False,
-            "q_obs_kg_hr": ov["overpass_id"].map(det["q_obs_kg_hr"]) if len(det) else None,
-            "n_plumes": ov["overpass_id"].map(det["n_plumes"]).fillna(0).astype(int)
-            if len(det) and "n_plumes" in det
-            else 0,
-            "restricted": ov["instrument"].isin(restricted_instruments),
+            "detected": seen["detected"],
+            "q_obs_kg_hr": seen["q_obs_kg_hr"],
+            "n_plumes": seen["n_plumes"],
+            "restricted": pass_restricted,
         }
     )
 
     # --- plumes --------------------------------------------------------------------------
-    pl_path = interim / "plumes_attributed.parquet"
-    if pl_path.exists():
-        pl = pd.read_parquet(pl_path)
+    # NASA's complexes are listed here only; they have no rate, so they never mark a pass.
+    frames = [f for f in (pl, _emit_complexes(project, interim, sites)) if f is not None]
+    if frames:
+        pl = pd.concat(frames, ignore_index=True)
         key = pl["site_id"].fillna("") + ":" + pl["instrument"] + ":" + _day(pl["acquired_utc"])
         known = set(ov["overpass_id"])
         tables["plumes"] = pd.DataFrame(
