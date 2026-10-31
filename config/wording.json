@@ -1,0 +1,56 @@
+{
+  "about": "One word list for every generated page. The Python check (src/methanewatch/report/lint.py) and the website build both read this file and fail a build on a hit. Edit it here only, never in one side's code. Patterns are regular expressions that work the same in Python and JavaScript, matched case-insensitively.",
+  "version": 1,
+  "banned": {
+    "saved": {
+      "pattern": "\\bsaved\\b",
+      "note": "Nothing is saved unless a drop was verified. Allowed only on a verified-drop page."
+    },
+    "real-time": {
+      "pattern": "\\breal[- ]?time\\b",
+      "note": "This is a retrospective tracker; sources publish about 30 days after observation."
+    },
+    "violation": {
+      "pattern": "\\bviolations?\\b",
+      "note": "Results are screening indications, never compliance findings."
+    },
+    "non-compliant": {
+      "pattern": "\\bnon[- ]?complian(t|ce)\\b",
+      "note": "Results are screening indications, never compliance findings."
+    },
+    "illegal": {
+      "pattern": "\\billegal(ly)?\\b",
+      "note": "Results are screening indications, never compliance findings."
+    },
+    "lives": {
+      "pattern": "\\blives\\b",
+      "note": "No health claims."
+    },
+    "health impact": {
+      "pattern": "\\bhealth (impacts?|effects?|outcomes?)\\b",
+      "note": "No health claims. Residents nearby are context only."
+    }
+  },
+  "required": {
+    "site": ["screening indication"],
+    "index": ["retrospective", "screening indication"],
+    "briefing": ["retrospective", "screening indication"],
+    "home": ["retrospective", "screening indication"],
+    "map": ["screening indication"],
+    "checks": ["screening indication"],
+    "updates": ["screening indication"],
+    "sites": ["screening indication"],
+    "methods": ["screening indication"],
+    "how-to-read": ["screening indication"],
+    "data": ["screening indication"]
+  },
+  "allowances": {
+    "verified-drop": ["saved"]
+  },
+  "quoted_source_title": {
+    "html_attribute": "data-wording",
+    "html_value": "source-title",
+    "text_field": "source_doc_title",
+    "note": "An official document's title (for example the formal name of a notice) may contain a banned word. It may appear only inside an element marked data-wording=\"source-title\", or in the source_doc_title field of a record. Both checks skip exactly that and nothing else."
+  }
+}
