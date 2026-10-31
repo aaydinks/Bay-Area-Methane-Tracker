@@ -199,7 +199,7 @@ const ref1 = usable?.m.reference?.rates;
     {usable || detections ? (
       <ul>
         <li><strong>Usable passes:</strong> {usable?.result === 'pass'
-          ? 'the model passed, so its judgement over each site may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count. That change has not been made yet; until it is, the site pages still use the whole-tile figure.'
+          ? 'the model passed, so its judgement over each site may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count. That change has not been made yet; until it is, the site pages still use the whole-tile figure. Before it is made, the model needs a check on recent passes over the landfills, because every test image dates from 2017 to 2020.'
           : 'the model did not pass, so it is not used to decide which passes count. A per-site cloud product is used instead of the whole-tile figure once that change is made.'}</li>
         <li><strong>Detections:</strong> {detections?.result === 'pass'
           ? 'the model passed, so it may mask clouds before Sentinel-2 detection. That change has not been made yet either.'
@@ -224,6 +224,7 @@ const ref1 = usable?.m.reference?.rates;
     <h2 id="limits">Limits</h2>
     <ul>
       <li>The test images are from many places, not from Bay Area landfills. Only three test sites are in the Bay Area, too few to test on their own.</li>
+      <li>Every training and test image dates from 2017 to 2020 and comes from Sentinel-2A or 2B. The landfill passes since 2022 use newer processing and include Sentinel-2C, so the model needs checking on recent passes before it decides which ones count.</li>
       <li>The simulated plumes are simple shapes. Real plumes are patchier, and no real Sentinel-2 plume at a Bay Area landfill has yet been confirmed.</li>
       <li>Thin cloud is counted as unusable, which is cautious; some passes under thin cloud might still be usable for large plumes.</li>
       <li>A narrower range for each site's estimate, or a smaller detectable drop in the before/after test, can only be shown in simulation until the first real model fit.</li>

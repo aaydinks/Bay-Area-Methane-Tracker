@@ -51,7 +51,10 @@ and how well it did.
 
 ## Still to do
 
-- Use the model, or another per-site cloud mask, to decide which Sentinel-2 passes count for
-  each landfill. That will change the usable-pass counts on the site pages.
+- Check the model on recent landfill passes. Every test image dates from 2017 to 2020, while
+  the passes since 2022 use newer processing and include the Sentinel-2C satellite. The check:
+  agreement with Sen2Cor over each site on a sample of passes, plus a few looked at by eye.
+- Then use the model, or another per-site cloud mask, to decide which Sentinel-2 passes count
+  for each landfill. That will change the usable-pass counts on the site pages.
 - Decide whether the larger network is worth its extra software.
 - Mask clouds before Sentinel-2 detection.
