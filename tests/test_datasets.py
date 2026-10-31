@@ -5,10 +5,15 @@ recorded response is kept as a fixture.
 """
 
 from datetime import date
+from types import SimpleNamespace
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pytest
+import rasterio
+from pyproj import Transformer
+from rasterio.transform import from_origin
 from shapely.geometry import box
 
 from methanewatch import datasets
@@ -84,6 +89,50 @@ def test_radiometric_constants_from_metadata():
     assert c["offset_B12"] == -1000
     # Products before baseline 04.00 have no offset
     assert crops.radiometric_constants(xml.split("<RADIO")[0])["offset_B11"] == 0
+
+
+def test_scene_search_asks_for_pages_of_100(monkeypatch):
+    import pystac_client
+
+    seen = {}
+
+    class FakeClient:
+        def search(self, **kwargs):
+            seen.update(kwargs)
+            return SimpleNamespace(items=lambda: [])
+
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(lambda url: FakeClient()))
+    assert s2.search_scenes((-122.0, 37.4, -121.9, 37.5), date(2025, 1, 1), date(2025, 2, 1)) == []
+    assert seen["limit"] == s2.PAGE_SIZE == 100
+    assert seen["datetime"] == "2025-01-01/2025-02-01"
+
+
+def test_crop_reads_bands_in_parallel_and_keeps_their_order(tmp_path, monkeypatch):
+    # Five local band files on a 20 m UTM grid, band i filled with 100 * (i + 1)
+    urls = {}
+    origin = from_origin(585000, 4150000, crops.RES_M, crops.RES_M)
+    for i, b in enumerate(crops.BANDS):
+        path = tmp_path / f"{b}.tif"
+        with rasterio.open(
+            path, "w", driver="GTiff", height=500, width=500, count=1, dtype="uint16",
+            crs="EPSG:32610", transform=origin,
+        ) as dst:  # fmt: skip
+            dst.write(np.full((1, 500, 500), 100 * (i + 1), dtype="uint16"))
+        urls[b] = str(path)
+    urls["metadata"] = "metadata"
+    xml = "<QUANTIFICATION_VALUE unit='none'>10000</QUANTIFICATION_VALUE>"
+    monkeypatch.setattr(crops, "band_urls", lambda product: urls)
+    monkeypatch.setattr(crops, "_get", lambda url: SimpleNamespace(text=xml))
+    monkeypatch.setattr(crops, "_vsi", lambda url: url)
+
+    lon, lat = Transformer.from_crs(32610, 4326, always_xy=True).transform(590000, 4145000)
+    out = crops.crop(PRODUCT, lon, lat, 1000, tmp_path / "crop.tif", {"site_id": "a"})
+    with rasterio.open(out) as src:
+        data = src.read()
+        assert src.descriptions == tuple(crops.BANDS)
+        assert src.tags()["site_id"] == "a"
+    assert data.shape == (5, 100, 100)
+    assert [int(np.unique(layer)[0]) for layer in data] == [100, 200, 300, 400, 500]
 
 
 def _scene(day: str, orbit: int, cloud: float, name: str) -> dict:
