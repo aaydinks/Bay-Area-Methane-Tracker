@@ -4,7 +4,8 @@ import Base from '../layouts/Base.astro';
 import EmptyState from '../components/EmptyState.astro';
 import ResultBadge from '../components/ResultBadge.astro';
 import TableWrap from '../components/TableWrap.astro';
-import MethaneMap, { type SiteSummary } from '../islands/MethaneMap';
+import MapLoader from '../islands/MapLoader';
+import type { SiteSummary } from '../islands/MethaneMap';
 import { CHECK_TYPE, EXPECTED, RESULT, type ResultColour } from '../config';
 import { estimateFor, hasPublication, isPublic, latestCheckFor, plumeDaysFor, publication, sites, snapshot, totals } from '../lib/data';
 import { num } from '../lib/format';
@@ -48,7 +49,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
   <p class="lede">Plume origins as a heat map, passes per site, outlines and the latest check at each landfill, as a screening indication of where to look. Marker shape shows the type of record; colour shows only the statistical result; grey means no check on record. The table below holds the same figures.</p>
   {isPublic && <p class="muted">On the public site, counts cover NASA EMIT and Sentinel-2 until Carbon Mapper confirms its publication terms.</p>}
   {hasPublication ? (
-    <MethaneMap client:only="react" sites={summaries} isPublic={isPublic} dataThrough={publication?.data_through ?? null} availableSources={availableSources} />
+    <MapLoader client:only="react" sites={summaries} isPublic={isPublic} dataThrough={publication?.data_through ?? null} availableSources={availableSources} />
   ) : (
     <EmptyState title="No passes or plumes yet" expected={EXPECTED.plumes} />
   )}

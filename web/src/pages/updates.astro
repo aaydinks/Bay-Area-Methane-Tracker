@@ -31,7 +31,7 @@ const byPublication = [...snapshot.publications]
               <span class="tag"><Icon name={KIND[u.kind]?.icon ?? 'dot'} /> {KIND[u.kind]?.label ?? u.kind}</span>{' '}
               {u.text}
               {u.site_id && <> · <a href={`/sites/${u.site_id}/`}>{siteName(u.site_id)}</a></>}
-              <span class="muted"> ({date(u.event_date)}; data through {date(u.data_through ?? publication.data_through)})</span>
+              <span class="muted"> ({date(u.event_date)}; data through {date(u.data_through ?? publication?.data_through)})</span>
             </li>
           ))}
         </ul>
