@@ -42,6 +42,7 @@ dependencies = [
     "matplotlib>=3.9",
     "tabulate>=0.9",
     "zarr>=3.0",
+    "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]
@@ -62,7 +63,6 @@ dev = [
     "pre-commit>=3.8",
     "ipykernel>=6.29",
     "nbstripout>=0.7",
-    "psycopg[binary]>=3.2",
 ]
 
 [build-system]

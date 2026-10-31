@@ -5,8 +5,10 @@ The Makefile and the end-to-end notebook call the same package functions.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -31,6 +33,7 @@ wind_app = typer.Typer(no_args_is_help=True, help="10 m wind for plume quantific
 population_app = typer.Typer(no_args_is_help=True, help="Residents near each site (context only).")
 datasets_app = typer.Typer(no_args_is_help=True, help="Committed copy of each source dataset.")
 features_app = typer.Typer(no_args_is_help=True, help="Site traits for model covariates.")
+publish_app = typer.Typer(no_args_is_help=True, help="Publish one run to the website's database.")
 
 for name, sub in [
     ("config", config_app),
@@ -46,6 +49,7 @@ for name, sub in [
     ("population", population_app),
     ("datasets", datasets_app),
     ("features", features_app),
+    ("publish", publish_app),
 ]:
     app.add_typer(sub, name=name)
 
@@ -622,3 +626,144 @@ def datasets_build(
 
 if __name__ == "__main__":
     app()
+
+
+# --- publish ------------------------------------------------------------------------------
+
+
+def _publications_dir() -> Path:
+    project = config.load_project()
+    return project.resolve(project.paths.processed) / "publications"
+
+
+def _dsn() -> str:
+    from methanewatch.publish.load import NoDatabaseError, dsn_from_env
+
+    try:
+        return dsn_from_env()
+    except NoDatabaseError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+
+@publish_app.command("build")
+def publish_build(
+    model_run: Annotated[str | None, typer.Option(help="Model run id (processed/runs).")] = None,
+    check_run: Annotated[
+        str | None, typer.Option(help="Check run id (processed/repair_outcomes).")
+    ] = None,
+    refresh: Annotated[str | None, typer.Option(help="Refresh id; default the latest.")] = None,
+    allow_simulated: Annotated[
+        bool, typer.Option(help="Accept a synthetic demo run (draft or review only).")
+    ] = False,
+    notes: Annotated[str | None, typer.Option(help="A note stored with the publication.")] = None,
+) -> None:
+    """Assemble a snapshot of one run, check it, and write it under processed/publications."""
+    from methanewatch.publish import snapshot as snap
+
+    project = config.load_project()
+    try:
+        s = _run_or_exit(
+            snap.build,
+            project,
+            config.load_data_terms(),
+            config.load_impact(),
+            model_run_id=model_run,
+            check_run_id=check_run,
+            refresh_id=refresh,
+            allow_simulated=allow_simulated,
+            notes=notes,
+        )
+    except (snap.SimulatedRunError, snap.WordingError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    out = s.write(_publications_dir())
+    for name, df in s.tables.items():
+        typer.echo(f"{name}: {len(df)} rows")
+    flags = ", ".join(k for k in ("simulated", "provisional") if s.publication[k])
+    typer.echo(
+        f"wrote {out} (data through {s.publication['data_through']}{', ' + flags if flags else ''})"
+    )
+    typer.echo(f"publication {s.publish_id}")
+
+
+@publish_app.command("check")
+def publish_check(
+    publish_id: Annotated[str, typer.Argument(help="A built publication id.")],
+) -> None:
+    """Run the wording check again over a built snapshot's text fields."""
+    from methanewatch.publish.snapshot import Snapshot, check_wording
+
+    folder = _publications_dir() / publish_id
+    if not folder.exists():
+        typer.secho(f"no snapshot at {folder}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    problems = check_wording(Snapshot.read(folder).tables)
+    for p in problems:
+        typer.secho(p, fg=typer.colors.RED, err=True)
+    if problems:
+        raise typer.Exit(code=1)
+    typer.echo("wording check passed")
+
+
+@publish_app.command("push")
+def publish_push(
+    publish_id: Annotated[str, typer.Argument(help="A built publication id.")],
+) -> None:
+    """Load a built snapshot into the database as a draft, in one transaction."""
+    from methanewatch.publish.load import push
+    from methanewatch.publish.snapshot import Snapshot
+
+    folder = _publications_dir() / publish_id
+    if not folder.exists():
+        typer.secho(
+            f"no snapshot at {folder}; run `mw publish build` first", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(code=2)
+    try:
+        counts = push(Snapshot.read(folder), _dsn())
+    except Exception as exc:  # psycopg errors carry the plain reason, e.g. a paused project
+        typer.secho(f"push failed, nothing was loaded: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    for name, n in counts.items():
+        typer.echo(f"{name}: {n} rows")
+    typer.echo(f"loaded {publish_id} as draft")
+
+
+@publish_app.command("set-visibility")
+def publish_set_visibility(
+    publish_id: Annotated[str, typer.Argument()],
+    visibility: Annotated[str, typer.Argument(help="draft, review or public")],
+    yes: Annotated[bool, typer.Option("--yes", help="Skip the confirmation for public.")] = False,
+) -> None:
+    """Promote a publication. Public needs confirmation and never accepts a simulated run."""
+    from methanewatch.publish.load import set_visibility
+
+    if visibility == "public" and not yes:
+        typer.confirm(f"Make {publish_id} visible on the public website?", abort=True)
+    try:
+        result = set_visibility(_dsn(), publish_id, visibility)
+    except (ValueError, LookupError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"{result['publish_id']}: {result['from']} -> {result['to']}")
+    hook = os.environ.get(
+        "CF_DEPLOY_HOOK_PUBLIC" if visibility == "public" else "CF_DEPLOY_HOOK_REVIEW"
+    )
+    if hook:
+        import httpx
+
+        r = httpx.post(hook, timeout=30)
+        typer.echo(f"deploy hook: {r.status_code}")
+
+
+@publish_app.command("list")
+def publish_list() -> None:
+    """Publications in the database, newest first."""
+    from methanewatch.publish.load import list_publications
+
+    for p in list_publications(_dsn()):
+        flags = " ".join(k for k in ("simulated", "provisional") if p[k])
+        typer.echo(
+            f"{p['publish_id']}  {p['visibility']:7}  data through {p['data_through']}  {flags}"
+        )

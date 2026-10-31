@@ -75,6 +75,24 @@ class Ingest(_Strict):
     sentinel2_bbox: BBox
 
 
+class Severity(_Strict):
+    """Size of a measured change (ADR 0009): slight, moderate or severe, on the log scale."""
+
+    scale: Literal["log"] = "log"
+    slight_max_factor: float = Field(default=1.33, gt=1)
+    moderate_max_factor: float = Field(default=2.0, gt=1)
+    source: str | None = None
+    confirmed: bool = False
+
+
+class ChecksSettings(_Strict):
+    severity: Severity = Severity()
+
+
+class PublishSettings(_Strict):
+    source_lag_days: int = Field(default=30, ge=0)
+
+
 class ProjectConfig(_Strict):
     crs_geographic: str
     crs_metric: str
@@ -83,6 +101,8 @@ class ProjectConfig(_Strict):
     coverage: Coverage
     repair: RepairWindows
     ingest: Ingest
+    checks: ChecksSettings = ChecksSettings()
+    publish: PublishSettings = PublishSettings()
 
     def resolve(self, p: Path) -> Path:
         return p if p.is_absolute() else REPO_ROOT / p
@@ -277,6 +297,42 @@ class Sentinel2Config(_Strict):
     ppb_lookup_table: Path | None = None
 
 
+# --- data_terms.yaml --------------------------------------------------------
+
+
+class DataTerm(_Strict):
+    """What one source allows (DATA_TERMS.md). Restricted unless confirmed and publishable."""
+
+    display_name: str
+    instruments: tuple[str, ...] = ()
+    raw_publishable: bool = False
+    derived_publishable: bool = False
+    confirmed: bool = False
+    checked_on: date | None = None
+    terms_url: str | None = None
+    credit_line: str | None = None
+
+    @property
+    def restricted(self) -> bool:
+        return not (self.confirmed and self.derived_publishable)
+
+
+class DataTermsConfig(_Strict):
+    sources: dict[str, DataTerm]
+
+    def source_for_instrument(self, instrument: str) -> str | None:
+        for name, term in self.sources.items():
+            if instrument in term.instruments:
+                return name
+        return None
+
+    def restricted_sources(self) -> list[str]:
+        return [n for n, t in self.sources.items() if t.restricted]
+
+    def restricted_instruments(self) -> list[str]:
+        return [i for n, t in self.sources.items() if t.restricted for i in t.instruments]
+
+
 # --- loaders ----------------------------------------------------------------
 
 
@@ -318,3 +374,8 @@ def load_sentinel2(config_dir: Path = CONFIG_DIR) -> Sentinel2Config:
 @lru_cache
 def load_impact(config_dir: Path = CONFIG_DIR) -> ImpactConfig:
     return ImpactConfig.model_validate(_read("impact.yaml", config_dir))
+
+
+@lru_cache
+def load_data_terms(config_dir: Path = CONFIG_DIR) -> DataTermsConfig:
+    return DataTermsConfig.model_validate(_read("data_terms.yaml", config_dir))

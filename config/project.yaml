@@ -40,3 +40,19 @@ repair:
     exact: 0
     week: 7
     month: 31
+
+# Dated checks (ADR 0010) and how their results are labelled for the website (ADR 0009).
+checks:
+  severity:
+    # Size of a measured change, on the log scale so a rise to 2x and a drop to half are the
+    # same size: slight below slight_max_factor, moderate up to moderate_max_factor, severe
+    # beyond. Not yet confirmed by the owner; the website marks sizes accordingly.
+    scale: log
+    slight_max_factor: 1.33
+    moderate_max_factor: 2.0
+    source: "working values chosen 2026-10-30; to be confirmed"
+    confirmed: false
+
+# `mw publish`: how a snapshot is described to the website.
+publish:
+  source_lag_days: 30 # sources publish about this long after an observation
