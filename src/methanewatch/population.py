@@ -3,7 +3,7 @@
 Population is the ACS 5-year total (table B01003) for each census block group,
 split by the share of the block group's area inside the buffer around the
 site (areal interpolation; assumes people are spread evenly within a block
-group). This is context, not a health effect.
+group). This is context only, never a model input.
 
 - Block-group boundaries: Census TIGERweb REST, no key.
 - Population: Census Data API, which needs a free key in ``CENSUS_API_KEY``.
@@ -23,7 +23,7 @@ TIGERWEB = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerW
 ACS = "https://api.census.gov/data/{year}/acs/acs5"
 ACS_YEAR = 2023
 TIGER_YEAR = 2024  # 2020-decade block-group boundaries, shared by ACS 2020-2029 releases
-LABEL = "residents nearby (context, not a health effect)"
+LABEL = "residents nearby (context only)"
 
 
 class MissingCensusKeyError(RuntimeError):
