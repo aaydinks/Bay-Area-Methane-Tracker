@@ -1,0 +1,45 @@
+---
+import Base from '../layouts/Base.astro';
+import EmptyState from '../components/EmptyState.astro';
+import { EXPECTED } from '../config';
+import { currentUpdates, publication, siteName, snapshot } from '../lib/data';
+import { date } from '../lib/format';
+const byPublication = [...snapshot.publications]
+  .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+  .map((p) => ({ publication: p, items: snapshot.update_log.filter((u) => u.publish_id === p.publish_id).sort((a, b) => a.item_order - b.item_order) }));
+---
+<Base title="Latest update" description="What changed in the latest data update, and the full log of earlier updates." kind="updates">
+  <h1>What changed in the latest data update</h1>
+  <p class="lede">Each item is a screening indication of something new in the data, not a finding. Dates are the event dates; the data-through date says how far the sources reach.</p>
+  {publication ? (
+    <section aria-labelledby="latest">
+      <h2 id="latest">Update of {date(publication.published_at ?? publication.created_at)} · data through {date(publication.data_through)}</h2>
+      {currentUpdates.length ? (
+        <ul>
+          {currentUpdates.map((u) => (
+            <li>
+              {u.text}
+              {u.site_id && <> · <a href={`/sites/${u.site_id}/`}>{siteName(u.site_id)}</a></>}
+              <span class="muted"> ({date(u.event_date)})</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="muted">No change notes were recorded for this update.</p>
+      )}
+    </section>
+  ) : (
+    <EmptyState title="No updates yet" expected={EXPECTED.updates} />
+  )}
+  {byPublication.length > 1 && (
+    <section aria-labelledby="log">
+      <h2 id="log">Update log</h2>
+      {byPublication.map(({ publication: p, items }) => (
+        <details>
+          <summary>{date(p.published_at ?? p.created_at)} · <span class="mono">{p.publish_id}</span> · data through {date(p.data_through)}</summary>
+          {items.length ? <ul>{items.map((u) => <li>{u.text} <span class="muted">({date(u.event_date)})</span></li>)}</ul> : <p class="muted">No change notes.</p>}
+        </details>
+      ))}
+    </section>
+  )}
+</Base>

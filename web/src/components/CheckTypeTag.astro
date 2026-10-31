@@ -1,0 +1,8 @@
+---
+import Icon from './Icon.astro';
+import { CHECK_TYPE } from '../config';
+interface Props { type: string | null | undefined; repairKind?: string | null }
+const { type, repairKind } = Astro.props;
+const info = CHECK_TYPE[type ?? 'other'] ?? CHECK_TYPE.other;
+---
+<span class="tag"><Icon name={info.icon} /> {info.label}{repairKind ? ` (${repairKind})` : ''}</span>

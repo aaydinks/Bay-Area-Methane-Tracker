@@ -1,0 +1,123 @@
+---
+import TableWrap from '../../components/TableWrap.astro';
+import Base from '../../layouts/Base.astro';
+import CheckTypeTag from '../../components/CheckTypeTag.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import Range from '../../components/Range.astro';
+import ResultBadge from '../../components/ResultBadge.astro';
+import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
+import {
+  checksFor, estimateFor, featuresFor, neighboursFor, operatorReportsFor, passesByInstrument,
+  plumeDaysFor, populationFor, sites, type Site,
+} from '../../lib/data';
+import { date, num, pct } from '../../lib/format';
+
+export function getStaticPaths() {
+  return sites.map((s) => ({ params: { site: s.site_id ?? '' }, props: { site: s } }));
+}
+interface Props { site: Site }
+const { site } = Astro.props;
+const id = site.site_id ?? '';
+const estimate = estimateFor(id);
+const passes = passesByInstrument(id);
+const plumeDays = plumeDaysFor(id);
+const checks = checksFor(id);
+const reports = operatorReportsFor(id);
+const residents = populationFor(id);
+const neighbours = neighboursFor(id);
+const features = featuresFor(id);
+---
+<Base title={site.name ?? id} description={`Persistence estimate, passes, checks and operator-reported figures for ${site.name}.`} kind="site">
+  <h1>{site.name}</h1>
+  <p class="lede">{site.city}, {site.county} County{site.operator ? ` · operated by ${site.operator}` : ''}{site.status ? ` · ${site.status}` : ''}. Everything on this page is a screening indication for investigation.</p>
+  <dl class="facts">
+    <dt>Outline</dt><dd>{site.provisional ? `Provisional (${site.polygon_source ?? 'placeholder'})` : site.polygon_source ?? 'traced'}</dd>
+    {site.swis_number && <><dt>CalRecycle SWIS</dt><dd>{site.swis_number}</dd></>}
+    {site.ghgrp_facility_id && <><dt>EPA GHGRP facility</dt><dd>{site.ghgrp_facility_id}</dd></>}
+    {features && <><dt>Area</dt><dd>{num(features.area_km2)} km²</dd></>}
+  </dl>
+
+  <section aria-labelledby="estimate">
+    <h2 id="estimate">Persistence estimate</h2>
+    {estimate && estimate.status !== 'insufficient_data' ? (
+      <>
+        <dl class="facts">
+          <dt>Annual methane above the floor</dt><dd><Range med={estimate.e_t_yr_med} lo={estimate.e_t_yr_lo} hi={estimate.e_t_yr_hi} unit="t/yr" /></dd>
+          <dt>Share of observed times emitting</dt><dd><Range med={estimate.f_med == null ? null : estimate.f_med * 100} lo={estimate.f_lo == null ? null : estimate.f_lo * 100} hi={estimate.f_hi == null ? null : estimate.f_hi * 100} unit="%" /></dd>
+          <dt>Typical rate while emitting</dt><dd><Range med={estimate.qbar_kg_hr_med} lo={estimate.qbar_kg_hr_lo} hi={estimate.qbar_kg_hr_hi} unit="kg/hr" /></dd>
+          <dt>Passes used</dt><dd>{num(estimate.n_usable_overpasses)} usable, {num(estimate.n_detections)} with a detection</dd>
+        </dl>
+        {estimate.provisional && <p class="muted">Provisional: some detection curves are not yet confirmed.</p>}
+      </>
+    ) : (
+      <EmptyState title="Insufficient data" expected={estimate?.insufficient_reason ? `${estimate.insufficient_reason}. ${EXPECTED.estimates}` : EXPECTED.estimates} />
+    )}
+  </section>
+
+  <section aria-labelledby="passes">
+    <h2 id="passes">Passes by instrument</h2>
+    {passes.length ? (
+      <TableWrap label="Passes by instrument">
+        <table>
+          <caption>{plumeDays ? `${num(plumeDays.plume_days)} plume days over ${num(plumeDays.usable_passes)} usable passes.` : ''}</caption>
+          <thead><tr><th scope="col">Instrument</th><th scope="col" class="num">Passes</th><th scope="col" class="num">Usable</th><th scope="col" class="num">With a detection</th></tr></thead>
+          <tbody>
+            {passes.map((p) => (
+              <tr><th scope="row">{INSTRUMENT[p.instrument] ?? p.instrument}</th><td class="num">{num(p.passes)}</td><td class="num">{num(p.usable)}</td><td class="num">{num(p.detected)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrap>
+    ) : (
+      <EmptyState title="No passes yet" expected={EXPECTED.plumes} />
+    )}
+  </section>
+
+  <section aria-labelledby="checks">
+    <h2 id="checks">Checks on record</h2>
+    {checks.length ? (
+      <ul>
+        {checks.map((c) => (
+          <li>
+            {date(c.date_start)} <span class="muted">({DATE_CONFIDENCE[c.date_confidence ?? ''] ?? ''})</span> · <CheckTypeTag type={c.check_type} repairKind={c.repair_kind} /> · <ResultBadge colour={c.colour} held={c.result_held} />
+            {c.plain_reading && <p>{c.plain_reading}</p>}
+            {c.change_pct_med != null && <p class="muted">Change {pct(c.change_pct_med)} (90% range {pct(c.change_pct_lo)} to {pct(c.change_pct_hi)}); passes before / after {num(c.n_before)} / {num(c.n_after)}.</p>}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <EmptyState title="No checks on record for this site" expected={EXPECTED.checks} />
+    )}
+  </section>
+
+  <section aria-labelledby="operator">
+    <h2 id="operator">Satellite estimate versus operator-reported figures</h2>
+    {reports.length ? (
+      <TableWrap label="Operator-reported figures">
+        <table>
+          <caption>Reported figures are published as t CO2e; the factor used to convert them back to tonnes of methane is unconfirmed. The satellite figure is methane above the detection floor in daytime, clear skies, not a total.</caption>
+          <thead><tr><th scope="col">Year</th><th scope="col">Source</th><th scope="col" class="num">Reported t CH4</th><th scope="col" class="num">As published, t CO2e</th><th scope="col" class="num">Factor used</th></tr></thead>
+          <tbody>
+            {reports.map((r) => (
+              <tr><th scope="row">{r.year}</th><td><a href={r.url}>{r.source}</a></td><td class="num">{num(r.reported_ch4_t)}</td><td class="num">{num(r.reported_co2e_t)}</td><td class="num">{num(r.gwp_used)}{r.gwp_confirmed ? '' : ' (unconfirmed)'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrap>
+    ) : (
+      <EmptyState title="No operator-reported figures" expected={EXPECTED.operator} />
+    )}
+  </section>
+
+  <section aria-labelledby="context">
+    <h2 id="context">Context</h2>
+    {neighbours.length > 0 && (
+      <p>Other methane sources nearby: {neighbours.map((n) => `${n.name} (${n.kind}, ${num(n.distance_m)} m)`).join('; ')}. Plumes near them are marked ambiguous and never assigned to this landfill.</p>
+    )}
+    {residents.length ? (
+      <p>Residents nearby, as context only: {residents.map((r) => `${num(r.residents)} within ${r.radius_km} km`).join(', ')}.</p>
+    ) : (
+      <p class="muted">Residents nearby appear once the census context is loaded.</p>
+    )}
+  </section>
+</Base>

@@ -1,0 +1,12 @@
+---
+// A median with its 90% range, or an en dash when there is none.
+import { num, MISSING } from '../lib/format';
+interface Props { med: number | null | undefined; lo: number | null | undefined; hi: number | null | undefined; unit?: string }
+const { med, lo, hi, unit = '' } = Astro.props;
+const has = med !== null && med !== undefined;
+---
+{has ? (
+  <span class="range"><strong>{num(med)}</strong>{unit ? ` ${unit}` : ''} <span class="muted">(90% range {num(lo)} to {num(hi)})</span></span>
+) : (
+  <span class="muted">{MISSING}</span>
+)}

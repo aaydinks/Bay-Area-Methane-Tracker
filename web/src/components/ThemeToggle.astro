@@ -1,0 +1,22 @@
+<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch theme">Theme</button>
+<script>
+  const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+  const root = document.documentElement;
+  const label = () => {
+    if (!button) return;
+    const dark = root.getAttribute('data-theme') === 'dark';
+    button.textContent = dark ? 'Light theme' : 'Dark theme';
+    button.setAttribute('aria-label', dark ? 'Switch to the light theme' : 'Switch to the dark theme');
+  };
+  button?.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('theme', next);
+    } catch {
+      // Storage may be unavailable; the choice then lasts for this page only.
+    }
+    label();
+  });
+  label();
+</script>

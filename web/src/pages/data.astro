@@ -1,0 +1,43 @@
+---
+import TableWrap from '../components/TableWrap.astro';
+import Base from '../layouts/Base.astro';
+import { publication, snapshot } from '../lib/data';
+import { date } from '../lib/format';
+---
+<Base title="Data and credits" description="Where the data comes from, what each source allows, and the downloads." kind="data">
+  <h1>Data and credits</h1>
+  <p class="lede">Every figure on this site comes from one published snapshot, named below. Downloads of the publishable tables arrive in a later update. Results are screening indications for investigation.</p>
+  {publication && (
+    <dl class="facts">
+      <dt>Publication</dt><dd><span class="mono">{publication.publish_id}</span></dd>
+      <dt>Data through</dt><dd>{date(publication.data_through)}</dd>
+      <dt>Published</dt><dd>{date(publication.published_at ?? publication.created_at)}</dd>
+      {publication.model_run_id && <><dt>Model run</dt><dd><span class="mono">{publication.model_run_id}</span></dd></>}
+      {publication.check_run_id && <><dt>Checks run</dt><dd><span class="mono">{publication.check_run_id}</span></dd></>}
+      {publication.refresh_id && <><dt>Data refresh</dt><dd><span class="mono">{publication.refresh_id}</span></dd></>}
+    </dl>
+  )}
+  <h2>Sources and terms</h2>
+  {snapshot.data_terms.length ? (
+    <TableWrap label="Sources and terms">
+      <table>
+        <caption>Checked on the date shown. Rows marked "to confirm" are being confirmed with the source.</caption>
+        <thead><tr><th scope="col">Source</th><th scope="col">Credit</th><th scope="col">Derived tables publishable</th><th scope="col">Checked</th></tr></thead>
+        <tbody>
+          {snapshot.data_terms.map((t) => (
+            <tr>
+              <th scope="row">{t.terms_url ? <a href={t.terms_url}>{t.display_name}</a> : t.display_name}</th>
+              <td>{t.credit_line ?? '–'}</td>
+              <td>{t.confirmed ? (t.derived_publishable ? 'yes' : 'no') : 'to confirm'}</td>
+              <td>{date(t.checked_on)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableWrap>
+  ) : (
+    <p class="muted">Credits appear with the first published data update.</p>
+  )}
+  <h2>Use</h2>
+  <p>Non-commercial use only, because Carbon Mapper's terms require it. Raw source files are never redistributed here. Cite the publication id with any figure you reuse.</p>
+</Base>

@@ -1,0 +1,45 @@
+{
+  "name": "methanewatch-web",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Static website for Bay Area Landfill Methane Watch, built from one published snapshot.",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "fixture": "node fixtures/make-fixture.mjs",
+    "fetch": "node scripts/fetch-data.mjs",
+    "dev": "npm run fetch && astro dev",
+    "prebuild": "node scripts/fetch-data.mjs",
+    "build": "astro build",
+    "postbuild": "node scripts/check-wording.mjs && node scripts/check-public-output.mjs",
+    "preview": "astro preview",
+    "check": "npm run fetch && astro check",
+    "lint": "eslint .",
+    "check:wording": "node scripts/check-wording.mjs",
+    "check:public": "node scripts/check-public-output.mjs",
+    "test:a11y": "playwright test",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^7.1.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "astro": "^7.4.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-astro": "^1.7.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

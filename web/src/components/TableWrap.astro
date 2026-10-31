@@ -1,0 +1,8 @@
+---
+// A horizontally scrollable table region that the keyboard can reach.
+interface Props { label: string }
+const { label } = Astro.props;
+---
+<div class="table-wrap" tabindex="0" role="region" aria-label={label}>
+  <slot />
+</div>

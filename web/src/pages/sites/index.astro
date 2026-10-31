@@ -1,0 +1,57 @@
+---
+import Base from '../../layouts/Base.astro';
+import Card from '../../components/Card.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import Range from '../../components/Range.astro';
+import ResultBadge from '../../components/ResultBadge.astro';
+import { EXPECTED } from '../../config';
+import { estimateFor, hasPublication, latestCheckFor, sites } from '../../lib/data';
+const withEstimate = sites.filter((s) => estimateFor(s.site_id ?? '')?.e_t_yr_med != null)
+  .sort((a, b) => (estimateFor(b.site_id ?? '')?.e_t_yr_med ?? 0) - (estimateFor(a.site_id ?? '')?.e_t_yr_med ?? 0));
+const without = sites.filter((s) => !withEstimate.includes(s));
+---
+<Base title="Landfills" description="The five landfills studied in depth, with their persistence estimates and latest checks." kind="sites">
+  <h1>Landfills</h1>
+  <p class="lede">Each estimate is annual methane above the detection floor in daytime, clear-sky conditions, with its 90% range: a screening indication, not a site's total. Sites without enough passes are listed apart and not ranked.</p>
+  {hasPublication ? (
+    <>
+      <section aria-labelledby="ranked">
+        <h2 id="ranked">Sites with an estimate</h2>
+        {withEstimate.length ? (
+          <div class="grid">
+            {withEstimate.map((s) => {
+              const e = estimateFor(s.site_id ?? '');
+              const latest = latestCheckFor(s.site_id ?? '');
+              return (
+                <Card title={s.name ?? ''} href={`/sites/${s.site_id}/`}>
+                  <p><Range med={e?.e_t_yr_med} lo={e?.e_t_yr_lo} hi={e?.e_t_yr_hi} unit="t/yr" /></p>
+                  <p class="what">{e?.n_usable_overpasses} usable passes · {e?.n_detections} detections{e?.provisional ? ' · provisional' : ''}</p>
+                  <ResultBadge colour={latest?.colour} held={latest?.result_held} />
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title="No estimates yet" expected={EXPECTED.estimates} />
+        )}
+      </section>
+      {without.length > 0 && (
+        <section aria-labelledby="thin">
+          <h2 id="thin">Not enough data yet</h2>
+          <div class="grid">
+            {without.map((s) => {
+              const e = estimateFor(s.site_id ?? '');
+              return (
+                <Card title={s.name ?? ''} href={`/sites/${s.site_id}/`}>
+                  <p class="what">{e ? `${e.n_usable_overpasses} usable passes · ${e.insufficient_reason ?? 'insufficient data'}` : 'no estimate in this update'}</p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </>
+  ) : (
+    <EmptyState title="No landfill data yet" expected={EXPECTED.publication} />
+  )}
+</Base>

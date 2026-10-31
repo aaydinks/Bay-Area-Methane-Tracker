@@ -52,6 +52,48 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: uv run pytest -m db tests/db
 
+  web:
+    # The website: lint, type check, a review build and a public build from fixture data (no
+    # keys, no network calls beyond installing packages), the wording check on every page, the
+    # public-output check, and an accessibility pass with axe.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run check
+        env:
+          DATA_SOURCE: fixture
+          SITE_MODE: review
+      - name: Review build with wording check
+        run: npm run build
+        env:
+          DATA_SOURCE: fixture
+          SITE_MODE: review
+      - name: Accessibility check
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:a11y
+        env:
+          CI: "true"
+      - name: Public build with wording and output checks
+        run: npm run build
+        env:
+          DATA_SOURCE: fixture
+          SITE_MODE: public
+          ALLOW_FIXTURE_PUBLIC: "1"
+
   summary:
     # Every pull request adds summaries/NNNN-*.md, NNNN = its number (see summaries/README.md).
     if: github.event_name == 'pull_request'

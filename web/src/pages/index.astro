@@ -1,0 +1,91 @@
+---
+import Base from '../layouts/Base.astro';
+import Card from '../components/Card.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ResultBadge from '../components/ResultBadge.astro';
+import { EXPECTED, SITE_NAME } from '../config';
+import { currentUpdates, hasPublication, latestCheckFor, publication, sites, totals } from '../lib/data';
+import { date, num } from '../lib/format';
+---
+<Base title={SITE_NAME} kind="home">
+  <section aria-labelledby="mission">
+    <h1 id="mission">How persistently do Bay Area landfills leak methane, and did repairs change that?</h1>
+    <p class="lede">
+      This tracker reads back through public satellite and aircraft passes over five Bay Area landfills.
+      It estimates how often each site was seen emitting and how much, tests whether a measured change
+      followed each dated repair or inspection, and compares the satellite view with what operators report
+      to the EPA. Regulators already learn about individual plumes; the gaps are persistence, follow-up and
+      the comparison with reported figures.
+    </p>
+  </section>
+
+  <section aria-labelledby="findings">
+    <h2 id="findings">Latest findings</h2>
+    {hasPublication ? (
+      <>
+        <div class="grid">
+          <Card><span class="big">{num(totals.sites)}</span><span class="what">landfills watched</span></Card>
+          <Card><span class="big">{num(totals.usablePasses)}</span><span class="what">usable passes, all instruments</span></Card>
+          <Card><span class="big">{num(totals.plumeDays)}</span><span class="what">days with a plume seen</span></Card>
+          <Card><span class="big">{num(totals.estimates)}</span><span class="what">sites with an estimate</span></Card>
+        </div>
+        <p class="muted">Counts follow how often a site was observed. A site that was flown more often shows more plumes; see plume days per usable pass on the <a href="/map/">map</a>.</p>
+        <h3>Landfills</h3>
+        <div class="grid">
+          {sites.map((s) => {
+            const latest = latestCheckFor(s.site_id ?? '');
+            return (
+              <Card title={s.name ?? s.site_id ?? ''} href={`/sites/${s.site_id}/`}>
+                <p class="what">{s.city}, {s.county} County{s.status ? ` · ${s.status}` : ''}</p>
+                <ResultBadge colour={latest?.colour} held={latest?.result_held} />
+              </Card>
+            );
+          })}
+        </div>
+        <h3>Latest data update</h3>
+        {currentUpdates.length ? (
+          <ul>
+            {currentUpdates.map((u) => (
+              <li>{u.text} <span class="muted">({date(u.event_date)})</span></li>
+            ))}
+          </ul>
+        ) : (
+          <p class="muted">No change notes in this update.</p>
+        )}
+        <p>Data through {date(publication?.data_through)}. See <a href="/updates/">all updates</a>, the <a href="/checks/">past checks</a> and the <a href="/methods/">method checks</a>.</p>
+      </>
+    ) : (
+      <EmptyState title="No results yet" expected={EXPECTED.publication}>
+        <p>The pages are in place; counters, landfill cards and the latest update appear here once the first snapshot is published.</p>
+      </EmptyState>
+    )}
+  </section>
+
+  <section aria-labelledby="method">
+    <h2 id="method">How it works</h2>
+    <ol>
+      <li>A satellite or aircraft passes over a landfill.</li>
+      <li>It sees a plume, or it doesn't.</li>
+      <li>Every pass counts, not just the ones with plumes.</li>
+      <li>A statistical model gives each site a 90% range for how often it emits and how much.</li>
+      <li>Control sites remove shifts that hit every site at once, such as a new instrument starting to fly.</li>
+      <li>The results are compared with the figures operators report to the EPA.</li>
+    </ol>
+    <p>More in <a href="/methods/">Methods</a> and <a href="/how-to-read/">How to read this site</a>.</p>
+  </section>
+
+  <section aria-labelledby="limits">
+    <h2 id="limits">What satellites can't see</h2>
+    <ul>
+      <li>Sentinel-2 only sees plumes of about 2 tonnes per hour or more, so it is a check on large events, not a main detector.</li>
+      <li>Satellites only see in daytime and in clear skies.</li>
+      <li>Annual figures are methane above a detection floor in those conditions, not a site's total emissions.</li>
+      <li>Plumes close to another methane source are marked ambiguous and never assigned to a landfill.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="credits">
+    <h2 id="credits">Data and credits</h2>
+    <p>Built from public data: NASA EMIT, ESA Copernicus Sentinel-2, Carbon Mapper (non-commercial use), the US EPA Greenhouse Gas Reporting Program, Air District public records, CalRecycle and the US Census Bureau. Full credits and terms on the <a href="/data/">data page</a>.</p>
+  </section>
+</Base>
