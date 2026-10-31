@@ -1,58 +1,57 @@
 ---
-import TableWrap from '../components/TableWrap.astro';
+import '../styles/checks.css';
 import Base from '../layouts/Base.astro';
-import CheckTypeTag from '../components/CheckTypeTag.astro';
 import EmptyState from '../components/EmptyState.astro';
-import ResultBadge from '../components/ResultBadge.astro';
-import { DATE_CONFIDENCE, EVIDENCE, EXPECTED } from '../config';
+import ChecksTable, { type CheckRow } from '../islands/ChecksTable';
+import { CHECK_TYPE, DATE_CONFIDENCE, EVIDENCE, EXPECTED, RESULT, type ResultColour } from '../config';
 import { siteName, snapshot } from '../lib/data';
-import { date, num, pct } from '../lib/format';
-const checks = [...snapshot.checks].sort((a, b) => (b.date_start ?? '').localeCompare(a.date_start ?? ''));
+import { date } from '../lib/format';
+
+const rows: CheckRow[] = [...snapshot.checks]
+  .sort((a, b) => (b.date_start ?? '').localeCompare(a.date_start ?? ''))
+  .map((c) => {
+    const colour = (c.result_held ? 'grey' : c.colour ?? 'grey') as ResultColour;
+    const badge = c.result_held ? 'Result held back' : c.colour ? RESULT[colour].label : 'Not yet tested';
+    return {
+      id: c.check_id ?? '',
+      date: c.date_start ?? '',
+      dateLabel: date(c.date_start),
+      dateConfidence: DATE_CONFIDENCE[c.date_confidence ?? ''] ?? c.date_confidence ?? '',
+      site: siteName(c.site_id),
+      siteHref: `/sites/${c.site_id}/`,
+      typeLabel: CHECK_TYPE[c.check_type ?? 'other']?.label ?? 'Record',
+      typeIcon: CHECK_TYPE[c.check_type ?? 'other']?.icon ?? 'dot',
+      repairKind: c.repair_kind ?? null,
+      colour,
+      badge,
+      call: c.call ?? null,
+      changeMed: c.change_pct_med ?? null,
+      changeLo: c.change_pct_lo ?? null,
+      changeHi: c.change_pct_hi ?? null,
+      deMed: c.de_t_yr_med ?? null,
+      deLo: c.de_t_yr_lo ?? null,
+      deHi: c.de_t_yr_hi ?? null,
+      evidence: c.evidence ? (EVIDENCE[c.evidence] ?? c.evidence) : null,
+      pDecrease: c.p_decrease ?? null,
+      size: c.size ?? null,
+      nBefore: c.n_before ?? null,
+      nAfter: c.n_after ?? null,
+      mdePct: c.mde_pct ?? null,
+      sourceTitle: c.source_doc_title ?? c.source_doc ?? '',
+      sourceUrl: c.source_url ?? null,
+      sourcePage: c.source_page ?? null,
+      description: c.description ?? '',
+      plainReading: c.plain_reading ?? null,
+    };
+  });
 ---
 <Base title="Past checks" description="Every dated inspection, notice and repair on record, with the measured change that followed it." kind="checks">
   <h1>Past checks</h1>
-  <p class="lede">One row per dated record at a landfill. The change is what the satellite record shows after that date, compared with control sites, with its 90% range. It is a screening indication that followed the date, never a cause. A sortable table with filters arrives in a later update.</p>
-  {checks.length ? (
-    <TableWrap label="Past checks">
-      <table>
-        <caption>Change in % is the change in estimated annual methane after the record. "Smallest drop the test could see" is the smallest drop this site's own passes would have caught 80% of the time.</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Landfill</th>
-            <th scope="col">Record</th>
-            <th scope="col">Result</th>
-            <th scope="col" class="num">Change</th>
-            <th scope="col">Evidence</th>
-            <th scope="col" class="num">Passes before / after</th>
-            <th scope="col" class="num">Smallest drop the test could see</th>
-            <th scope="col">Source</th>
-          </tr>
-        </thead>
-        <tbody>
-          {checks.map((c) => (
-            <tr>
-              <td>{date(c.date_start)} <span class="muted">({DATE_CONFIDENCE[c.date_confidence ?? ''] ?? c.date_confidence})</span></td>
-              <th scope="row"><a href={`/sites/${c.site_id}/`}>{siteName(c.site_id)}</a></th>
-              <td><CheckTypeTag type={c.check_type} repairKind={c.repair_kind} /></td>
-              <td>
-                <ResultBadge colour={c.colour} held={c.result_held} />
-                {c.plain_reading && <details><summary>Plain reading</summary><p>{c.plain_reading}</p>{c.description && <p class="muted">{c.description}</p>}</details>}
-              </td>
-              <td class="num">{c.change_pct_med == null ? '–' : <>{pct(c.change_pct_med)}<br /><span class="muted">{pct(c.change_pct_lo)} to {pct(c.change_pct_hi)}</span></>}</td>
-              <td>{c.evidence ? <>{EVIDENCE[c.evidence] ?? c.evidence}{c.p_decrease != null && <><br /><span class="muted">P(decrease) {c.p_decrease.toFixed(2)}</span></>}</> : '–'}</td>
-              <td class="num">{c.n_before == null ? '–' : `${num(c.n_before)} / ${num(c.n_after)}`}</td>
-              <td class="num">{c.mde_pct == null ? (c.call ? 'none of the tested drops' : '–') : `${num(c.mde_pct)}%`}</td>
-              <td>
-                {c.source_url ? <a href={c.source_url}><span data-wording="source-title">{c.source_doc_title ?? c.source_doc}</span></a> : <span data-wording="source-title">{c.source_doc_title ?? c.source_doc}</span>}
-                {c.source_page && <span class="muted"> p. {c.source_page}</span>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableWrap>
+  <p class="lede">One row per dated record at a landfill. The change is what the satellite record shows after that date, compared with control sites, with its 90% range. It is a screening indication that followed the date, never a cause. Colour never stands alone: every result has an icon and a label.</p>
+  {rows.length ? (
+    <ChecksTable client:load rows={rows} />
   ) : (
     <EmptyState title="No checks on record yet" expected={EXPECTED.checks} />
   )}
+  <p class="muted">"Smallest drop the test could see" is the smallest drop this site's own passes would have caught 80% of the time; a real drop below it could have been missed. Terms are explained in <a href="/how-to-read/">How to read this site</a>.</p>
 </Base>
