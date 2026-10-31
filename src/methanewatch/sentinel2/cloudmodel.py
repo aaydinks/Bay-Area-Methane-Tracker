@@ -132,6 +132,10 @@ class CloudModel:
     estimator: object
     settings: dict
     trained_on: dict = field(default_factory=dict)
+    # Training draws about equal numbers of clear, cloud and shadow pixels, which overstates
+    # cloud and shadow. Probabilities are re-weighted by (true share / sampled share) of each
+    # class so the model is not over-cautious; None leaves them as fitted.
+    class_weights: list[float] | None = None
 
     def predict_proba(self, bands: np.ndarray) -> np.ndarray:
         """(3, H, W) class probabilities for one (13, H, W) reflectance patch."""
@@ -140,6 +144,9 @@ class CloudModel:
         p = self.estimator.predict_proba(flat)
         full = np.zeros((flat.shape[0], len(CLASS_NAMES)), dtype=np.float32)
         full[:, self.estimator.classes_.astype(int)] = p  # a class absent in training stays 0
+        if self.class_weights is not None:
+            full *= np.asarray(self.class_weights, dtype=np.float32)
+            full /= np.clip(full.sum(axis=1, keepdims=True), 1e-12, None)
         return full.T.reshape(len(CLASS_NAMES), *bands.shape[1:])
 
     def predict(self, bands: np.ndarray) -> np.ndarray:
@@ -158,6 +165,13 @@ class CloudModel:
         # Only ever loads a file this project wrote under data/processed/
         with path.open("rb") as f:
             return pickle.load(f)
+
+
+def prior_weights(true_counts: np.ndarray, y_sampled: np.ndarray) -> list[float]:
+    """Per-class (true share / sampled share); classes never sampled get weight 0."""
+    true = np.asarray(true_counts, float) / np.sum(true_counts)
+    sampled = np.bincount(y_sampled, minlength=len(CLASS_NAMES)) / len(y_sampled)
+    return [float(t / s) if s > 0 else 0.0 for t, s in zip(true, sampled, strict=True)]
 
 
 def fit(x: np.ndarray, y: np.ndarray, settings: dict, seed: int = 0) -> CloudModel:

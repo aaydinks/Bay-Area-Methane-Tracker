@@ -365,3 +365,27 @@ def test_report_states_each_claim_and_its_verdict():
     assert "**Claim 1 (usable windows): PASS**" in md
     assert "**Claim 2 (cloud-caused detections):" in md
     assert '"run_id": "s2-cloud-model-test"' in md
+
+
+def test_prior_weights_undo_balanced_sampling():
+    # True shares 80/15/5; the sample was balanced
+    w = cm.prior_weights(np.array([800, 150, 50]), np.repeat([0, 1, 2], 100))
+    assert w == pytest.approx([2.4, 0.45, 0.15])
+    assert cm.prior_weights(np.array([9, 1, 0]), np.array([0, 0, 1, 1]))[2] == 0.0
+
+
+def test_class_weights_shift_borderline_pixels_to_clear():
+    p = patch(cloud=blob(40, 40, 10))
+    x, y = cm.sample_pixels(
+        cm.features(p["bands"]),
+        cm.to_classes(p["label"]),
+        p["valid"],
+        600,
+        np.random.default_rng(2),
+    )
+    model = cm.fit(x, y, {"max_iter": 20})
+    plain = model.predict_proba(p["bands"])
+    model.class_weights = [10.0, 0.1, 0.1]
+    weighted = model.predict_proba(p["bands"])
+    assert np.allclose(weighted.sum(axis=0), 1, atol=1e-5)
+    assert (weighted[0] >= plain[0] - 1e-6).all()

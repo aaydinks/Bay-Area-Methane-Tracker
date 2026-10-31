@@ -23,6 +23,7 @@ from methanewatch.sentinel2.cloudmodel import (
     CloudModel,
     features,
     fit,
+    prior_weights,
     sample_pixels,
     to_classes,
 )
@@ -73,17 +74,22 @@ def _load_roles() -> pd.DataFrame:
     return pd.read_parquet(ROLES)
 
 
-def _pixels(rows: pd.DataFrame, per_patch: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+def _pixels(
+    rows: pd.DataFrame, per_patch: int, seed: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Sampled features and classes, and the count of every valid pixel per class."""
     rng = np.random.default_rng(seed)
     xs, ys = [], []
+    counts = np.zeros(3, dtype=np.int64)
     for sid in rows["sample_id"]:
         s = cs.load_sample(cs.cache_path(sid))
+        counts += np.bincount(to_classes(s["label"])[s["valid"]], minlength=3)
         x, y = sample_pixels(
             features(s["bands"]), to_classes(s["label"]), s["valid"], per_patch, rng
         )
         xs.append(x)
         ys.append(y)
-    return np.concatenate(xs), np.concatenate(ys)
+    return np.concatenate(xs), np.concatenate(ys), counts
 
 
 def train(per_patch: int = 900, seed: int = 0) -> dict:
@@ -94,8 +100,8 @@ def train(per_patch: int = 900, seed: int = 0) -> dict:
     roles = _load_roles()
     tr = roles[roles["fetch"] & (roles["role"] == "train")]
     va = roles[roles["role"] == "validation"]
-    x, y = _pixels(tr, per_patch, seed)
-    xv, yv = _pixels(va, per_patch, seed + 1)
+    x, y, true_counts = _pixels(tr, per_patch, seed)
+    xv, yv, _ = _pixels(va, per_patch, seed + 1)
     scores, best = [], None
     for settings in GRID:
         model = fit(x, y, settings, seed=seed)
@@ -104,7 +110,10 @@ def train(per_patch: int = 900, seed: int = 0) -> dict:
         if best is None or score > best[0]:
             best = (score, model)
     model = best[1]
+    model.class_weights = prior_weights(true_counts, y)
     model.trained_on = {
+        "class_shares_true": (true_counts / true_counts.sum()).round(4).tolist(),
+        "class_weights": model.class_weights,
         "dataset": f"{cs.REPO}@{cs.REVISION}",
         "train_sites": int(tr["roi_id"].nunique()),
         "train_patches": len(tr),
