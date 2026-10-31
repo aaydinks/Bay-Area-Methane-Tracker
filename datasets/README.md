@@ -13,6 +13,7 @@ built from: the endpoint, the query, the time, and a sha256 hash of each raw fil
 | [`census/`](census/) | US Census 2020 blocks (TIGER/Line) | Block population for the nine Bay Area counties, block outlines near the pilot sites | Yes |
 | [`ghgrp/`](ghgrp/) | US EPA Greenhouse Gas Reporting Program | Operator-reported emissions for the crosswalked sites, Bay Area landfill list | Yes |
 | [`calrecycle/`](calrecycle/) | CalRecycle Solid Waste Information System | Reference points for the pilot sites; screening list of 36 Bay Area landfills | Yes |
+| [`boundaries/`](boundaries/) | US Census 2025 cartographic boundaries; CARB air districts | Nine county outlines (simplified); Bay Area air district outline as of March 2004, check against current BAAQMD. Tracts, roads and water stay in `data/raw` | Yes |
 
 ## How it is built
 
@@ -24,6 +25,7 @@ uv run mw ingest emit --start 2022-08-10 --bbox=-123.64,36.89,-121.20,38.87
 uv run mw ingest carbonmapper --bbox=-123.64,36.89,-121.20,38.87
 uv run mw s2 search --start 2022-08-10 --end 2026-10-17 --bbox=-122.8,37.3,-121.8,38.4
 uv run mw ingest ghgrp --year 2023
+uv run mw ingest boundaries
 uv run mw datasets build
 uv run mw datasets build --only sentinel2-crops
 ```
