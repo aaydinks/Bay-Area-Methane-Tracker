@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="How to read this site" description="A short guide to passes, plumes, 90% ranges, inconclusive results and the smallest detectable drop." kind="how-to-read">
+  <h1>How to read this site</h1>
+  <p class="lede">Every figure here is a screening indication: a reason to look closer, not a conclusion. These are the words the pages use.</p>
+  <dl class="facts">
+    <dt>Pass</dt><dd>One time a satellite or aircraft looked at a landfill. Most passes show no plume. Only usable passes, with enough coverage and few clouds, count.</dd>
+    <dt>Plume</dt><dd>A visible cloud of extra methane in an image, with a point of origin and sometimes a rate.</dd>
+    <dt>Plume day</dt><dd>A day on which at least one usable pass saw a plume at a site. Read it against how many usable passes the site had.</dd>
+    <dt>90% range</dt><dd>The band we are 90% sure the true value sits in. It is shown with every estimate and every change.</dd>
+    <dt>Inconclusive</dt><dd>The change after a dated record was neither clearly down nor clearly up at the 97.5% level. It is a result, not a failure.</dd>
+    <dt>Smallest detectable drop</dt><dd>The smallest drop this site's own passes would have caught 80% of the time. If it reads 75%, a smaller real drop could have been missed.</dd>
+    <dt>Insufficient data</dt><dd>Fewer than eight usable passes, a range wider than two orders of magnitude, or a fit that failed its diagnostics. Shown in grey, never ranked.</dd>
+    <dt>Data through</dt><dd>The last observation date in the latest update. Sources publish about 30 days after an observation.</dd>
+    <dt>Provisional</dt><dd>A placeholder outline or an unconfirmed detection curve stands behind the figure, which may change.</dd>
+    <dt>Restricted</dt><dd>Rows from a source whose publication terms are not yet confirmed. They are held back from the public site.</dd>
+  </dl>
+  <h2>Colours</h2>
+  <p>Colour never stands alone; every result has an icon and a label. Red: strong evidence of a severe increase. Orange: strong evidence of a moderate increase. Yellow: an increase that is small or uncertain. Green: no increase indicated. Grey: not enough data.</p>
+</Base>

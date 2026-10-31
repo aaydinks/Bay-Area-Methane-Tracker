@@ -1,0 +1,14 @@
+---
+import Icon from './Icon.astro';
+import { RESULT, type ResultColour } from '../config';
+interface Props { colour: string | null | undefined; held?: boolean }
+const { colour, held = false } = Astro.props;
+const known = colour && colour in RESULT ? (colour as ResultColour) : null;
+---
+{held ? (
+  <span class="badge grey"><Icon name="lock" /> Result held back</span>
+) : known ? (
+  <span class:list={['badge', known]}><Icon name={RESULT[known].icon} /> {RESULT[known].label}</span>
+) : (
+  <span class="badge grey"><Icon name="ring" /> Not yet tested</span>
+)}

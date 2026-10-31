@@ -1,0 +1,22 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# data written by scripts/fetch-data.mjs at build time; never committed
+src/data/
+public/data/
+
+# test output
+test-results/
+playwright-report/
+
+# environment variables (keys live in the root .env or in the host's settings)
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store

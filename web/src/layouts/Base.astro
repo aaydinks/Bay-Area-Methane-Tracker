@@ -1,0 +1,111 @@
+---
+import '../styles/global.css';
+import Banner from '../components/Banner.astro';
+import DataThrough from '../components/DataThrough.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import { EXPECTED, FRAMING, NAV, SITE_NAME, TAGLINE } from '../config';
+import { carbonMapperHeld, isFixture, meta, publication, snapshot } from '../lib/data';
+import { date, shortSha } from '../lib/format';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** The page kind in config/wording.json; the word check reads it from the page. */
+  kind: string;
+}
+const { title, description = TAGLINE, kind } = Astro.props;
+const path = Astro.url.pathname.replace(/\/?$/, '/');
+const pageTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const credits = snapshot.data_terms.filter((t) => t.credit_line).map((t) => t.credit_line);
+const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="wording-kind" content={kind} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      (function () {
+        const root = document.documentElement;
+        let saved = null;
+        try {
+          saved = localStorage.getItem('theme');
+        } catch {
+          /* storage unavailable: use the system setting */
+        }
+        if (saved === 'light' || saved === 'dark') {
+          root.setAttribute('data-theme', saved);
+          return;
+        }
+        const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.setAttribute('data-theme', dark ? 'dark' : 'light');
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap header-row">
+        <a class="brand" href="/">{SITE_NAME}</a>
+        <nav class="site-nav" aria-label="Main">
+          <ul>
+            {NAV.map((item) => (
+              <li><a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>{item.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+        <ThemeToggle />
+      </div>
+      <div class="wrap framing">
+        <p><strong>Retrospective tracker.</strong> {TAGLINE} {FRAMING}</p>
+        <DataThrough />
+      </div>
+    </header>
+
+    {isFixture && <Banner tone="warn" marker="fixture">Sample data for development. Nothing on this build is a real result.</Banner>}
+    {publication?.simulated && <Banner tone="warn" marker="simulated">Simulated data: these sites and figures were generated with known truths to test the method. They are not real landfills.</Banner>}
+    {!publication && <Banner>{EXPECTED.publication}</Banner>}
+    {publication?.provisional && (
+      <Banner>Provisional: site outlines are placeholders and some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
+    )}
+    {carbonMapperHeld && (
+      <Banner>Carbon Mapper data is held back until its publication terms are confirmed. Pass and plume counts on this site cover NASA EMIT and Sentinel-2.</Banner>
+    )}
+
+    <main id="main" class="wrap">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>Data: {credits.length ? credits.join('; ') : 'credits appear with the first published data update'}.</p>
+        {publication ? (
+          <p>
+            Publication <span class="mono">{publication.publish_id}</span>
+            · data through {date(publication.data_through)}
+            {publication.refresh_id && <> · refresh <span class="mono">{publication.refresh_id}</span></>}
+            {publication.model_run_id && <> · model run <span class="mono">{publication.model_run_id}</span></>}
+            {publication.check_run_id && <> · checks run <span class="mono">{publication.check_run_id}</span></>}
+            · code <span class="mono">{shortSha(publication.git_sha)}</span>
+          </p>
+        ) : (
+          <p>No publication yet.</p>
+        )}
+        <p>
+          Built {date(meta.fetched_at)} ({meta.site_mode} build) ·
+          <a href="/updates/">Update log</a> · <a href="/data/">Data and credits</a> · <a href="/how-to-read/">How to read this site</a>
+        </p>
+        <p>Results are screening indications for investigation, never compliance findings.</p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+---
+import { publication } from '../lib/data';
+import { date } from '../lib/format';
+const lag = publication?.source_lag_days ?? 30;
+---
+{publication?.data_through ? (
+  <span class="chip" title={`Sources publish about ${lag} days after an observation.`}>
+    Data through {date(publication.data_through)} · sources lag about {lag} days
+  </span>
+) : (
+  <span class="chip">No data published yet</span>
+)}

@@ -1,0 +1,49 @@
+---
+import TableWrap from '../components/TableWrap.astro';
+import Base from '../layouts/Base.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ResultBadge from '../components/ResultBadge.astro';
+import { EXPECTED } from '../config';
+import { hasPublication, isPublic, latestCheckFor, plumeDaysFor, sites, totals } from '../lib/data';
+import { num } from '../lib/format';
+---
+<Base title="Map" description="Where plumes were seen, how often each landfill was observed, and the latest check at each site." kind="map">
+  <h1>Map</h1>
+  <p class="lede">Plume origins, passes per site and the latest check result, as a screening indication of where to look. The interactive map arrives in a later update; the same figures are in the table below.</p>
+  {isPublic && <p class="muted">On the public site, counts cover NASA EMIT and Sentinel-2 until Carbon Mapper confirms its publication terms.</p>}
+  {hasPublication ? (
+    <TableWrap label="Passes and plume days per landfill">
+      <table>
+        <caption>Passes and plume days per landfill, {num(totals.plumes)} plume origins in total. Plume days per usable pass corrects for how often a site was observed.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Landfill</th>
+            <th scope="col" class="num">Usable passes</th>
+            <th scope="col" class="num">Plume days</th>
+            <th scope="col" class="num">Plume days per usable pass</th>
+            <th scope="col">Outline</th>
+            <th scope="col">Latest check</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sites.map((s) => {
+            const pd = plumeDaysFor(s.site_id ?? '');
+            const latest = latestCheckFor(s.site_id ?? '');
+            return (
+              <tr>
+                <th scope="row"><a href={`/sites/${s.site_id}/`}>{s.name}</a></th>
+                <td class="num">{num(pd?.usable_passes)}</td>
+                <td class="num">{num(pd?.plume_days)}</td>
+                <td class="num">{pd?.plume_days_per_usable_pass == null ? '–' : pd.plume_days_per_usable_pass.toFixed(3)}</td>
+                <td>{s.provisional ? 'provisional outline' : 'traced outline'}</td>
+                <td><ResultBadge colour={latest?.colour} held={latest?.result_held} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </TableWrap>
+  ) : (
+    <EmptyState title="No passes or plumes yet" expected={EXPECTED.plumes} />
+  )}
+</Base>

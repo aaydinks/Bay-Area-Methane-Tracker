@@ -1,0 +1,20 @@
+---
+// Small inline shapes so colour never carries meaning alone.
+interface Props { name: string; class?: string }
+const { name, class: className } = Astro.props;
+const shapes: Record<string, string> = {
+  triangle: '<path d="M8 2 15 14H1z"/>',
+  diamond: '<path d="M8 1l7 7-7 7-7-7z"/>',
+  circle: '<circle cx="8" cy="8" r="6"/>',
+  down: '<path d="M1 3h14L8 14z"/>',
+  ring: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  dot: '<circle cx="8" cy="8" r="3"/>',
+  clipboard: '<path d="M5 2h6v2h2v11H3V4h2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 1h4v3H6z"/>',
+  document: '<path d="M3 1h7l3 3v11H3z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 8h6M5 11h6" stroke="currentColor" stroke-width="1.4"/>',
+  wrench: '<path d="M10.5 1.5a4 4 0 0 0-3.8 5.3L1.5 12l2.5 2.5 5.2-5.2A4 4 0 0 0 14.5 5l-2.3 2.3-2.5-2.5z"/>',
+  satellite: '<path d="M2 6l4-4 3 3-4 4zM7 11l4-4 3 3-4 4z"/><path d="M6.5 6.5l3 3" stroke="currentColor" stroke-width="1.6"/>',
+  lock: '<rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+};
+const body = shapes[name] ?? shapes.dot;
+---
+<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="currentColor" class={className} set:html={body} />

@@ -1,0 +1,68 @@
+---
+import TableWrap from '../components/TableWrap.astro';
+import Base from '../layouts/Base.astro';
+import EmptyState from '../components/EmptyState.astro';
+import { snapshot } from '../lib/data';
+import { date } from '../lib/format';
+const GATES: Record<string, string> = {
+  gate3: 'Gate 3: 90% ranges contain the simulated truth 85 to 95% of the time',
+  holdout: 'Hold-out: at least 80% of held-out sites fall inside the 90% range',
+  placebo: 'Placebo: false calls on dates with no repair stay at or below 10%',
+  power: 'Power: the smallest drop the test can catch 80% of the time',
+};
+const results = [...snapshot.validation_results].sort((a, b) => `${a.gate}${a.created_at}`.localeCompare(`${b.gate}${b.created_at}`));
+function metricText(m: unknown): string {
+  if (!m || typeof m !== 'object') return '';
+  return Object.entries(m as Record<string, unknown>).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' to ') : typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join('; ');
+}
+---
+<Base title="Methods and validation" description="How the estimates are made, what they cannot show, and the method checks the model has passed." kind="methods">
+  <h1>Methods and validation</h1>
+  <p class="lede">The method in plain words, its limits, and the checks it has passed on simulated data. Every output is a screening indication for investigation.</p>
+
+  <section aria-labelledby="how">
+    <h2 id="how">How the estimates are made</h2>
+    <ol>
+      <li><strong>Passes.</strong> Every time a satellite or aircraft looked at a landfill is a pass, whether or not it saw a plume. Passes with too little coverage or too many clouds are set aside.</li>
+      <li><strong>Detections.</strong> Plumes inside the site outline or within 500 m are attributed to the site. Plumes near another methane source are marked ambiguous and never assigned.</li>
+      <li><strong>The model.</strong> For each site, a statistical model estimates how often it was emitting and how much, allowing for each instrument's chance of missing a plume of a given size. Every estimate comes with a 90% range.</li>
+      <li><strong>Checks.</strong> For each dated inspection, notice or repair, the estimate after the date is compared with what control sites suggest would have happened anyway. A drop or rise is only called when the probability is at least 97.5%; otherwise the result is inconclusive. The smallest drop the test could have caught is reported with it.</li>
+      <li><strong>Operator comparison.</strong> The satellite estimate is set beside the annual methane the operator reported to the EPA.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="limits">
+    <h2 id="limits">Limits</h2>
+    <ul>
+      <li>Sentinel-2 sees only plumes of about 2 tonnes per hour or more.</li>
+      <li>Satellites see only in daytime and clear skies, and sources publish about 30 days after an observation.</li>
+      <li>Annual figures are methane above a detection floor in those conditions, never a site's total.</li>
+      <li>A change that followed a date is not shown to have been caused by it.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="checks">
+    <h2 id="checks">Method checks</h2>
+    {results.length ? (
+      <TableWrap label="Method checks">
+        <table>
+          <caption>Each row is one run of a check on simulated data, named by its run id.</caption>
+          <thead><tr><th scope="col">Check</th><th scope="col">Run</th><th scope="col">Result</th><th scope="col">Figures</th><th scope="col">Note</th></tr></thead>
+          <tbody>
+            {results.map((r) => (
+              <tr>
+                <th scope="row">{GATES[r.gate] ?? r.gate}</th>
+                <td><span class="mono">{r.run_id}</span><br /><span class="muted">{date(r.created_at)}</span></td>
+                <td>{r.result}{r.superseded ? ' (superseded)' : ''}</td>
+                <td>{metricText(r.metrics)}</td>
+                <td>{r.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrap>
+    ) : (
+      <EmptyState title="No method checks loaded" expected="The Gate 3, hold-out, placebo and power results appear with the first published data update." />
+    )}
+  </section>
+</Base>

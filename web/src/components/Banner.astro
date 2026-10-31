@@ -1,0 +1,7 @@
+---
+interface Props { tone?: 'info' | 'warn'; marker?: string }
+const { tone = 'info', marker } = Astro.props;
+---
+<div class:list={['banner', tone]} role={tone === 'warn' ? 'alert' : undefined} data-banner={marker}>
+  <div class="wrap"><p><slot /></p></div>
+</div>
