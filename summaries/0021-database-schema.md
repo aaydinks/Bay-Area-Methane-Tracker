@@ -45,6 +45,7 @@ keeps serving even if that happens.
 
 ## Still to do
 
-Apply the migrations to the live project after review and run the Supabase advisors. Then the
-publishing command (`mw publish`) that fills these tables from a run, and the website build that
-reads them.
+The five migrations were applied to the live project on Oct 31, 2026, after CI passed. The
+security advisor reports nothing; the performance advisor only notes that the new indexes are
+unused, which is expected while every table is empty. Next come the publishing command
+(`mw publish`) that fills these tables from a run, and the website build that reads them.
