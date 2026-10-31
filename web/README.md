@@ -37,7 +37,8 @@ set `DATA_SOURCE=supabase`. The secret key is never used by a public build.
 
 Checks: `npm run lint`, `npm run check` (types), `npm run build` (includes the wording and
 public-output checks), `npm run test:a11y` (axe, against the built site; run
-`npx playwright install chromium` once).
+`npx playwright install chromium` once), `npm run lighthouse` (budgets in `lighthouserc.json`,
+against the built site; set `CHROME_PATH` to a Chrome or Chromium binary).
 
 ## Hosting (Cloudflare Pages)
 

@@ -13,6 +13,8 @@ public/og/
 # test output
 test-results/
 playwright-report/
+lighthouse/
+.lighthouseci/
 
 # environment variables (keys live in the root .env or in the host's settings)
 .env

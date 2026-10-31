@@ -87,6 +87,11 @@ jobs:
           npm run test:a11y
         env:
           CI: "true"
+      - name: Lighthouse budgets
+        # Accessibility below 95 fails; performance, best practices and SEO below their targets warn.
+        run: |
+          export CHROME_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          npm run lighthouse
       - name: Public build with wording and output checks
         run: npm run build
         env:

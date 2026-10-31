@@ -21,7 +21,8 @@
     "check:public": "node scripts/check-public-output.mjs",
     "test:a11y": "playwright test",
     "astro": "astro",
-    "previews": "node scripts/make-previews.mjs"
+    "previews": "node scripts/make-previews.mjs",
+    "lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.2",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.64.1",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^26.6.6",
