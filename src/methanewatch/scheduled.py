@@ -2,6 +2,8 @@
 
 The steps, in order. Nothing after a failed step runs:
 
+0. ``checkout``: with ``branch`` set (the launchd job sets ``main``), stop unless the checkout is on
+   that branch, so a schedule never runs code that is still under development.
 1. ``refresh``: pull EMIT, Sentinel-2 and Carbon Mapper again and rebuild the interim tables
    (``methanewatch.refresh``). A refresh in which any source failed stops the run: the
    publication's "data through" date is the refresh's end date, so publishing would label
@@ -20,6 +22,9 @@ Each run writes a manifest to ``processed/scheduled/`` (and ``latest.json``) wit
 result, its duration and, if the run stopped, the step and the reason. The connection string and
 the hook URL never appear in it: error text is scrubbed of both first. A lock file keeps two runs
 from overlapping.
+
+``launchd_plist`` writes the macOS job that runs this twice a week from the owner's checkout; the
+owner installs it (README, "Scheduled run").
 """
 
 from __future__ import annotations
@@ -27,7 +32,9 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import plistlib
 import shutil
+import subprocess
 import time
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager, suppress
@@ -36,11 +43,18 @@ from typing import Any
 
 from methanewatch import datasets
 from methanewatch import refresh as refresh_mod
-from methanewatch.config import ProjectConfig, load_data_terms, load_impact
+from methanewatch.config import REPO_ROOT, ProjectConfig, load_data_terms, load_impact
 from methanewatch.provenance import new_id, run_manifest, utcnow
 
-STEPS = ("refresh", "datasets", "publish_build", "push", "review", "deploy_hook")
+STEPS = ("checkout", "refresh", "datasets", "publish_build", "push", "review", "deploy_hook")
 HOOK_ENV = "CF_DEPLOY_HOOK_REVIEW"
+
+LAUNCHD_LABEL = "local.methanewatch.scheduled-run"
+# Mondays and Thursdays at 08:00 local time: never more than four days apart, inside the seven quiet
+# days after which the free database plan pauses (ADR 0009). A Mac that is asleep at that time
+# runs the job when it wakes; missed times are merged into one run (launchd.plist(5)).
+LAUNCHD_TIMES = ({"Weekday": 1, "Hour": 8, "Minute": 0}, {"Weekday": 4, "Hour": 8, "Minute": 0})
+LAUNCHD_LOG = Path.home() / "Library" / "Logs" / "methanewatch-scheduled-run.log"
 
 
 class Stop(Exception):
@@ -89,6 +103,20 @@ def _refresh_failures(manifest: dict[str, Any]) -> str:
     return "; ".join(failed) or "the tables were not rebuilt"
 
 
+def current_branch(repo: Path = REPO_ROOT) -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return out.stdout.strip()
+
+
 def _datasets(project: ProjectConfig) -> dict[str, Any]:
     raw = project.resolve(project.paths.raw)
     root = project.resolve(project.paths.datasets)
@@ -105,6 +133,7 @@ def run(
     push: bool = True,
     build_datasets: bool = True,
     skip: Sequence[str] = (),
+    branch: str | None = None,
 ) -> dict[str, Any]:
     """Run the steps and write the manifest. ``manifest["ok"]`` is False if the run stopped."""
     from methanewatch.publish import snapshot as snap
@@ -133,6 +162,15 @@ def run(
             }
             raise Stop(steps[name]["error"]) from exc
         steps[name] = {"ok": True, "seconds": round(time.perf_counter() - t0, 2), **result}
+
+    def checkout() -> dict[str, Any]:
+        on = current_branch()
+        if on != branch:
+            raise Stop(
+                f"the checkout is on {on or 'an unknown branch'}, not {branch}; "
+                f"switch it to {branch} for scheduled runs"
+            )
+        return {"branch": on}
 
     def do_refresh() -> dict[str, Any]:
         m = refresh_mod.run(project, skip=skip)
@@ -192,6 +230,7 @@ def run(
         return {"status": r.status_code}
 
     plan: list[tuple[str, Callable[[], dict[str, Any]] | None, str]] = [
+        ("checkout", checkout if branch else None, "no branch required"),
         ("refresh", do_refresh, ""),
         ("datasets", (lambda: _datasets(project)) if build_datasets else None, "--no-datasets"),
         ("publish_build", publish_build, ""),
@@ -220,7 +259,12 @@ def run(
             "kind": "scheduled",
             "started_at": started.isoformat(),
             "finished_at": utcnow().isoformat(),
-            "options": {"push": push, "datasets": build_datasets, "skip": sorted(skip)},
+            "options": {
+                "push": push,
+                "datasets": build_datasets,
+                "skip": sorted(skip),
+                "branch": branch,
+            },
             "refresh_id": state.get("refresh_id"),
             "publish_id": state["snapshot"].publish_id if "snapshot" in state else None,
             "visibility": steps["review"].get("to") if steps["review"]["ok"] else None,
@@ -234,3 +278,38 @@ def run(
     path.write_text(json.dumps(manifest, indent=2, default=str))
     shutil.copyfile(path, out / "latest.json")
     return manifest
+
+
+def notify(message: str) -> bool:
+    """Show a macOS notification; the launchd job has no terminal. False where there is none."""
+    osascript = shutil.which("osascript") or "/usr/bin/osascript"
+    if not Path(osascript).exists():
+        return False
+    text = message[:240].replace("\\", "\\\\").replace('"', '\\"')
+    script = f'display notification "{text}" with title "Methane Watch scheduled run"'
+    subprocess.run([osascript, "-e", script], check=False, timeout=30)
+    return True
+
+
+def launchd_plist(repo: Path, mw: Path, log: Path = LAUNCHD_LOG, *, datasets: bool = True) -> bytes:
+    """The launchd job: ``mw scheduled-run`` on ``main``, from ``repo``, at ``LAUNCHD_TIMES``.
+
+    Absolute paths throughout: launchd starts jobs with a bare environment. PATH keeps
+    ``/usr/bin`` for git (the manifest's code version) and osascript (the notification).
+    """
+    args = [str(mw), "scheduled-run", "--branch", "main", "--notify"]
+    if not datasets:
+        args.append("--no-datasets")
+    return plistlib.dumps(
+        {
+            "Label": LAUNCHD_LABEL,
+            "ProgramArguments": args,
+            "WorkingDirectory": str(repo),
+            "EnvironmentVariables": {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin"},
+            "StartCalendarInterval": [dict(t) for t in LAUNCHD_TIMES],
+            "StandardOutPath": str(log),
+            "StandardErrorPath": str(log),
+            "ProcessType": "Background",
+            "RunAtLoad": False,
+        }
+    )

@@ -69,6 +69,21 @@ when every step ran and 2 when it stopped, and writes the step, the reason and e
 `data/processed/scheduled/<run_id>.json`. `--no-push` builds the snapshot only. Changes to `datasets/` are left
 for review and commit.
 
+On the owner's Mac a launchd job runs it on Mondays and Thursdays at 08:00 (a Mac that is asleep runs it on
+waking), so the free database plan never sees seven quiet days. The job uses the checkout it was written from
+and runs only while that checkout is on `main`; otherwise it stops and says so. A stopped run shows a macOS
+notification; output goes to `~/Library/Logs/methanewatch-scheduled-run.log`. To install, from the checkout:
+
+```bash
+git switch main && git pull --ff-only && uv sync --all-extras
+uv run mw scheduled-plist --out ~/Library/LaunchAgents/local.methanewatch.scheduled-run.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.methanewatch.scheduled-run.plist
+```
+
+`launchctl kickstart gui/$(id -u)/local.methanewatch.scheduled-run` runs it at once;
+`launchctl bootout gui/$(id -u)/local.methanewatch.scheduled-run` removes it. Write the job again after moving
+the checkout.
+
 ## Data use
 
 This project is **non-commercial**. Carbon Mapper data are free for non-commercial use only, and

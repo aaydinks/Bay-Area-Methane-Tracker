@@ -2,6 +2,7 @@
 database are replaced, so nothing here touches the network (tests/db covers the real load)."""
 
 import json
+import plistlib
 
 import geopandas as gpd
 import httpx
@@ -217,3 +218,58 @@ def test_cli_exit_codes(world, monkeypatch):
 
     built = CliRunner().invoke(app, ["scheduled-run", "--no-push"])
     assert built.exit_code == 0 and "not loaded" in built.output
+
+
+def test_a_run_on_the_wrong_branch_stops_before_the_refresh(world, monkeypatch):
+    project, _, calls = world
+    monkeypatch.setattr(scheduled, "current_branch", lambda repo=None: "feat/experiment")
+    m = scheduled.run(project, branch="main")
+
+    assert m["stopped_at"] == "checkout" and "feat/experiment, not main" in m["reason"]
+    assert m["steps"]["refresh"]["not_run"] and calls["push"] == []
+
+    monkeypatch.setattr(scheduled, "current_branch", lambda repo=None: "main")
+    m = scheduled.run(project, branch="main")
+    assert m["ok"] and m["steps"]["checkout"]["branch"] == "main"
+
+
+def test_the_notification_quotes_the_reason_safely(monkeypatch, tmp_path):
+    osascript = tmp_path / "osascript"
+    osascript.touch()
+    seen = []
+    monkeypatch.setattr(scheduled.shutil, "which", lambda name: str(osascript))
+    monkeypatch.setattr(scheduled.subprocess, "run", lambda args, **kw: seen.append(args))
+
+    assert scheduled.notify('Stopped at push: "SUPABASE_DB_URL" is not set \\ check .env')
+    ((cmd, flag, script),) = seen
+    assert cmd == str(osascript) and flag == "-e"
+    assert script == (
+        'display notification "Stopped at push: \\"SUPABASE_DB_URL\\" is not set \\\\ check .env"'
+        ' with title "Methane Watch scheduled run"'
+    )
+
+
+def test_the_launchd_job_runs_on_main_twice_a_week(tmp_path):
+    repo, mw, log = tmp_path / "repo", tmp_path / "repo/.venv/bin/mw", tmp_path / "job.log"
+    job = plistlib.loads(scheduled.launchd_plist(repo, mw, log))
+
+    assert job["Label"] == scheduled.LAUNCHD_LABEL
+    assert job["ProgramArguments"] == [str(mw), "scheduled-run", "--branch", "main", "--notify"]
+    assert job["WorkingDirectory"] == str(repo)
+    assert job["StandardOutPath"] == job["StandardErrorPath"] == str(log)
+    assert "/usr/bin" in job["EnvironmentVariables"]["PATH"].split(":")
+    assert job["RunAtLoad"] is False
+    days = sorted(t["Weekday"] for t in job["StartCalendarInterval"])
+    assert days == [1, 4]  # Monday and Thursday: never 7 quiet days for the database
+    no_datasets = plistlib.loads(scheduled.launchd_plist(repo, mw, log, datasets=False))
+    assert no_datasets["ProgramArguments"][-1] == "--no-datasets"
+
+
+def test_cli_writes_the_launchd_job_and_prints_the_commands(tmp_path):
+    out = tmp_path / "agents" / "job.plist"
+    result = CliRunner().invoke(app, ["scheduled-plist", "--out", str(out)])
+    assert result.exit_code == 0, result.output
+    job = plistlib.loads(out.read_bytes())
+    assert job["ProgramArguments"][1:3] == ["scheduled-run", "--branch"]
+    assert f"launchctl bootstrap gui/$(id -u) {out}" in result.output
+    assert f"launchctl bootout gui/$(id -u)/{scheduled.LAUNCHD_LABEL}" in result.output
