@@ -50,6 +50,8 @@ dependencies = [
 wind = ["herbie-data>=2024.8", "cdsapi>=0.7", "netcdf4>=1.7"]
 # Faster NUTS sampler for the synthetic-coverage and placebo runs.
 fast = ["nutpie>=0.13"]
+# Sentinel-2 cloud model (ADR 0012).
+ml = ["scikit-learn>=1.5"]
 
 [project.scripts]
 mw = "methanewatch.cli:app"

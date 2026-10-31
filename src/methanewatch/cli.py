@@ -15,6 +15,7 @@ import typer
 from dotenv import load_dotenv
 
 from methanewatch import __version__, config
+from methanewatch.sentinel2.cloud_cli import cloud_app
 
 # API keys (Carbon Mapper, Census) live in the git-ignored .env at the repo root.
 load_dotenv(config.REPO_ROOT / ".env")
@@ -52,6 +53,7 @@ for name, sub in [
     ("publish", publish_app),
 ]:
     app.add_typer(sub, name=name)
+s2_app.add_typer(cloud_app, name="cloud")
 
 Site = Annotated[str, typer.Option(help="site_id from the registry, e.g. newby-island")]
 
