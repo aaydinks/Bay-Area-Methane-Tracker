@@ -22,18 +22,40 @@ def test_detections_require_rate_exactly_when_detected():
         schemas.detections.validate(bad)
 
 
-def test_repairs_need_a_source_document():
-    row = {
-        "repair_id": "r1",
+def _check_row(**kw) -> dict:
+    return {
+        "check_id": "c1",
         "site_id": "sonoma-central",
+        "check_type": "air-district-notice",
+        "repair_kind": None,
         "date_start": "2023-06-15",
         "date_end": None,
-        "kind": "leak-repair",
-        "description": "surface leak repair",
-        "source_doc": "",
-        "source_page": None,
         "date_confidence": "exact",
-    }
+        "description": "surface monitoring round with leaks above the limit",
+        "source_doc": "air-district-notice-2023-06.pdf",
+        "source_doc_title": "Notice of Violation A12345",
+        "source_url": None,
+        "source_page": None,
+    } | kw
+
+
+def test_checks_need_a_source_document():
     with pytest.raises(pandera.errors.SchemaError):
-        schemas.repairs.validate(pd.DataFrame([row]))
-    schemas.repairs.validate(pd.DataFrame([{**row, "source_doc": "air-district-fine.pdf"}]))
+        schemas.checks.validate(pd.DataFrame([_check_row(source_doc="")]))
+    schemas.checks.validate(pd.DataFrame([_check_row()]))
+
+
+@pytest.mark.parametrize("check_type", schemas.CHECK_TYPES)
+def test_every_check_type_is_accepted(check_type):
+    kind = "cover" if check_type == "operator-repair" else None
+    schemas.checks.validate(pd.DataFrame([_check_row(check_type=check_type, repair_kind=kind)]))
+
+
+def test_unknown_check_type_and_repair_without_kind_are_rejected():
+    with pytest.raises(pandera.errors.SchemaError):
+        schemas.checks.validate(pd.DataFrame([_check_row(check_type="epa-inspection")]))
+    with pytest.raises(pandera.errors.SchemaError):
+        schemas.checks.validate(pd.DataFrame([_check_row(check_type="operator-repair")]))
+    schemas.checks.validate(
+        pd.DataFrame([_check_row(check_type="operator-repair", repair_kind="leak-repair")])
+    )
