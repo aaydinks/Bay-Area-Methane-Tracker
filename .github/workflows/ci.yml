@@ -22,7 +22,35 @@ jobs:
       - name: Config check
         run: uv run mw config check
       - name: Tests
-        run: uv run pytest -m "not slow and not network"
+        run: uv run pytest -m "not slow and not network and not db"
+
+  db:
+    # Applies supabase/migrations to an empty PostGIS database and checks the row-level rules
+    # as the publishable (anon) role. The container is local to the runner; no data or API calls.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+      - name: Install
+        run: uv sync --locked --all-extras
+      - name: Migrations and row-level rules
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: uv run pytest -m db tests/db
 
   summary:
     # Every pull request adds summaries/NNNN-*.md, NNNN = its number (see summaries/README.md).
