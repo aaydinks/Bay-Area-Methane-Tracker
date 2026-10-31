@@ -105,7 +105,9 @@ grow with the count). The scene records compress well: one 23.7 MB file is 1.0 M
 - **Sentinel-2 crops read their five bands at the same time,** one thread and one file handle per band. A crop
   takes about 20 s instead of about 85 s, with the same bytes fetched and identical pixels. Larger GDAL read
   chunks are rejected: they fetch 18 to 28 times more data.
-- **Both changes land in their own pull request** after this one.
+- **Both changes land in their own pull request (#37).** Measured with it on the same data: a full refresh takes
+  18.6 s instead of 34.8 s (the Sentinel-2 pull 11.5 s instead of 30.5 s), peak memory unchanged at about
+  0.5 GB; the same crop takes 21.2 s instead of 84.6 s, with identical pixels, transform and CRS.
 - **The scheduled pipeline builds only what a refresh changes** (`--only emit --only sentinel2 --only
   carbonmapper`); census and boundaries are annual and stay manual.
 
