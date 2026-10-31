@@ -16,6 +16,7 @@ metadata and written into each crop's tags.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 
@@ -89,28 +90,35 @@ def radiometric_constants(metadata_xml: str) -> dict[str, float]:
     return out
 
 
+def _vsi(url: str) -> str:
+    return f"/vsicurl/{url}"
+
+
+def _read_band(url: str, bounds: tuple[float, float, float, float], size: int) -> np.ndarray:
+    """One band's window on the crop grid. Each call opens its own file, so calls can run in
+    parallel threads."""
+    with rasterio.Env(**GDAL_ENV), rasterio.open(_vsi(url)) as src:
+        w = from_bounds(*bounds, src.transform)
+        return src.read(1, window=w, out_shape=(size, size), resampling=Resampling.average)
+
+
 def crop(product_uri: str, lon: float, lat: float, half_m: float, out: Path, tags: dict) -> Path:
     """Write a 20 m GeoTIFF of ``BANDS`` centred on (lon, lat); 10 m bands are averaged."""
     urls = band_urls(product_uri)
     consts = radiometric_constants(_get(urls["metadata"]).text)
-    layers = []
-    with rasterio.Env(**GDAL_ENV):
-        ref = rasterio.open(f"/vsicurl/{urls['B11']}")
-        x, y = Transformer.from_crs(4326, ref.crs, always_xy=True).transform(lon, lat)
+    with rasterio.Env(**GDAL_ENV), rasterio.open(_vsi(urls["B11"])) as ref:
+        crs = ref.crs
+        x, y = Transformer.from_crs(4326, crs, always_xy=True).transform(lon, lat)
         bounds = (x - half_m, y - half_m, x + half_m, y + half_m)
         left, bottom, right, top = ref.bounds
         if bounds[0] < left or bounds[1] < bottom or bounds[2] > right or bounds[3] > top:
             raise ValueError(f"window not inside tile for {product_uri}")
-        size = round(2 * half_m / RES_M)
-        transform = rasterio.transform.from_bounds(*bounds, size, size)
-        for b in BANDS:
-            with rasterio.open(f"/vsicurl/{urls[b]}") as src:
-                w = from_bounds(*bounds, src.transform)
-                layers.append(
-                    src.read(1, window=w, out_shape=(size, size), resampling=Resampling.average)
-                )
-        crs = ref.crs
-        ref.close()
+    size = round(2 * half_m / RES_M)
+    transform = rasterio.transform.from_bounds(*bounds, size, size)
+    # Each band is its own file and a read is mostly waiting on many small range requests, so the
+    # five bands are fetched at once: about 20 s a crop instead of 85 s, same pixels (ADR 0011).
+    with ThreadPoolExecutor(len(BANDS)) as pool:
+        layers = list(pool.map(lambda b: _read_band(urls[b], bounds, size), BANDS))
     data = np.stack(layers).astype("uint16")
     out.parent.mkdir(parents=True, exist_ok=True)
     profile = {

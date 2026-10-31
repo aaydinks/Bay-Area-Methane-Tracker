@@ -17,6 +17,9 @@ from shapely.geometry import shape
 
 EARTH_SEARCH = "https://earth-search.aws.element84.com/v1"
 COLLECTION = "sentinel-2-l1c"
+# Items per page. The catalogue's default of 10 makes a full-window search take about 213
+# round trips (25 s); 100 takes 22 (about 6 s). It refused 1,000 (ADR 0011).
+PAGE_SIZE = 100
 
 
 def search_scenes(
@@ -35,6 +38,7 @@ def search_scenes(
         bbox=list(bbox),
         datetime=f"{start.isoformat()}/{end.isoformat()}",
         query={"eo:cloud_cover": {"lte": max_cloud}},
+        limit=PAGE_SIZE,
     )
     return [item.to_dict() for item in search.items()]
 
