@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from methanewatch import schemas
+from methanewatch.config import ProjectConfig
 
 # Covariates the model accepts, and how each is built from the feature table.
 BINARY = {"closed", "ghgrp_reporter"}
@@ -177,3 +178,33 @@ def design_synthetic(sites: pd.DataFrame, names: Sequence[str]) -> Covariates:
         scale.append(sd)
     X = np.column_stack(cols) if cols else np.zeros((len(sites), 0))
     return Covariates(tuple(names), tuple(sites["site_id"]), X, tuple(center), tuple(scale))
+
+
+def write_site_features(project: ProjectConfig) -> pd.DataFrame:
+    """One row of traits per registry site -> ``interim/site_features.parquet``."""
+    interim = project.resolve(project.paths.interim)
+    path = interim / "sites.parquet"
+    if not path.exists():
+        raise FileNotFoundError("run `mw sites build` first")
+    sites = gpd.read_parquet(path)
+    if sites.empty:
+        raise FileNotFoundError("no site polygons yet")
+    neighbors_path = interim / "neighbors.parquet"
+    neighbors = (
+        gpd.read_parquet(neighbors_path)
+        if neighbors_path.exists()
+        else gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+    )
+    registry = project.resolve(project.paths.registry)
+    crosswalk = pd.read_csv(registry / "operator_crosswalk.csv", dtype=str)
+    swis = project.resolve(project.paths.datasets) / "calrecycle" / "swis_pilot_sites.csv"
+    fallback = (
+        pd.read_csv(swis).rename(columns={"operational_status": "status"})[["site_id", "status"]]
+        if swis.exists()
+        else None
+    )
+    table = build_site_features(
+        sites, neighbors, crosswalk, fallback, metric_crs=project.crs_metric
+    )
+    table.to_parquet(interim / "site_features.parquet")
+    return table

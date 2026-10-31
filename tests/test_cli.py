@@ -11,7 +11,11 @@ def test_config_check():
     assert "unconfirmed" in result.output
 
 
-def test_unbuilt_steps_exit_with_code_2():
+def test_unbuilt_steps_exit_with_code_2(tmp_path, monkeypatch):
+    # Point data paths at an empty folder so local builds in data/ don't matter
+    from methanewatch import config
+
+    monkeypatch.setattr(config, "REPO_ROOT", tmp_path)
     result = runner.invoke(app, ["validate", "gate1"])
     assert result.exit_code == 2
 

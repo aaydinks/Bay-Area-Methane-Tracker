@@ -3,6 +3,10 @@
 - EMIT: scene footprints -> ``interim/footprints/emit.parquet``; plume-complex
   outlines (no rates yet) -> ``interim/emit_plume_outlines.parquet``.
 - Sentinel-2: scene footprints -> ``interim/footprints/sentinel2.parquet``.
+- Carbon Mapper: aircraft and Tanager scene footprints ->
+  ``interim/footprints/carbonmapper.parquet``; plumes with rates ->
+  ``interim/plumes/carbonmapper.parquet``. Built from every finished pull: one
+  row per scene, and one row per plume at its most recently modified version.
 - GHGRP: Bay Area subpart HH facilities -> ``interim/ghgrp_facilities_<year>.csv``;
   reports for crosswalked sites -> ``interim/operator_reports.parquet``.
 
@@ -20,7 +24,7 @@ import geopandas as gpd
 import pandas as pd
 
 from methanewatch.config import ProjectConfig, load_impact
-from methanewatch.ingest import emit, ghgrp
+from methanewatch.ingest import carbonmapper, emit, ghgrp
 from methanewatch.provenance import PullManifest
 from methanewatch.sentinel2 import search as s2
 
@@ -63,6 +67,34 @@ def ingest_emit(project: ProjectConfig, bbox: BBox, start: date, end: date) -> d
     outlines = emit.plume_outlines(records(emit.PLM)).drop_duplicates("granule_ur")
     outlines.to_parquet(interim / "emit_plume_outlines.parquet")
     return {"emit_scenes": n_fp, "emit_plume_complexes": len(outlines)}
+
+
+def ingest_carbonmapper(project: ProjectConfig, bbox: BBox, start: date, end: date) -> dict:
+    carbonmapper.pull(bbox, start, end, project.resolve(project.paths.raw))
+    return write_carbonmapper(project)
+
+
+def write_carbonmapper(project: ProjectConfig) -> dict:
+    """Interim footprint and plume tables merged from every finished Carbon Mapper pull."""
+    pulls = carbonmapper.finished_pulls(project.resolve(project.paths.raw))
+    if not pulls:
+        raise FileNotFoundError("no Carbon Mapper pull yet; run `mw ingest carbonmapper`")
+    interim = project.resolve(project.paths.interim)
+    fp = carbonmapper.footprints(carbonmapper.merged_scenes(pulls))
+    n_fp = _write_footprints([fp], interim / "footprints" / "carbonmapper.parquet")
+    plumes = carbonmapper.plumes(carbonmapper.merged_plumes(pulls))
+    out = interim / "plumes" / "carbonmapper.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    plumes.to_parquet(out)
+    return {
+        "pulls": len(pulls),
+        "newest_pull": pulls[-1].name,
+        "scenes": n_fp,
+        "scenes_by_instrument": fp["instrument"].value_counts().to_dict(),
+        "plumes": len(plumes),
+        "plumes_with_rate": int(plumes["q_kg_hr"].notna().sum()),
+        "plume_versions": plumes["data_version"].value_counts().to_dict(),
+    }
 
 
 def ingest_sentinel2(

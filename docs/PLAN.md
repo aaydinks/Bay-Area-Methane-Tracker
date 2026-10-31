@@ -200,7 +200,7 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 
 ### 4.4 `detections` (model input, built by joining 4.2 + 4.3)
 
-`overpass_id, site_id, instrument, detected: bool, q_obs_kg_hr?, q_sigma_log?`. If an overpass has several attributed plumes, they are summed, and a flag is set for them.
+`overpass_id, site_id, instrument, detected: bool, q_obs_kg_hr?, q_sigma_log?, n_plumes, n_scenes`. Several attributed plumes in one scene are summed (separate sources seen at once), and a flag is set for them. Aircraft fly several lines over a site in one day and see the same sources each time, so the per-scene totals of one day are averaged, not summed.
 
 ### 4.5 `s2_retrievals`
 
