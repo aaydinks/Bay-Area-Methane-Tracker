@@ -184,3 +184,64 @@ dl.facts dd { margin: 0; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- Home page --------------------------------------------------------------------- */
+:root { --hero-land: #e4ebe6; --hero-water: #c9dcec; }
+:root[data-theme="dark"] { --hero-land: #1d2621; --hero-water: #1b2d3f; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --hero-land: #1d2621; --hero-water: #1b2d3f; }
+}
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.hero { display: grid; gap: 2rem; align-items: center; grid-template-columns: 1fr; margin-bottom: 1rem; }
+.hero-art { width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--border); display: block; }
+.hero h1 { margin-top: 0; }
+@media (min-width: 56rem) { .hero { grid-template-columns: 1.1fr 1fr; gap: 3rem; } }
+
+.counter { display: flex; flex-direction: column; }
+.counters .card { text-align: left; }
+
+/* Scroll reveals: hidden until seen, instant under reduced motion or without JS. */
+.reveal { opacity: 1; transform: none; }
+.js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms ease, transform 500ms ease; }
+.js .reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* Carousels */
+.carousel { margin: 1rem 0 1.5rem; }
+.carousel-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.carousel-controls button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit;
+  width: 2.5rem; height: 2.5rem; border-radius: 999px; cursor: pointer; font-size: 1.1rem;
+}
+.carousel-controls button:disabled { opacity: 0.4; cursor: default; }
+.carousel-count { color: var(--muted); font-size: 0.95rem; }
+.carousel-viewport { overflow: hidden; border-radius: var(--radius); }
+.carousel-viewport:focus-visible { outline-offset: 4px; }
+.carousel-track { display: flex; gap: 1rem; list-style: none; margin: 0; padding: 0.15rem; }
+.carousel-slide { flex: 0 0 86%; min-width: 0; display: flex; }
+.carousel-slide .card { width: 100%; display: flex; flex-direction: column; gap: 0.35rem; }
+.carousel-slide .card p { margin: 0; }
+.carousel-slide .card .badge { align-self: flex-start; margin-top: 0.35rem; }
+.card-link { margin-top: auto !important; }
+.step-number {
+  display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700;
+}
+@media (min-width: 40rem) { .carousel-slide { flex-basis: 46%; } }
+@media (min-width: 64rem) { .carousel-slide { flex-basis: 31.5%; } }
+.carousel-dots { display: flex; gap: 0.4rem; justify-content: center; margin-top: 0.75rem; }
+.carousel-dots button {
+  width: 0.7rem; height: 0.7rem; border-radius: 999px; border: 1px solid var(--muted); background: transparent;
+  padding: 0; cursor: pointer;
+}
+.carousel-dots button.is-active { background: var(--accent); border-color: var(--accent); }
+
+.limits { list-style: none; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.limits li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem 1rem; }
