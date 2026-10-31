@@ -1,0 +1,56 @@
+/* Map page: the map, its controls, legend and side panel. Loaded only on /map/. */
+.map-layout { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 64rem) { .map-layout { grid-template-columns: 17rem 1fr; align-items: start; } }
+
+.map-controls { display: flex; flex-direction: column; gap: 0.75rem; }
+.map-controls fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem 0.75rem; margin: 0; background: var(--surface); }
+.map-controls legend { font-weight: 600; padding: 0 0.3rem; }
+.map-controls label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.95rem; padding: 0.15rem 0; }
+.map-controls input[type="range"] { width: 100%; }
+.map-controls .range-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+
+.map-stage { position: relative; }
+.map-canvas { width: 100%; height: min(70vh, 640px); min-height: 380px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; background: var(--surface); }
+.map-canvas:focus-visible { outline: 3px solid var(--focus); }
+
+.site-marker {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 999px;
+  background: var(--bg); border: 2px solid currentColor; color: var(--result-grey); cursor: pointer; padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.site-marker svg { width: 18px; height: 18px; }
+.site-marker.red { color: var(--result-red); }
+.site-marker.orange { color: var(--result-orange); }
+.site-marker.yellow { color: var(--result-yellow); }
+.site-marker.green { color: var(--result-green); }
+.site-marker.grey { color: var(--result-grey); }
+.site-marker.is-selected { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.map-panel {
+  position: absolute; right: 0.75rem; top: 0.75rem; width: min(20rem, calc(100% - 1.5rem));
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem 1rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); font-size: 0.95rem; z-index: 2;
+}
+.map-panel h3 { margin: 0 0.5rem 0.25rem 0; }
+.map-panel .close { position: absolute; right: 0.5rem; top: 0.5rem; border: 0; background: transparent; color: var(--text); font-size: 1.2rem; cursor: pointer; }
+.map-panel dl { margin: 0.5rem 0; }
+
+.map-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0.75rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: var(--muted); }
+.map-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.map-legend .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--border); }
+.map-legend .swatch.heat { background: linear-gradient(90deg, rgba(11, 107, 91, 0.2), #e8b421, #a4161a); }
+.map-legend .swatch.plume { border-radius: 999px; background: #a4161a; }
+.map-legend .swatch.ambiguous { border-radius: 999px; border: 2px solid #a4161a; background: transparent; }
+.map-legend .swatch.new { border-radius: 999px; background: #a4161a; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.map-legend .swatch.pass { border-radius: 999px; background: rgba(11, 87, 164, 0.25); border-color: #0b57a4; }
+.map-legend .swatch.outline { background: transparent; border: 2px dashed var(--accent); }
+.map-legend .swatch.neighbour { border-radius: 2px; background: #6b4e9b; }
+.map-legend .swatch.boundary { background: transparent; border: 1px solid var(--muted); }
+
+.map-status { font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; }
+
+/* MapLibre's own controls in both themes */
+.maplibregl-ctrl-group { background: var(--bg) !important; }
+.maplibregl-ctrl-group button { filter: none; }
+:root[data-theme="dark"] .maplibregl-ctrl-group button span { filter: invert(1); }
+.maplibregl-ctrl-attrib { font-size: 0.75rem; }
