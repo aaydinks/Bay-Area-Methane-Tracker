@@ -30,6 +30,7 @@ export interface Meta {
   fetched_at: string;
   site_url: string;
   counts: Record<string, number>;
+  downloads?: { file: string; name: string; rows: number }[];
 }
 
 export interface Snapshot {

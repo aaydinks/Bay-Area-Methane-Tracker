@@ -288,6 +288,67 @@ await writeFile(
   )),
 );
 
+// ---- CSV downloads ----------------------------------------------------------------------
+// The publishable tables as plain CSV, plus a README naming the publication, the runs, the
+// data-through date and the credits. Only what is in the snapshot gets written, so a public
+// build never writes a restricted row.
+
+function csv(rows, columns) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [columns.join(','), ...rows.map((r) => columns.map((c) => esc(r[c])).join(','))].join('\n') + '\n';
+}
+
+const DOWNLOADS = {
+  'sites.csv': { rows: tables.sites, columns: ['site_id', 'name', 'city', 'county', 'operator', 'tier', 'status', 'swis_number', 'ghgrp_facility_id', 'polygon_source', 'provisional', 'area_km2', 'lon', 'lat'] },
+  'passes_monthly.csv': { rows: tables.pass_months, columns: ['site_id', 'instrument', 'month', 'n_passes', 'n_usable', 'n_detected', 'restricted'] },
+  'plumes.csv': { rows: tables.plumes, columns: ['plume_id', 'source', 'instrument', 'acquired_utc', 'lon', 'lat', 'q_kg_hr', 'q_sigma_kg_hr', 'site_id', 'attribution', 'distance_m', 'new_in_update'] },
+  'site_estimates.csv': { rows: tables.site_estimates, columns: ['site_id', 'period', 'model_run_id', 'n_usable_overpasses', 'n_detections', 'f_med', 'f_lo', 'f_hi', 'qbar_kg_hr_med', 'qbar_kg_hr_lo', 'qbar_kg_hr_hi', 'e_t_yr_med', 'e_t_yr_lo', 'e_t_yr_hi', 'status', 'provisional'] },
+  'checks.csv': { rows: tables.checks, columns: ['check_id', 'site_id', 'check_type', 'repair_kind', 'date_start', 'date_end', 'date_confidence', 'description', 'source_doc', 'source_doc_title', 'source_url', 'source_page', 'call', 'change_pct_med', 'change_pct_lo', 'change_pct_hi', 'de_t_yr_med', 'de_t_yr_lo', 'de_t_yr_hi', 'p_decrease', 'mde_pct', 'n_before', 'n_after', 'evidence', 'size', 'colour', 'plain_reading'] },
+  'operator_reports.csv': { rows: tables.operator_reports, columns: ['site_id', 'year', 'source', 'reported_ch4_t', 'reported_co2e_t', 'gwp_used', 'gwp_confirmed', 'facility_id', 'url'] },
+  'validation_results.csv': { rows: tables.validation_results, columns: ['report_id', 'gate', 'run_id', 'result', 'metrics', 'superseded', 'note', 'created_at'] },
+};
+const downloads = [];
+for (const [name, { rows, columns }] of Object.entries(DOWNLOADS)) {
+  await writeFile(path.join(publicDir, name), csv(rows, columns));
+  downloads.push({ file: `/data/${name}`, name, rows: rows.length, columns });
+}
+const credits = raw.data_terms.filter((t) => t.credit_line).map((t) => `- ${t.display_name}: ${t.credit_line}`);
+const p = raw.publication;
+await writeFile(
+  path.join(publicDir, 'README.txt'),
+  [
+    'Bay Area Landfill Methane Watch: data downloads',
+    '',
+    'Every figure is a screening indication from a retrospective tracker, never a compliance',
+    'finding, live monitoring or a health claim. Non-commercial use only.',
+    '',
+    p ? `Publication: ${p.publish_id} (${p.visibility})` : 'Publication: none yet',
+    p ? `Data through: ${p.data_through ?? 'unknown'}; sources publish about ${p.source_lag_days ?? 30} days after an observation` : '',
+    p?.refresh_id ? `Data refresh: ${p.refresh_id}` : '',
+    p?.model_run_id ? `Model run: ${p.model_run_id}` : '',
+    p?.check_run_id ? `Checks run: ${p.check_run_id}` : '',
+    p?.git_sha ? `Code: ${p.git_sha}` : '',
+    `Built: ${snapshot.meta.fetched_at} (${SITE_MODE} build from ${DATA_SOURCE})`,
+    '',
+    'Files:',
+    ...downloads.map((d) => `- ${d.name}: ${d.rows} rows; columns ${d.columns.join(', ')}`),
+    '',
+    'Units: rates in kg/hr, annual totals in t/yr (methane above the detection floor in daytime,',
+    'clear-sky conditions), times in UTC. Columns ending in _lo and _hi are the 90% range.',
+    'Rows from sources whose publication terms are unconfirmed are not included in a public build.',
+    '',
+    'Credits:',
+    ...credits,
+    '',
+  ].filter((line) => line !== undefined).join('\n'),
+);
+snapshot.meta.downloads = downloads.map(({ file, name, rows }) => ({ file, name, rows }));
+await writeFile(path.join(dataDir, 'snapshot.json'), JSON.stringify(snapshot, null, 1));
+
 const label = raw.publication ? `${raw.publication.publish_id} (${raw.publication.visibility})` : 'no publication yet; the site will show empty states';
 console.log(`fetch-data: ${SITE_MODE} build from ${DATA_SOURCE}; publication ${label}`);
 console.log(`fetch-data: ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}`);
