@@ -25,7 +25,7 @@ for (const route of routes) {
       ['serious', 'critical'].includes(v.impact ?? ''),
     );
     expect(
-      serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes)`),
+      serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes) ${v.nodes[0]?.html.slice(0, 160) ?? ''}`),
     ).toEqual([]);
   });
 }

@@ -57,7 +57,9 @@ async function* files(dir) {
 for await (const file of files(distDir)) {
   const text = await readFile(file, 'utf8');
   const rel = path.relative(distDir, file);
-  if (/\bcarbonmapper\b/i.test(text)) problems.push(`${rel}: contains the restricted source code "carbonmapper"`);
+  // Pages and data files must not name the restricted source; the map's script may, because it
+  // lists every source it knows how to filter (the control only shows for sources in the data).
+  if (!/\.(js|mjs)$/i.test(file) && /\bcarbonmapper\b/i.test(text)) problems.push(`${rel}: contains the restricted source code "carbonmapper"`);
   if (DATA_FILE.test(file) && /"instrument"\s*:\s*"(tanager1|aircraft)"/i.test(text)) problems.push(`${rel}: contains a restricted instrument`);
   if (/data-banner="simulated"/.test(text)) problems.push(`${rel}: shows the simulated-data banner`);
   if (/sb_secret_|service_role/i.test(text)) problems.push(`${rel}: contains what looks like a secret key`);

@@ -10,6 +10,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },
-  use: { baseURL: 'http://127.0.0.1:4321' },
+  // Reduced motion keeps the scan deterministic: nothing is mid-fade when axe measures contrast.
+  use: { baseURL: 'http://127.0.0.1:4321', reducedMotion: 'reduce' },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
 });
