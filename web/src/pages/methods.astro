@@ -10,7 +10,8 @@ const GATES: Record<string, string> = {
   placebo: 'Placebo: false calls on dates with no repair stay at or below 10%',
   power: 'Power: the smallest drop the test can catch 80% of the time',
 };
-const results = [...snapshot.validation_results].sort((a, b) => `${a.gate}${a.created_at}`.localeCompare(`${b.gate}${b.created_at}`));
+// The Sentinel-2 cloud model's two checks have their own page (/methods/cloud-model/).
+const results = [...snapshot.validation_results].filter((r) => !r.gate.startsWith('s2_cloud')).sort((a, b) => `${a.gate}${a.created_at}`.localeCompare(`${b.gate}${b.created_at}`));
 function metricText(m: unknown): string {
   if (!m || typeof m !== 'object') return '';
   return Object.entries(m as Record<string, unknown>).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' to ') : typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join('; ');
@@ -39,6 +40,11 @@ function metricText(m: unknown): string {
       <li>Annual figures are methane above a detection floor in those conditions, never a site's total.</li>
       <li>A change that followed a date is not shown to have been caused by it.</li>
     </ul>
+  </section>
+
+  <section aria-labelledby="cloud-model">
+    <h2 id="cloud-model">Clouds in Sentinel-2 images</h2>
+    <p>Clouds and their shadows can look like plumes to the Sentinel-2 method and decide which passes count. <a href="/methods/cloud-model/">How the cloud model tells them apart, and how well it did on images it never saw</a>.</p>
   </section>
 
   <section aria-labelledby="checks">

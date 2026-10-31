@@ -10,6 +10,7 @@ const routes = [
   '/sites/',
   '/sites/newby-island/',
   '/methods/',
+  '/methods/cloud-model/',
   '/how-to-read/',
   '/data/',
 ];

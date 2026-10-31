@@ -91,8 +91,91 @@ def _power(text: str) -> dict:
     return out
 
 
+def _triple(x: dict | None) -> list[float | None] | None:
+    """{"value": v, "interval": [lo, hi]} as [v, lo, hi]."""
+    if not x:
+        return None
+    lo, hi = x.get("interval") or [None, None]
+    return [x.get("value"), lo, hi]
+
+
+def _claim_metrics(block: dict, keys: tuple[str, ...], diff_keys: tuple[str, ...]) -> dict:
+    out = {k: v for k, v in block.items() if k.startswith("n_")}
+    out["rates"] = {m: {k: _triple(v.get(k)) for k in keys} for m, v in block["rates"].items()}
+    out["comparisons"] = {
+        m: {**{k: _triple(v.get(k)) for k in diff_keys}, "passed": v["passed"]}
+        for m, v in block.get("comparisons", {}).items()
+    }
+    return out
+
+
+def _cloud_model_rows(md: Path, run_id: str, created: str | None) -> list[dict]:
+    """Two rows from the Sentinel-2 cloud model's held-out test (ADR 0013), one per claim.
+
+    The numbers come from the results file beside the report, never from its prose.
+    """
+    r = json.loads(md.with_suffix(".json").read_text())
+    if r.get("rehearsal"):
+        return []
+    c1, c2 = r["claim1"], r["claim2"]
+    m1 = _claim_metrics(
+        c1["all_heldout"],
+        ("false_usable", "false_unusable"),
+        ("false_usable_diff", "false_unusable_diff"),
+    )
+    m1["west_coast"] = _claim_metrics(
+        c1["west_coast"],
+        ("false_usable", "false_unusable"),
+        ("false_usable_diff", "false_unusable_diff"),
+    )
+    m1["band_means"] = r.get("band_means")
+    ref = c1["official_test_with_reference"]
+    m1["reference"] = {
+        "n_patches": ref["n_patches"],
+        "rates": {
+            m: {k: _triple(v.get(k)) for k in ("false_usable", "false_unusable")}
+            for m, v in ref["rates"].items()
+            if m in ("model", "unetmobv2_v2")
+        },
+    }
+    m2 = _claim_metrics(
+        c2["all_heldout"],
+        ("cloud_caused_per_target", "detection_share"),
+        ("cloud_caused_diff", "detection_share_diff"),
+    )
+    m2["amplitude"] = r["amplitude"]["amplitude"]
+    ref2 = c2["official_test_with_reference"]
+    m2["reference"] = {
+        m: {k: _triple(v.get(k)) for k in ("cloud_caused_per_target", "detection_share")}
+        for m, v in ref2["rates"].items()
+        if m in ("model", "unetmobv2_v2")
+    }
+    common = {"run_id": run_id, "superseded": False, "created_at": created}
+    return [
+        {
+            **common,
+            "report_id": f"{run_id}-claim1",
+            "gate": "s2_cloud_usable",
+            "result": "pass" if c1["all_heldout"].get("passed") else "fail",
+            "metrics": m1,
+            "note": "Sentinel-2 cloud model, held-out test (ADR 0013): cloudy windows wrongly"
+            " counted as usable.",
+        },
+        {
+            **common,
+            "report_id": f"{run_id}-claim2",
+            "gate": "s2_cloud_detections",
+            "result": "pass" if c2["all_heldout"].get("passed") else "fail",
+            "metrics": m2,
+            "note": "Sentinel-2 cloud model, held-out test (ADR 0013): false detections caused"
+            " by clouds.",
+        },
+    ]
+
+
 def validation_rows(reports_root: Path) -> list[dict]:
-    """One row per method check (two for a repair dry run: placebo and power)."""
+    """One row per method check (two for a repair dry run: placebo and power; two for the
+    Sentinel-2 cloud model: one per pre-registered claim)."""
     rows = []
     for md in sorted((reports_root / "validation").glob("*/*.md")):
         text = md.read_text()
@@ -100,6 +183,9 @@ def validation_rows(reports_root: Path) -> list[dict]:
         run_id = _title_run_id(text) or md.stem
         manifest = _manifest(text)
         created = manifest.get("created_at")
+        if folder == "s2-cloud-model":
+            rows.extend(_cloud_model_rows(md, run_id, created))
+            continue
         if folder == "repair-synthetic":
             superseded = "Call rule:" not in text
             note = "Dry run on simulated data, not Gate 5."
