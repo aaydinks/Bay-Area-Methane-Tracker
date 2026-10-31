@@ -1,0 +1,45 @@
+{
+  "endpoint": "https://www2.census.gov/geo/tiger/GENZ2025; https://www2.census.gov/geo/tiger/TIGER2025; https://gis.carb.arb.ca.gov/hosting/rest/services/California_Air_Resources_Board_Air_Districts_MIL1/MapServer/0/query",
+  "files": {
+    "carb_air_district_ba.geojson": "3fca41168c5af5648d7d127dac079f41d9f771ced4d0caaea9c455addbd31e3c",
+    "cb_2025_06_place_500k.zip": "d8aa978aa353baf70dcbf3b8d4499edf2b7f71dc8dbd33f3a6a099caf9c15607",
+    "cb_2025_us_county_500k.zip": "aa976c00b181939755d0da757f4c7c2dc0103c3b3b4530fb2a91c2bb62fc777c",
+    "tl_2025_06001_areawater.zip": "8a92c74c2132e7de6fe8160673300b503571528dfe03a980a11a0003158f22b9",
+    "tl_2025_06013_areawater.zip": "7e4375b22fd1274fb90206cde618f25d593487c8b390aad29101b7250f40b842",
+    "tl_2025_06041_areawater.zip": "d3aa5b25f1e3f235bccdf5e521f26ea768132767b240cebfac80a9a084a06e8d",
+    "tl_2025_06055_areawater.zip": "f0422074e655c224cfff214b22ca02cdd735dfe7e8a47e6f403edc8906a3da02",
+    "tl_2025_06075_areawater.zip": "792fea61ada9e5f67493278b4fec005dd443656e1a573280b20bbabff6031601",
+    "tl_2025_06081_areawater.zip": "6f9cdcebedb058050ce24855dbc34a70b18bb2c511a46e2bed4c8e1716a8b5f5",
+    "tl_2025_06085_areawater.zip": "6a5e6c720105d613dc04b889770ddb67ee4c81c916706031d1fafb13d15c809b",
+    "tl_2025_06095_areawater.zip": "bbbee089ea8e1ced64966f05ae3756fa2c5c8c3b67895442f0c6d99b100d8336",
+    "tl_2025_06097_areawater.zip": "aa44080ea67af9105d8ca900a6b1f01252c7b9a549aca0ccdd444bed6105e3ae",
+    "tl_2025_06_prisecroads.zip": "79d8485a0ed8e1971390efb55f4e832e449c857a28be97db1ded3850b9f5f8cf",
+    "tl_2025_06_tract.zip": "33fa2b2c74ae8cafe5e4059a8cf68c6dece441fc0311374c9aafb54187e1ce23"
+  },
+  "finished_at": "2026-10-27T23:47:22.183246+00:00",
+  "git_sha": "da6c97da0fa1747824d7965fd7423965e7273c0b",
+  "n_records": 14,
+  "params": {
+    "district_as_of": "2004-03",
+    "files": {
+      "carb_air_district_ba.geojson": "https://gis.carb.arb.ca.gov/hosting/rest/services/California_Air_Resources_Board_Air_Districts_MIL1/MapServer/0/query?where=DIS%3D%27BA%27&outFields=NAME,DIS&outSR=4326&f=geojson",
+      "cb_2025_06_place_500k.zip": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_06_place_500k.zip",
+      "cb_2025_us_county_500k.zip": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
+      "tl_2025_06001_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06001_areawater.zip",
+      "tl_2025_06013_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06013_areawater.zip",
+      "tl_2025_06041_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06041_areawater.zip",
+      "tl_2025_06055_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06055_areawater.zip",
+      "tl_2025_06075_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06075_areawater.zip",
+      "tl_2025_06081_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06081_areawater.zip",
+      "tl_2025_06085_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06085_areawater.zip",
+      "tl_2025_06095_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06095_areawater.zip",
+      "tl_2025_06097_areawater.zip": "https://www2.census.gov/geo/tiger/TIGER2025/AREAWATER/tl_2025_06097_areawater.zip",
+      "tl_2025_06_prisecroads.zip": "https://www2.census.gov/geo/tiger/TIGER2025/PRISECROADS/tl_2025_06_prisecroads.zip",
+      "tl_2025_06_tract.zip": "https://www2.census.gov/geo/tiger/TIGER2025/TRACT/tl_2025_06_tract.zip"
+    },
+    "vintage": 2025
+  },
+  "pull_id": "boundaries-20261027T234719Z",
+  "source": "boundaries",
+  "started_at": "2026-10-27T23:47:19.527158+00:00"
+}

@@ -106,6 +106,40 @@ def test_build_detections_sums_plumes_and_reports_gaps():
     assert sorted(unmatched["plume_id"]) == ["p3", "p4"]
 
 
+def test_build_detections_averages_repeat_scenes_in_a_day():
+    # Two aircraft lines over site a on one day; each sees two sources. The day's
+    # rate is the mean of the per-line totals, not the sum of all four plumes.
+    ov = overpass_table().assign(instrument="aircraft")
+    ov["overpass_id"] = ov["overpass_id"].str.replace("emit", "aircraft")
+    plumes = pd.DataFrame(
+        {
+            "plume_id": ["l1a", "l1b", "l2a", "l2b"],
+            "source": "carbonmapper",
+            "instrument": "aircraft",
+            "acquired_utc": pd.to_datetime(
+                [
+                    "2025-03-01T18:00Z",
+                    "2025-03-01T18:00Z",
+                    "2025-03-01T19:00Z",
+                    "2025-03-01T19:00Z",
+                ],
+                utc=True,
+            ),
+            "q_kg_hr": [300.0, 100.0, 500.0, 300.0],
+            "q_sigma_kg_hr": [30.0, 40.0, 50.0, 20.0],
+            "site_id": "a",
+            "attribution": "inside",
+        }
+    )
+    det, _ = build_detections(ov, plumes)
+    row = det.set_index("overpass_id").loc["a:aircraft:2025-03-01"]
+    assert row["q_obs_kg_hr"] == pytest.approx(600)  # mean of 400 and 800
+    assert row["n_plumes"] == 4
+    assert row["n_scenes"] == 2
+    var = (30**2 + 40**2 + 50**2 + 20**2) / 4
+    assert row["q_sigma_log"] == pytest.approx(np.sqrt(np.log1p(var / 600**2)))
+
+
 def test_q_sigma_log_moment_match():
     got = q_sigma_log(pd.Series([100.0]), pd.Series([50.0])).iloc[0]
     assert got == pytest.approx(np.sqrt(np.log(1.25)))

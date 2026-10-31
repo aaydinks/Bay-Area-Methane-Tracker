@@ -76,7 +76,7 @@ def to_usd(co2e_t: np.ndarray | float, cfg: ImpactConfig | None = None) -> Conve
 
 
 def population_within(site_geometry, radii_km: list[float], metric_crs: str) -> dict[float, int]:
-    """Residents within each radius of a site (context, not a health effect).
+    """Residents within each radius of a site (context only).
 
     See ``methanewatch.population`` for the method and data sources.
     """

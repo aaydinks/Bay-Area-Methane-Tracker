@@ -16,5 +16,7 @@ Before publishing any derived table, confirm below that the source's terms allow
 | US Census ACS 5-year (B01003) and TIGERweb block groups | Population context, areal-weighted | Public data; ACS API needs a free key | yes | "US Census Bureau, American Community Survey 5-year estimates" |
 | US Census 2020 TIGER/Line blocks (`tl_2020_06_tabblock20`, carries `POP20`) | Block population near sites | Public data, no key | yes | "US Census Bureau, 2020 Census, TIGER/Line Shapefiles" |
 | CalRecycle Solid Waste Information System (SWIS) | Site reference points, addresses, status | Public records | yes, with citation | "CalRecycle Solid Waste Information System (SWIS)" |
+| US Census 2025 cartographic boundaries and TIGER/Line 2025 (counties, places, tracts, roads, area water) | Map outlines, descriptive context | Public data, no key | yes | "US Census Bureau, 2025 Cartographic Boundary Files and 2025 TIGER/Line Shapefiles" |
+| CARB air district boundaries (`CaAirDistrict_PublicWeb`, as of March 2004; check against current BAAQMD) | Descriptive district outline, never a covariate | Public map service; no terms published (check) | _to confirm_ | "California Air Resources Board, air district boundaries as of March 2004 (originally developed by Teale Data Center GIS Lab)" |
 
 Record the date each row was checked and a link to the terms page.

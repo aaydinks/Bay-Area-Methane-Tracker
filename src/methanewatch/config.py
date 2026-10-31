@@ -6,6 +6,7 @@ Disputed or derived constants (GWP factors, $/t, detection curves) carry a
 
 from __future__ import annotations
 
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -63,6 +64,17 @@ class RepairWindows(_Strict):
     )
 
 
+BBox = tuple[float, float, float, float]  # min lon, min lat, max lon, max lat
+
+
+class Ingest(_Strict):
+    """What every scheduled refresh asks the sources, so repeated pulls stay comparable."""
+
+    start: date
+    bbox: BBox
+    sentinel2_bbox: BBox
+
+
 class ProjectConfig(_Strict):
     crs_geographic: str
     crs_metric: str
@@ -70,6 +82,7 @@ class ProjectConfig(_Strict):
     attribution: Attribution
     coverage: Coverage
     repair: RepairWindows
+    ingest: Ingest
 
     def resolve(self, p: Path) -> Path:
         return p if p.is_absolute() else REPO_ROOT / p

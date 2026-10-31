@@ -73,5 +73,9 @@ sampler's 0.90.
   instrument), so a season term needs a per-season cell and parameter. Not done here.
 - **Inputs:** `mw features build` writes `data/interim/site_features.parquet` from the registry. It needs the
   site polygons.
+- **Repair runner:** `mw repair run` passes the configured covariates to the repair fit, the "before" baseline
+  fit and the power-curve fits, so the minimum detectable drop comes from the same model as the call. It
+  records them in its run manifest. When covariates are set and `site_features.parquet` is missing, it stops
+  with exit code 2.
 - **Re-checks:** any change to the covariate list or `beta_sd` means rerunning the prior predictive check
   (ADR 0005), Gate 3 and the hold-out test.
