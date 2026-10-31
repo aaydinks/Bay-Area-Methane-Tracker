@@ -1,5 +1,7 @@
 ---
+import '../../styles/charts.css';
 import TableWrap from '../../components/TableWrap.astro';
+import PassTimeline from '../../components/PassTimeline.astro';
 import Base from '../../layouts/Base.astro';
 import CheckTypeTag from '../../components/CheckTypeTag.astro';
 import EmptyState from '../../components/EmptyState.astro';
@@ -8,7 +10,7 @@ import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
 import {
   checksFor, estimateFor, featuresFor, neighboursFor, operatorReportsFor, passesByInstrument,
-  plumeDaysFor, populationFor, sites, type Site,
+  passMonthsFor, plumeDaysFor, populationFor, sites, type Site,
 } from '../../lib/data';
 import { date, num, pct } from '../../lib/format';
 
@@ -20,6 +22,7 @@ const { site } = Astro.props;
 const id = site.site_id ?? '';
 const estimate = estimateFor(id);
 const passes = passesByInstrument(id);
+const passMonths = passMonthsFor(id);
 const plumeDays = plumeDaysFor(id);
 const checks = checksFor(id);
 const reports = operatorReportsFor(id);
@@ -57,6 +60,8 @@ const features = featuresFor(id);
   <section aria-labelledby="passes">
     <h2 id="passes">Passes by instrument</h2>
     {passes.length ? (
+      <>
+      <PassTimeline rows={passMonths} siteName={site.name ?? id} />
       <TableWrap label="Passes by instrument">
         <table>
           <caption>{plumeDays ? `${num(plumeDays.plume_days)} plume days over ${num(plumeDays.usable_passes)} usable passes.` : ''}</caption>
@@ -68,6 +73,7 @@ const features = featuresFor(id);
           </tbody>
         </table>
       </TableWrap>
+      </>
     ) : (
       <EmptyState title="No passes yet" expected={EXPECTED.plumes} />
     )}
