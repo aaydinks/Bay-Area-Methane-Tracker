@@ -59,6 +59,16 @@ docs/               plan, decision records, technical note, briefing
 
 Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 
+### Scheduled run
+
+`mw scheduled-run` chains one refresh, the EMIT, Sentinel-2 and Carbon Mapper folders in `datasets/`, a
+snapshot of that refresh, its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
+review visibility, then calls `CF_DEPLOY_HOOK_REVIEW` if it is set. It never makes anything public. Nothing
+after a failed step runs; a refresh with a failed source stops the run before anything is published. It exits 0
+when every step ran and 2 when it stopped, and writes the step, the reason and each step's timing to
+`data/processed/scheduled/<run_id>.json`. `--no-push` builds the snapshot only. Changes to `datasets/` are left
+for review and commit.
+
 ## Data use
 
 This project is **non-commercial**. Carbon Mapper data are free for non-commercial use only, and

@@ -767,3 +767,45 @@ def publish_list() -> None:
         typer.echo(
             f"{p['publish_id']}  {p['visibility']:7}  data through {p['data_through']}  {flags}"
         )
+
+
+# --- scheduled run ------------------------------------------------------------------------
+
+
+@app.command("scheduled-run")
+def scheduled_run(
+    push: Annotated[
+        bool, typer.Option(help="Load the snapshot into the database and mark it review.")
+    ] = True,
+    datasets: Annotated[
+        bool, typer.Option(help="Rewrite datasets/ for EMIT, Sentinel-2 and Carbon Mapper.")
+    ] = True,
+    skip: Annotated[
+        list[str] | None, typer.Option(help="Source to leave out: emit, sentinel2, carbonmapper")
+    ] = None,
+) -> None:
+    """Refresh, rebuild datasets, build and push a review snapshot, call the review deploy hook.
+
+    Exits 0 when every step ran and 2 when the run stopped, with the step and the reason; both
+    are kept in data/processed/scheduled/<run_id>.json. Never makes anything public.
+    """
+    from methanewatch import scheduled
+
+    m = scheduled.run(config.load_project(), push=push, build_datasets=datasets, skip=skip or ())
+    for name, result in m["steps"].items():
+        if result.get("not_run"):
+            typer.echo(f"{name}: not run")
+        elif result.get("skipped"):
+            typer.echo(f"{name}: skipped ({result['reason']})")
+        elif result["ok"]:
+            typer.echo(f"{name}: ok ({result['seconds']} s)")
+        else:
+            typer.secho(f"{name}: FAILED {result['error']}", fg=typer.colors.RED, err=True)
+    typer.echo(f"manifest: data/processed/scheduled/{m['run_id']}.json")
+    if not m["ok"]:
+        typer.secho(f"stopped at {m['stopped_at']}: {m['reason']}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    if m["visibility"] == "review":
+        typer.echo(f"publication {m['publish_id']} is visible to the review build")
+    else:
+        typer.echo(f"publication {m['publish_id']} built, not loaded (--no-push)")
