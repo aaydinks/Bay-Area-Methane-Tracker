@@ -159,8 +159,15 @@ def evaluate(*, rehearsal: bool = False) -> Path:
     role = "validation" if rehearsal else "heldout"
     held = roles[roles["role"] == role].merge(pd.read_parquet(TILES), on="s2_id", how="left")
     rows, pixel = [], {m: np.zeros((2, 2), int) for m in methods}
+    band_sum = np.zeros((3, len(cs.BANDS)))
+    band_n = np.zeros(3)
     for r in held.itertuples():
         s = cs.load_sample(cs.cache_path(r.sample_id))
+        cls = to_classes(s["label"])
+        for c in range(3):
+            pick = s["valid"] & (cls == c)
+            band_sum[c] += s["bands"][:, pick].sum(axis=1)
+            band_n[c] += pick.sum()
         masks = {m: f(s) for m, f in methods.items()}
         rows.append({"roi_id": r.roi_id, "sample_id": r.sample_id, **ev.window_row(s, masks)})
         truth = ev.labelled_unusable(s)[s["valid"]]
@@ -205,6 +212,17 @@ def evaluate(*, rehearsal: bool = False) -> Path:
             m: {"rows_truth_cols_pred_[clear,unusable]": c.tolist()} for m, c in pixel.items()
         },
         "bay_area_patches": bay_area.drop(columns=["lat", "lon"]).to_dict(orient="records"),
+        # Mean top-of-atmosphere reflectance per band of labelled pixels (descriptive only)
+        "band_means": {
+            "bands": cs.BANDS,
+            **{
+                name: (band_sum[c] / max(band_n[c], 1)).round(4).tolist()
+                for c, name in enumerate(["clear", "cloud", "shadow"])
+            },
+            "pixels": dict(
+                zip(["clear", "cloud", "shadow"], band_n.astype(int).tolist(), strict=True)
+            ),
+        },
         "published": {
             "claim1_passed": claim1["all_heldout"]["passed"],
             "claim2_passed": claim2["all_heldout"]["passed"],
