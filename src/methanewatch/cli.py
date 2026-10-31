@@ -783,6 +783,12 @@ def scheduled_run(
     skip: Annotated[
         list[str] | None, typer.Option(help="Source to leave out: emit, sentinel2, carbonmapper")
     ] = None,
+    branch: Annotated[
+        str | None, typer.Option(help="Stop unless the checkout is on this branch, e.g. main.")
+    ] = None,
+    notify: Annotated[
+        bool, typer.Option(help="Show a macOS notification if the run stops.")
+    ] = False,
 ) -> None:
     """Refresh, rebuild datasets, build and push a review snapshot, call the review deploy hook.
 
@@ -791,7 +797,13 @@ def scheduled_run(
     """
     from methanewatch import scheduled
 
-    m = scheduled.run(config.load_project(), push=push, build_datasets=datasets, skip=skip or ())
+    m = scheduled.run(
+        config.load_project(),
+        push=push,
+        build_datasets=datasets,
+        skip=skip or (),
+        branch=branch,
+    )
     for name, result in m["steps"].items():
         if result.get("not_run"):
             typer.echo(f"{name}: not run")
@@ -804,8 +816,47 @@ def scheduled_run(
     typer.echo(f"manifest: data/processed/scheduled/{m['run_id']}.json")
     if not m["ok"]:
         typer.secho(f"stopped at {m['stopped_at']}: {m['reason']}", fg=typer.colors.RED, err=True)
+        if notify:
+            scheduled.notify(f"Stopped at {m['stopped_at']}: {m['reason']}")
         raise typer.Exit(code=2)
     if m["visibility"] == "review":
         typer.echo(f"publication {m['publish_id']} is visible to the review build")
     else:
         typer.echo(f"publication {m['publish_id']} built, not loaded (--no-push)")
+
+
+@app.command("scheduled-plist")
+def scheduled_plist(
+    out: Annotated[
+        Path | None, typer.Option(help="Write the job here instead of printing it.")
+    ] = None,
+    datasets: Annotated[
+        bool, typer.Option(help="Let the job rewrite datasets/ (left for you to commit).")
+    ] = True,
+) -> None:
+    """The launchd job that runs `mw scheduled-run` on main twice a week from this checkout.
+
+    Run it from the checkout the job should use. It only writes a file; loading the job is a
+    separate `launchctl` command (README, "Scheduled run").
+    """
+    import sys
+
+    from methanewatch import scheduled
+
+    mw = Path(sys.executable).with_name("mw")
+    if not mw.exists():
+        typer.secho(f"no mw entry point next to {sys.executable}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    plist = scheduled.launchd_plist(config.REPO_ROOT, mw, datasets=datasets)
+    if out is None:
+        typer.echo(plist.decode())
+        return
+    out = out.expanduser()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(plist)
+    domain = "gui/$(id -u)"
+    typer.echo(f"wrote {out}")
+    typer.echo(f"load it:  launchctl bootstrap {domain} {out}")
+    typer.echo(f"run now:  launchctl kickstart {domain}/{scheduled.LAUNCHD_LABEL}")
+    typer.echo(f"remove:   launchctl bootout {domain}/{scheduled.LAUNCHD_LABEL}")
+    typer.echo(f"log:      {scheduled.LAUNCHD_LOG}")
