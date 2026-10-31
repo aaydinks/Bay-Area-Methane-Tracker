@@ -8,6 +8,7 @@ node_modules/
 # data written by scripts/fetch-data.mjs at build time; never committed
 src/data/
 public/data/
+public/og/
 
 # test output
 test-results/

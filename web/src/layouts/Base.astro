@@ -12,8 +12,10 @@ interface Props {
   description?: string;
   /** The page kind in config/wording.json; the word check reads it from the page. */
   kind: string;
+  /** Preview image path for shared links; defaults to the site's own. */
+  image?: string;
 }
-const { title, description = TAGLINE, kind } = Astro.props;
+const { title, description = TAGLINE, kind, image = '/og/default.png' } = Astro.props;
 const path = Astro.url.pathname.replace(/\/?$/, '/');
 const pageTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
@@ -32,6 +34,11 @@ const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWi
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    {canonical && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={Astro.site ? new URL(image, Astro.site).href : image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script is:inline>
       (function () {
