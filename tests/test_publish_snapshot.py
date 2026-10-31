@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from methanewatch.cli import app
 from methanewatch.config import load_data_terms, load_impact, load_project
+from methanewatch.coverage.overpasses import build_detections
 from methanewatch.publish import snapshot as snap
 
 SITES = {"newby-island": (-121.94108, 37.45897), "sonoma-central": (-122.74951, 38.29964)}
@@ -273,6 +274,83 @@ def test_build_marks_restricted_rows_and_labels_results(tmp_path):
     out = s.write(tmp_path / "publications")
     again = snap.Snapshot.read(out)
     assert again.publish_id == "pub-test" and len(again.tables["passes"]) == 3
+
+
+@pytest.mark.parametrize("with_open_plume", [False, True])
+def test_restricted_plumes_never_mark_an_open_pass(tmp_path, with_open_plume):
+    # Carbon Mapper republishes EMIT plumes under its own terms: a copy seen on an open EMIT pass
+    # must not make that pass detected, nor add to its rate or plume count.
+    _write_inputs(tmp_path)
+    interim = tmp_path / "interim"
+    t = pd.Timestamp("2025-06-01T18:00:00Z")
+    plumes = pd.DataFrame(
+        {
+            "plume_id": ["emi20250601t180000-A", "cm1", "emit-7-2025-06-01"],
+            "source": ["carbonmapper", "carbonmapper", "emit-v2"],
+            "instrument": ["emit", "tanager1", "emit"],
+            "acquired_utc": [t, t + pd.Timedelta(days=1), t],
+            "origin_lon": -121.94,
+            "origin_lat": 37.46,
+            "q_kg_hr": [1631.0, 1500.0, 900.0],
+            "q_sigma_kg_hr": [300.0, 400.0, 200.0],
+            "data_version": "v1",
+            "site_id": "newby-island",
+            "attribution": "inside",
+            "distance_m": 0.0,
+        }
+    )
+    if not with_open_plume:
+        plumes = plumes[plumes["source"] == "carbonmapper"]
+    plumes.to_parquet(interim / "plumes_attributed.parquet")
+    # The coverage step pools every source, so its table counts the copy on the EMIT pass.
+    ov = pd.read_parquet(interim / "overpasses.parquet")
+    pooled = build_detections(ov, plumes)[0]
+    pooled.to_parquet(interim / "detections.parquet")
+    assert pooled.set_index("instrument")["detected"]["emit"]
+
+    s = snap.build(_project(tmp_path), load_data_terms(), load_impact(), publish_id="pub-test")
+    passes = s.tables["passes"].set_index("instrument")
+    emit, tanager = passes.loc["emit"], passes.loc["tanager1"]
+    assert not emit["restricted"] and tanager["restricted"]
+    if with_open_plume:  # only NASA's own plume counts
+        assert (emit["detected"], emit["q_obs_kg_hr"], emit["n_plumes"]) == (True, 900.0, 1)
+    else:
+        assert not emit["detected"] and pd.isna(emit["q_obs_kg_hr"]) and emit["n_plumes"] == 0
+    # A restricted pass keeps what the coverage step found.
+    assert (tanager["detected"], tanager["q_obs_kg_hr"], tanager["n_plumes"]) == (True, 1500.0, 1)
+
+
+def test_nasa_emit_complexes_are_listed_as_open_plumes(tmp_path):
+    _write_inputs(tmp_path)
+    t = pd.Timestamp("2025-06-01T18:00:00Z")
+    lon, lat = SITES["newby-island"]
+    gpd.GeoDataFrame(
+        {
+            "plume_id": ["emit-1-2025-06-01", "emit-2-2025-06-01"],
+            "granule_ur": [
+                "EMIT_L2B_CH4PLM_002_20250601T180000_000001",
+                "EMIT_L2B_CH4PLM_002_20250601T180000_000002",
+            ],
+            "acquired_utc": [t, t],
+            "source_scenes": ["['a']", "['a']"],
+        },
+        geometry=[Point(lon, lat).buffer(0.001), Point(-121.2, 37.9).buffer(0.001)],
+        crs="EPSG:4326",
+    ).to_parquet(tmp_path / "interim" / "emit_plume_outlines.parquet")
+
+    s = snap.build(_project(tmp_path), load_data_terms(), load_impact(), publish_id="pub-test")
+    plumes = s.tables["plumes"].set_index("plume_id")
+    near, far = plumes.loc["emit-1-2025-06-01"], plumes.loc["emit-2-2025-06-01"]
+    assert (near["source"], near["instrument"], near["restricted"]) == ("emit-v2", "emit", False)
+    assert (near["site_id"], near["attribution"]) == ("newby-island", "inside")
+    assert near["overpass_id"] == "newby-island:emit:2025-06-01"
+    assert (near["lon"], near["lat"]) == pytest.approx((lon, lat), abs=1e-5)  # outline centroid
+    assert pd.isna(near["q_kg_hr"]) and near["data_version"] == "002"
+    assert far["attribution"] == "none" and pd.isna(far["overpass_id"]) and not far["restricted"]
+    # Listed, not counted: a complex has no rate, so it does not mark its pass.
+    emit = s.tables["passes"].set_index("instrument").loc["emit"]
+    assert not emit["detected"] and emit["n_plumes"] == 0
+    assert len(plumes) == 4  # the two attributed plumes are still there
 
 
 def test_banned_wording_in_a_description_stops_the_build(tmp_path):
