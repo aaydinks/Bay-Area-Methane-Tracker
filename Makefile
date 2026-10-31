@@ -13,7 +13,7 @@ format:
 	uv run ruff format .
 
 test: ## fast tests (what CI runs)
-	uv run pytest -m "not slow and not network"
+	uv run pytest -m "not slow and not network and not db"
 
 test-all:
 	uv run pytest
