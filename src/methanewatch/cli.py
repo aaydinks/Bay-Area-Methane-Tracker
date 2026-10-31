@@ -331,7 +331,7 @@ def repair_run(
     ] = False,
     power_fits: Annotated[int, typer.Option(help="Simulated fits per tested drop.")] = 15,
 ) -> None:
-    """Outcome of every documented repair, with its minimum detectable drop."""
+    """Outcome of every dated check in the registry, with its minimum detectable drop."""
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.repair import run
 

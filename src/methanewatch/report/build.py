@@ -52,15 +52,15 @@ def num(x: float | None, digits: int = 3) -> str:
 
 
 CALL_LABELS = {
-    "drop": "drop after the repair",
-    "rise": "rise after the repair",
+    "drop": "drop after this record",
+    "rise": "rise after this record",
     "inconclusive": "inconclusive",
     "insufficient_data": "insufficient data",
 }
 
 
 def repair_rows(outcomes: pd.DataFrame | None, site: str) -> list[dict]:
-    """Repair outcomes for one site, as display strings (% change = exp(effect) - 1)."""
+    """Check outcomes for one site, as display strings (% change = exp(effect) - 1)."""
     if outcomes is None or not len(outcomes):
         return []
     rows = []

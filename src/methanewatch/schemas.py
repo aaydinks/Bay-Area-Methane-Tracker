@@ -86,33 +86,54 @@ site_features = pa.DataFrameSchema(
     coerce=True,
 )
 
-repairs = pa.DataFrameSchema(
+CHECK_TYPES = [
+    "air-district-inspection",
+    "air-district-notice",
+    "operator-repair",
+    "carb-plume-notice",
+    "other",
+]
+REPAIR_KINDS = ["well-field", "cover", "leak-repair", "other"]
+DATE_CONFIDENCE = ["exact", "week", "month"]
+
+# Dated records at a landfill (data/registry/checks.csv, ADR 0010): Air District inspections and
+# notices, operator repairs, CARB plume notices. No row without a source document. The before/after
+# test runs on every type; the result is the change after the date, never a cause.
+checks = pa.DataFrameSchema(
     {
-        "repair_id": pa.Column(str, unique=True),
+        "check_id": pa.Column(str, unique=True),
         "site_id": pa.Column(str),
+        "check_type": pa.Column(str, pa.Check.isin(CHECK_TYPES)),
+        "repair_kind": pa.Column(str, pa.Check.isin(REPAIR_KINDS), nullable=True),
         "date_start": pa.Column("datetime64[ns]"),
         "date_end": pa.Column("datetime64[ns]", nullable=True),
-        "kind": pa.Column(str, pa.Check.isin(["well-field", "cover", "leak-repair", "other"])),
+        "date_confidence": pa.Column(str, pa.Check.isin(DATE_CONFIDENCE)),
         "description": pa.Column(str),
         "source_doc": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "source_doc_title": pa.Column(str, nullable=True),
+        "source_url": pa.Column(str, nullable=True),
         "source_page": pa.Column(str, nullable=True),
-        "date_confidence": pa.Column(str, pa.Check.isin(["exact", "week", "month"])),
     },
+    checks=pa.Check(
+        lambda df: (df["check_type"] != "operator-repair") | df["repair_kind"].notna(),
+        error="an operator repair needs a repair_kind",
+    ),
     strict=False,
     coerce=True,
 )
 
 REPAIR_CALLS = ["drop", "rise", "inconclusive", "insufficient_data"]
 
-# The engineered remediation outcome: one row per documented repair (PLAN section 7).
+# The engineered outcome: one row per dated check (PLAN section 7, ADR 0010).
 # effect = log(E_after / E_counterfactual); mde_pct = smallest tested drop called in at
 # least 80% of simulated fits on this repair's own pass schedule (null when none was).
 repair_outcomes = pa.DataFrameSchema(
     {
         "repair_id": pa.Column(str, unique=True),
         "site_id": pa.Column(str),
+        "check_type": pa.Column(str, pa.Check.isin(CHECK_TYPES)),
         "date_start": pa.Column("datetime64[ns]"),
-        "date_confidence": pa.Column(str, pa.Check.isin(["exact", "week", "month"])),
+        "date_confidence": pa.Column(str, pa.Check.isin(DATE_CONFIDENCE)),
         "call": pa.Column(str, pa.Check.isin(REPAIR_CALLS)),
         "effect_med": pa.Column(float, nullable=True),
         "effect_lo": pa.Column(float, nullable=True),

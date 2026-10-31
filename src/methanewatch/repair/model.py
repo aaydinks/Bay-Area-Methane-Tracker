@@ -46,11 +46,17 @@ COVARIATE_PARAMS = ("beta_f", "beta_mu")
 
 @dataclass(frozen=True)
 class Repair:
+    """A dated record at a site: a repair, an inspection, a notice or a plume notice.
+
+    The test is the same for every type (ADR 0010); ``check_type`` only travels into the outcome.
+    """
+
     site_id: str
     date_start: datetime
     date_end: datetime | None = None
     repair_id: str = "repair"
     date_confidence: str = "exact"
+    check_type: str = "operator-repair"
 
 
 def to_utc(t: datetime) -> pd.Timestamp:

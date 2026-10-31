@@ -1,6 +1,7 @@
-"""Run the repair test over every documented repair (the remediation outcome).
+"""Run the before/after test over every dated check (the remediation outcome).
 
-For each row of ``data/registry/repairs.csv`` this calls ``verify_repair`` with
+For each row of ``data/registry/checks.csv`` (operator repairs, Air District
+inspections and notices, CARB plume notices; ADR 0010) this calls ``verify_repair`` with
 every other site as a control and adds the minimum detectable drop (MDE) for
 that repair's own pass schedule:
 
@@ -16,8 +17,9 @@ fits, so the MDE comes from the same model as the call.
 
 An "inconclusive" outcome then reads as "a drop smaller than the MDE could not
 have been seen", not "nothing changed". The outcomes are screening indications
-for investigation; they say whether measured emissions fell after the dated
-repair, never why.
+for investigation; they say whether measured emissions changed after the dated
+record, never why. An inspection or a notice is not expected to change emissions
+by itself; the same test simply reports what followed it.
 """
 
 from __future__ import annotations
@@ -84,16 +86,17 @@ class Settings:
         )
 
 
-def load_repairs(table: pd.DataFrame) -> list[Repair]:
-    """Validated registry rows as ``Repair`` objects."""
-    df = schemas.repairs.validate(table)
+def load_checks(table: pd.DataFrame) -> list[Repair]:
+    """Validated registry rows (``checks.csv``) as ``Repair`` objects."""
+    df = schemas.checks.validate(table)
     return [
         Repair(
             site_id=r.site_id,
             date_start=r.date_start.to_pydatetime(),
             date_end=None if pd.isna(r.date_end) else r.date_end.to_pydatetime(),
-            repair_id=r.repair_id,
+            repair_id=r.check_id,
             date_confidence=r.date_confidence,
+            check_type=r.check_type,
         )
         for r in df.itertuples()
     ]
@@ -208,6 +211,7 @@ def outcome_row(rep: Repair, res: RepairResult, mde: float | None, run_id: str) 
     d["controls"] = ";".join(d["controls"])
     return {
         **d,
+        "check_type": rep.check_type,
         "date_start": pd.Timestamp(rep.date_start),
         "date_confidence": rep.date_confidence,
         "mde_pct": mde,
@@ -274,18 +278,16 @@ def run_real(
     n_power_fits: int = 15,
     seed: int = 0,
 ) -> str:
-    """Outcomes for ``data/registry/repairs.csv`` on ``interim/detections.parquet``."""
+    """Outcomes for ``data/registry/checks.csv`` on ``interim/detections.parquet``."""
     import json
 
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.provenance import new_id, run_manifest
 
     registry = project.resolve(project.paths.registry)
-    repairs = load_repairs(pd.read_csv(registry / "repairs.csv"))
+    repairs = load_checks(pd.read_csv(registry / "checks.csv"))
     if not repairs:
-        raise FileNotFoundError(
-            f"no repairs in {registry / 'repairs.csv'}; every row needs a source"
-        )
+        raise FileNotFoundError(f"no checks in {registry / 'checks.csv'}; every row needs a source")
     det_path = project.resolve(project.paths.interim) / "detections.parquet"
     if not det_path.exists():
         raise FileNotFoundError(f"missing {det_path}; run `mw coverage build` first")
@@ -325,7 +327,8 @@ def run_real(
             "kind": "repair_outcomes",
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
-            "n_repairs": len(repairs),
+            "n_checks": len(repairs),
+            "check_types": sorted({r.check_type for r in repairs}),
             "n_power_fits": n_power_fits,
             "power_factors": list(POWER_FACTORS),
             "power_target": POWER_TARGET,

@@ -44,15 +44,15 @@
 </div>
 
 {% if repairs %}
-<h3>Documented repairs</h3>
+<h3>Documented checks</h3>
 <p class="note">
-  Each row asks whether measured emissions fell after a dated repair, compared with control
+  Each row asks whether measured emissions changed after a dated record (a repair, an inspection or a notice), compared with control
   sites over the same months. It does not say why. "Inconclusive" means these passes could not
   tell; the smallest detectable drop is the change they could have picked up 80% of the time.
 </p>
 <div class="table-scroll">
 <table>
-  <thead><tr><th>Repair date</th><th>Result</th><th class="num">Change after (90% range)</th>
+  <thead><tr><th>Record date</th><th>Result</th><th class="num">Change after (90% range)</th>
     <th class="num">Smallest detectable drop</th><th class="num">Passes before / after</th></tr></thead>
   <tbody>
   {% for r in repairs %}

@@ -47,28 +47,44 @@ def test_rough_dates_widen_the_excluded_span():
         assign_periods(det, Repair("s1", date, date_confidence="year"), WINDOWS)
 
 
-def _repair_table() -> pd.DataFrame:
+def _check_table() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "repair_id": ["r1"],
-            "site_id": ["sonoma-central"],
-            "date_start": ["2023-06-15"],
-            "date_end": [None],
-            "kind": ["leak-repair"],
-            "description": ["surface leak repaired"],
-            "source_doc": ["example order, p. 3"],
-            "source_page": ["3"],
-            "date_confidence": ["week"],
+            "check_id": ["c1", "c2"],
+            "site_id": ["sonoma-central", "newby-island"],
+            "check_type": ["operator-repair", "air-district-inspection"],
+            "repair_kind": ["leak-repair", None],
+            "date_start": ["2023-06-15", "2024-02-01"],
+            "date_end": [None, None],
+            "date_confidence": ["week", "exact"],
+            "description": ["surface leak repaired", "quarterly surface monitoring round"],
+            "source_doc": ["example order, p. 3", "inspection-2024-02.pdf"],
+            "source_doc_title": [None, "Inspection Report 2024-02"],
+            "source_url": [None, None],
+            "source_page": ["3", None],
+            "entered_on": ["2026-10-31", "2026-10-31"],
         }
     )
 
 
-def test_load_repairs_validates_the_registry():
-    table = _repair_table()
-    (rep,) = run.load_repairs(table)
-    assert rep.date_confidence == "week" and rep.date_end is None
+def test_load_checks_validates_the_registry_and_keeps_the_type():
+    table = _check_table()
+    repair, inspection = run.load_checks(table)
+    assert repair.date_confidence == "week" and repair.date_end is None
+    assert repair.check_type == "operator-repair" and repair.repair_id == "c1"
+    assert inspection.check_type == "air-district-inspection"
     with pytest.raises(Exception):  # noqa: B017 - pandera raises its own error type
-        run.load_repairs(table.assign(source_doc=""))
+        run.load_checks(table.assign(source_doc=""))
+
+
+def test_every_check_type_gets_the_same_windows():
+    det = _passes([-40, -20, -1, 10, 20, 50, 80])
+    date = datetime(2025, 1, 1, tzinfo=UTC)
+    periods = {
+        t: assign_periods(det, Repair("s1", date, check_type=t), WINDOWS)["period"].tolist()
+        for t in schemas.CHECK_TYPES
+    }
+    assert len({tuple(v) for v in periods.values()}) == 1
 
 
 def _settings() -> run.Settings:
@@ -205,7 +221,7 @@ def test_covariates_need_the_site_features_table(tmp_path, monkeypatch):
         run.site_covariates(project, cov_cfg, ["a", "b"])
 
     # At the command line the same message exits with code 2
-    _repair_table().to_csv(registry / "repairs.csv", index=False)
+    _check_table().to_csv(registry / "checks.csv", index=False)
     pd.DataFrame(
         {
             "overpass_id": ["p1", "p2"],
@@ -232,6 +248,7 @@ def _outcome(**kw) -> dict:
     base = {
         "repair_id": "r1",
         "site_id": "s1",
+        "check_type": "operator-repair",
         "date_start": pd.Timestamp("2025-03-01"),
         "date_confidence": "exact",
         "call": "inconclusive",
@@ -280,11 +297,19 @@ def test_run_all_end_to_end_on_simulated_sites():
         sites, simulate.poisson_schedule(sites["site_id"].tolist(), syn, rng), syn, rng
     )
     date = simulate.START + pd.Timedelta(days=548)
-    reps = [Repair(sites["site_id"].iloc[0], pd.Timestamp(date).to_pydatetime(), repair_id="r1")]
+    reps = [
+        Repair(
+            sites["site_id"].iloc[0],
+            pd.Timestamp(date).to_pydatetime(),
+            repair_id="r1",
+            check_type="air-district-notice",
+        )
+    ]
     outcomes, power = run.run_all(
         reps, det, _settings(), run_id="repairs-test", n_power_fits=2, progress=False
     )
     assert outcomes["repair_id"].tolist() == ["r1"]
+    assert outcomes["check_type"].tolist() == ["air-district-notice"]
     assert outcomes["call"].iloc[0] != "insufficient_data", outcomes["reason"].iloc[0]
     assert set(power["factor"]) == set(run.POWER_FACTORS)
     assert power["n_fits"].eq(2).all()
