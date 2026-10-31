@@ -1,9 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
 import EmptyState from '../components/EmptyState.astro';
+import Icon from '../components/Icon.astro';
 import { EXPECTED } from '../config';
 import { currentUpdates, publication, siteName, snapshot } from '../lib/data';
 import { date } from '../lib/format';
+const KIND: Record<string, { label: string; icon: string }> = {
+  'new-plumes': { label: 'New plumes', icon: 'satellite' },
+  'new-record': { label: 'New record', icon: 'document' },
+  'new-model-run': { label: 'Model run', icon: 'circle' },
+  'new-check-run': { label: 'Checks run', icon: 'wrench' },
+  'gate-result': { label: 'Method check', icon: 'clipboard' },
+  'outline-change': { label: 'Outline', icon: 'diamond' },
+  note: { label: 'Note', icon: 'dot' },
+};
 const byPublication = [...snapshot.publications]
   .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   .map((p) => ({ publication: p, items: snapshot.update_log.filter((u) => u.publish_id === p.publish_id).sort((a, b) => a.item_order - b.item_order) }));
@@ -18,9 +28,10 @@ const byPublication = [...snapshot.publications]
         <ul>
           {currentUpdates.map((u) => (
             <li>
+              <span class="tag"><Icon name={KIND[u.kind]?.icon ?? 'dot'} /> {KIND[u.kind]?.label ?? u.kind}</span>{' '}
               {u.text}
               {u.site_id && <> · <a href={`/sites/${u.site_id}/`}>{siteName(u.site_id)}</a></>}
-              <span class="muted"> ({date(u.event_date)})</span>
+              <span class="muted"> ({date(u.event_date)}; data through {date(u.data_through ?? publication.data_through)})</span>
             </li>
           ))}
         </ul>
@@ -37,7 +48,7 @@ const byPublication = [...snapshot.publications]
       {byPublication.map(({ publication: p, items }) => (
         <details>
           <summary>{date(p.published_at ?? p.created_at)} · <span class="mono">{p.publish_id}</span> · data through {date(p.data_through)}</summary>
-          {items.length ? <ul>{items.map((u) => <li>{u.text} <span class="muted">({date(u.event_date)})</span></li>)}</ul> : <p class="muted">No change notes.</p>}
+          {items.length ? <ul>{items.map((u) => <li><span class="tag"><Icon name={KIND[u.kind]?.icon ?? 'dot'} /> {KIND[u.kind]?.label ?? u.kind}</span> {u.text} <span class="muted">({date(u.event_date)})</span></li>)}</ul> : <p class="muted">No change notes.</p>}
         </details>
       ))}
     </section>
