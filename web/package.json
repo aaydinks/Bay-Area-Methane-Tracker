@@ -26,6 +26,8 @@
     "@astrojs/react": "^7.1.2",
     "@supabase/supabase-js": "^2.118.0",
     "astro": "^7.4.4",
+    "embla-carousel-react": "^8.6.0",
+    "motion": "^14.9.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
