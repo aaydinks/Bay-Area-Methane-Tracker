@@ -1,12 +1,12 @@
 ---
 import TableWrap from '../components/TableWrap.astro';
 import Base from '../layouts/Base.astro';
-import { publication, snapshot } from '../lib/data';
+import { hasPublication, meta, publication, snapshot } from '../lib/data';
 import { date } from '../lib/format';
 ---
 <Base title="Data and credits" description="Where the data comes from, what each source allows, and the downloads." kind="data">
   <h1>Data and credits</h1>
-  <p class="lede">Every figure on this site comes from one published snapshot, named below. Downloads of the publishable tables arrive in a later update. Results are screening indications for investigation.</p>
+  <p class="lede">Every figure on this site comes from one published snapshot, named below, and the publishable tables can be downloaded as CSV with a README that carries the publication id and the credits. Results are screening indications for investigation.</p>
   {publication && (
     <dl class="facts">
       <dt>Publication</dt><dd><span class="mono">{publication.publish_id}</span></dd>
@@ -16,6 +16,19 @@ import { date } from '../lib/format';
       {publication.check_run_id && <><dt>Checks run</dt><dd><span class="mono">{publication.check_run_id}</span></dd></>}
       {publication.refresh_id && <><dt>Data refresh</dt><dd><span class="mono">{publication.refresh_id}</span></dd></>}
     </dl>
+  )}
+  <h2>Downloads</h2>
+  {hasPublication && meta.downloads?.length ? (
+    <>
+      <p>Plain CSV files of the tables this snapshot publishes. Rows from sources whose terms are unconfirmed are left out of the public files. Start with the <a href="/data/README.txt">README</a>, which lists the columns, units and credits.</p>
+      <ul>
+        {meta.downloads.map((d) => (
+          <li><a href={d.file} download>{d.name}</a> <span class="muted">({d.rows} rows)</span></li>
+        ))}
+      </ul>
+    </>
+  ) : (
+    <p class="muted">Downloads appear with the first published data update.</p>
   )}
   <h2>Sources and terms</h2>
   {snapshot.data_terms.length ? (
