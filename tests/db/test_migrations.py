@@ -1,30 +1,16 @@
 """Apply the migrations to an empty PostGIS database and check what the publishable key sees.
 
-These tests need a scratch database: set ``TEST_DATABASE_URL`` to an admin connection string
-(CI points it at a ``postgis/postgis`` service container). A fresh database is created from it
-so the migrations always start from nothing. Without the variable the module is skipped.
+The database comes from ``conftest.py``; a few rows are loaded here and read back as ``anon``.
 """
 
 from __future__ import annotations
 
-import os
-from contextlib import contextmanager
-from pathlib import Path
-
 import pytest
+
+from tests.db.conftest import MIGRATIONS, as_role, rows, run_script
 
 psycopg = pytest.importorskip("psycopg")
 from psycopg import errors  # noqa: E402
-from psycopg.conninfo import make_conninfo  # noqa: E402
-
-MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-ADMIN_DSN = os.environ.get("TEST_DATABASE_URL")
-TEST_DB = "methanewatch_migrations_test"
-
-pytestmark = [
-    pytest.mark.db,
-    pytest.mark.skipif(not ADMIN_DSN, reason="TEST_DATABASE_URL is not set"),
-]
 
 SQUARE = (
     "MULTIPOLYGON(((-121.95 37.45, -121.93 37.45, -121.93 37.47, -121.95 37.47, -121.95 37.45)))"
@@ -96,38 +82,17 @@ insert into public.boundaries (boundary_id, kind, name, geom) values
 """
 
 
-def _run_script(conn, sql: str) -> None:
-    with conn.cursor() as cur:
-        cur.execute(sql)
-
-
 @pytest.fixture(scope="module")
-def db():
-    """A fresh database with the migrations applied and a few rows loaded."""
-    with psycopg.connect(ADMIN_DSN, autocommit=True) as admin:
-        admin.execute(f"drop database if exists {TEST_DB} with (force)")
-        admin.execute(f"create database {TEST_DB}")
-    dsn = make_conninfo(ADMIN_DSN, dbname=TEST_DB)
-    with psycopg.connect(dsn, autocommit=True) as conn:
-        for path in sorted(MIGRATIONS.glob("*.sql")):
-            _run_script(conn, path.read_text())
-        _run_script(conn, FIXTURE_SQL)
+def db(test_dsn):
+    """The migrated database with this module's sample rows loaded."""
+    with psycopg.connect(test_dsn, autocommit=True) as conn:
+        run_script(conn, FIXTURE_SQL)
         yield conn
-    with psycopg.connect(ADMIN_DSN, autocommit=True) as admin:
-        admin.execute(f"drop database if exists {TEST_DB} with (force)")
-
-
-@contextmanager
-def as_role(conn, role: str):
-    conn.execute(f"set role {role}")
-    try:
-        yield conn
-    finally:
-        conn.execute("reset role")
-
-
-def rows(conn, sql: str) -> list[tuple]:
-    return conn.execute(sql).fetchall()
+        run_script(
+            conn,
+            "delete from public.publications; delete from public.runs; "
+            "delete from public.data_terms; delete from public.boundaries;",
+        )
 
 
 def test_migrations_apply_in_order():

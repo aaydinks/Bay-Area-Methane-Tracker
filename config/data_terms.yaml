@@ -1,0 +1,67 @@
+# What each data source allows, mirrored from DATA_TERMS.md. `mw publish` marks rows from any
+# source that is not (confirmed and derived_publishable) as restricted; row-level security then
+# keeps them off the public website. Record the date each row was checked.
+sources:
+  carbonmapper:
+    display_name: "Carbon Mapper (Tanager-1, aircraft)"
+    instruments: [tanager1, aircraft]
+    raw_publishable: false
+    derived_publishable: false
+    confirmed: false
+    checked_on: 2026-10-30
+    terms_url: null
+    credit_line: "Carbon Mapper (non-commercial use)"
+  emit-v2:
+    display_name: "NASA EMIT L2B CH4 v002"
+    instruments: [emit]
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true # NASA open data; only the citation wording is still to check
+    checked_on: 2026-10-30
+    terms_url: "https://lpdaac.usgs.gov/products/emitl2bch4plmv002/"
+    credit_line: "NASA EMIT L2B methane products (v002), NASA LP DAAC" # exact citation: check
+  s2-local:
+    display_name: "ESA Copernicus Sentinel-2 L1C"
+    instruments: [sentinel2]
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true # Copernicus open licence; attribution required
+    checked_on: 2026-10-30
+    terms_url: null
+    credit_line: "Contains modified Copernicus Sentinel data"
+  ghgrp:
+    display_name: "US EPA Greenhouse Gas Reporting Program"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true
+    checked_on: 2026-10-30
+    terms_url: "https://www.epa.gov/ghgreporting"
+    credit_line: "US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts"
+  baaqmd:
+    display_name: "Bay Area Air District public records"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true
+    checked_on: 2026-10-30
+    terms_url: null
+    credit_line: "Bay Area Air Quality Management District public records"
+  census:
+    display_name: "US Census Bureau ACS and TIGER"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true
+    checked_on: 2026-10-30
+    terms_url: null
+    credit_line: "US Census Bureau, American Community Survey 5-year estimates"
+  calrecycle:
+    display_name: "CalRecycle SWIS"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    confirmed: true
+    checked_on: 2026-10-30
+    terms_url: null
+    credit_line: "CalRecycle Solid Waste Information System (SWIS)"

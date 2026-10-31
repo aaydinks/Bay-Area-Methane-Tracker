@@ -31,6 +31,16 @@ browser never talks to the database.
   settings. The browser only ever receives the publishable key, and the static build means it rarely
   needs even that.
 
+## Publishing
+
+`mw publish build --model-run <id> --check-run <id>` assembles one snapshot under
+`data/processed/publications/<publish_id>/`, labels every check result, marks rows from
+unconfirmed sources restricted (`config/data_terms.yaml`), and runs the wording check over every
+text field. `mw publish push <publish_id>` loads it in one transaction as a draft and writes the
+update log by comparing it with the previous publication. `mw publish set-visibility <id> review`
+or `public` promotes it; public asks for confirmation and refuses a simulated run. The connection
+string comes from `SUPABASE_DB_URL` in `.env`.
+
 ## Testing
 
 `tests/db/test_migrations.py` applies the migrations to an empty database, loads a few rows, and then
