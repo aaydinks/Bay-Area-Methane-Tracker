@@ -27,6 +27,7 @@ import pandas as pd
 import rasterio
 from rasterio.windows import Window
 from shapely.geometry import box
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from methanewatch.sentinel2 import crops
 from methanewatch.sentinel2.cloudmodel import BANDS, CLEAR, CloudModel
@@ -45,6 +46,11 @@ MAX_NODATA_SHARE = 0.01  # ADR 0014: windows with more no data are listed, not s
 L2A_COLLECTIONS = ("sentinel-2-c1-l2a", "sentinel-2-l2a")  # c1 first; the older one fills 2022
 METRIC_CRS = "EPSG:32610"
 GDAL_ENV = {**crops.GDAL_ENV, "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".jp2,.xml,.tif"}
+# A truncated range response surfaces as a JPEG 2000 decode error; Earth Search sometimes drops
+# a connection under load. Both are retried a few times before the window is given up.
+_retry = retry(
+    stop=stop_after_attempt(4), wait=wait_exponential(multiplier=2, max=30), reraise=True
+)
 
 
 def scored_slice() -> tuple[slice, slice]:
@@ -94,6 +100,7 @@ def read_l1c(product_uri: str, x: float, y: float) -> dict:
         if bounds[0] < left or bounds[1] < bottom or bounds[2] > right or bounds[3] > top:
             raise ValueError(f"window not inside tile for {product_uri}")
 
+    @_retry
     def one(b: str) -> tuple[np.ndarray, np.ndarray]:
         res = NATIVE_M[b]
         with rasterio.Env(**GDAL_ENV), rasterio.open(crops._vsi(urls[b])) as src:
@@ -139,20 +146,30 @@ def find_scl(product_uri: str, client=None) -> dict | None:
     platform, stamp, tile = _sensing(product_uri)
     day = f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}"
     client = client or Client.open(EARTH_SEARCH)
+
+    @_retry
+    def search(coll: str) -> list:
+        query = {"grid:code": {"eq": f"MGRS-{tile}"}}
+        return list(
+            client.search(
+                collections=[coll], datetime=f"{day}/{day}", query=query, max_items=20
+            ).items()
+        )
+
     for coll in L2A_COLLECTIONS:
-        items = client.search(
-            collections=[coll],
-            datetime=f"{day}/{day}",
-            query={"grid:code": {"eq": f"MGRS-{tile}"}},
-            max_items=20,
-        ).items()
-        for it in items:
+        for it in search(coll):
             uri = it.properties.get("s2:product_uri") or ""
             if uri.startswith(f"{platform}_MSIL2A_{stamp}_") and "scl" in it.assets:
                 return {"collection": coll, "item": it.id, "href": it.assets["scl"].href}
     return None
 
 
+@retry(
+    retry=retry_if_exception_type(rasterio.errors.RasterioError),
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=2, max=30),
+    reraise=True,
+)
 def read_scl(href: str, bounds: np.ndarray) -> np.ndarray:
     with rasterio.Env(**GDAL_ENV), rasterio.open(f"/vsicurl/{href}") as src:
         return src.read(1, window=_window(src, tuple(bounds), RES_M), boundless=True, fill_value=0)
@@ -281,7 +298,7 @@ def run(
                 return p, None
         try:
             win = fetch_window(r.product_uri, r.x, r.y, client)
-        except (OSError, ValueError, FileNotFoundError, rasterio.errors.RasterioError) as exc:
+        except Exception as exc:  # one window failing must not stop the others; it is listed
             return None, f"{type(exc).__name__}: {exc}"
         return win.save(cache_file(pull_dir, r.site_id, r.product_uri)), "new"
 

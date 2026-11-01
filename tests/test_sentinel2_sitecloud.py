@@ -353,3 +353,30 @@ def test_cli_lists_the_recent_commands():
 
     res = CliRunner().invoke(app, ["s2", "cloud", "--help"])
     assert "recent" in res.output and "recent-eye" in res.output
+
+
+def test_a_failed_window_is_listed_and_the_others_still_score(tmp_path, monkeypatch):
+    import pystac_client
+
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(lambda url: None))
+
+    def fetch(uri, x, y, client):
+        if uri.startswith("bad"):
+            raise RuntimeError("Remote end closed connection without response")
+        return window(scl=np.full((sc.WINDOW_PX,) * 2, 4, np.uint8))
+
+    monkeypatch.setattr(sc, "fetch_window", fetch)
+    passes = pd.DataFrame(
+        {
+            "overpass_id": ["a", "b"],
+            "site_id": ["s", "s"],
+            "product_uri": ["good.SAFE", "bad.SAFE"],
+            "x": [0.0, 0.0],
+            "y": [0.0, 0.0],
+        }
+    )
+    n = sc.WINDOW_PX
+    out, _, new = sc.run(passes, StubModel(np.zeros((n, n), bool)), [], tmp_path, workers=2)
+    assert out.loc[0, "clear_model"] == 1.0 and out.loc[0, "scored"]
+    assert "Remote end closed" in out.loc[1, "error"] and not out.loc[1, "scored"]
+    assert len(new) == 1
