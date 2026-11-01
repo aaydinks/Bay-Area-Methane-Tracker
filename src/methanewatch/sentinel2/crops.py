@@ -57,13 +57,13 @@ def product_prefix(product_uri: str) -> str:
     return f"tiles/{zone}/{band}/{square}/{product_uri}/"
 
 
-def band_urls(product_uri: str) -> dict[str, str]:
+def band_urls(product_uri: str, bands: list[str] = BANDS) -> dict[str, str]:
     """Public URLs of the band files and product metadata on Google's mirror."""
     prefix = product_prefix(product_uri)
     params = {"prefix": prefix, "fields": "items(name),nextPageToken", "maxResults": 1000}
     names = [i["name"] for i in _get(f"{GCS}/storage/v1/b/{BUCKET}/o", params).json()["items"]]
     urls = {}
-    for b in BANDS:
+    for b in bands:
         hit = [n for n in names if "/IMG_DATA/" in n and n.endswith(f"_{b}.jp2")]
         if len(hit) != 1:
             raise FileNotFoundError(f"{b} not found once under {prefix}")
@@ -72,7 +72,7 @@ def band_urls(product_uri: str) -> dict[str, str]:
     return urls
 
 
-def radiometric_constants(metadata_xml: str) -> dict[str, float]:
+def radiometric_constants(metadata_xml: str, bands: list[str] = BANDS) -> dict[str, float]:
     """Quantification value and per-band additive offset (0 before baseline 04.00)."""
     quant = float(re.search(r"<QUANTIFICATION_VALUE[^>]*>([\d.]+)<", metadata_xml).group(1))
     offsets = {
@@ -85,7 +85,7 @@ def radiometric_constants(metadata_xml: str) -> dict[str, float]:
     order = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10"]
     order += ["B11", "B12"]
     out = {"quantification": quant}
-    for b in BANDS:
+    for b in bands:
         out[f"offset_{b}"] = offsets.get(order.index(b), 0.0)
     return out
 
