@@ -148,3 +148,42 @@ def test_the_committed_cloud_model_test_gives_one_row_per_claim(rows):
     assert all(len(v["false_usable"]) == 3 for v in usable["rates"].values())
     assert all(isinstance(c["passed"], bool) for c in usable["comparisons"].values())
     assert len(usable["bay_area"]) == 15
+
+
+def _write_recent_report(root: Path, holds: bool | None) -> None:
+    import json
+
+    folder = root / "validation" / "s2-cloud-recent"
+    folder.mkdir(parents=True)
+    run_id = "s2-cloud-recent-x"
+    eye = {"status": "scored", "passed": holds, "thumbnails": [{"thumb": 1}]}
+    result = {
+        "windows": {"site_days": 10},
+        "reference": {"R1": 0.058, "R2": 0.087},
+        "criteria": {"2_clear_kept": {"value": 0.05, "passed": True}, "6_eye": eye},
+        "per_site": {"a": {"usable_model": 3}},
+    }
+    if holds is not None:
+        result["verdict"] = {"holds": holds, "model_sites": ["a"] if holds else []}
+    manifest = json.dumps({"run_id": run_id, "created_at": "2026-11-01T00:00:00+00:00"}, indent=2)
+    (folder / f"{run_id}.md").write_text(f"# Recent ({run_id})\n\n```json\n{manifest}\n```\n")
+    (folder / f"{run_id}.json").write_text(json.dumps(result))
+
+
+def test_the_recent_pass_check_is_one_row_with_counts_only_when_it_holds(tmp_path):
+    _write_recent_report(tmp_path, holds=True)
+    (row,) = validation_rows(tmp_path)
+    assert row["gate"] == "s2_cloud_recent" and row["result"] == "pass"
+    assert row["metrics"]["per_site_2025"] == {"a": {"usable_model": 3}}
+    assert "thumbnails" not in row["metrics"]["criteria"]["6_eye"]
+
+
+def test_a_failed_recent_pass_check_publishes_no_counts(tmp_path):
+    _write_recent_report(tmp_path, holds=False)
+    (row,) = validation_rows(tmp_path)
+    assert row["result"] == "fail" and "per_site_2025" not in row["metrics"]
+
+
+def test_an_unfinished_recent_pass_check_is_not_published(tmp_path):
+    _write_recent_report(tmp_path, holds=None)
+    assert validation_rows(tmp_path) == []
