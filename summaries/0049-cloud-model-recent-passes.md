@@ -28,7 +28,7 @@ on clear days, so by the rules written beforehand it does not decide which passe
   - it kept 2.9% of views Sen2Cor saw as cloudy (90% range 0.6 to 6.1%; the limit was 18.7%);
   - Sentinel-2C behaves like the older satellites;
   - in a blind look by eye at 24 views, where the model and Sen2Cor disagreed, the eye sided
-    with the model 12 times and with Sen2Cor 4 times.
+    with the model 12 times and with Sen2Cor 4 times. This turned out to say little (see below).
 - **One rule failed, at every site: no fixed false clouds.** On clear days the model kept
   flagging the same places:
   - rooftops at Newby Island and Shoreline;
@@ -46,9 +46,14 @@ on clear days, so by the rules written beforehand it does not decide which passe
   days. This seldom changes whether a whole pass counts.
 - **It still rules the model out for masking before plume detection.** It would mask parts of
   the landfills, which is where a plume starts.
-- **Sen2Cor has its own errors here.** In all 8 views where only the model said usable, the eye
-  agreed with the model. Following the rule therefore costs a few clear passes a year at each
-  site.
+- **The eye cannot see thin cirrus.** Checking afterwards, the views where only the model said
+  usable mostly had thin cirrus by Sen2Cor's reckoning, and the cirrus band confirmed raised
+  readings. So the model may count some thin-cirrus passes as usable, and the look by eye could
+  not have caught that.
+- **A matching error.** It left 16 views out of the check: Sen2Cor's file for them was an empty
+  copy of the same pass. With them included, Potrero Hills would have passed the false-cloud rule
+  by a hair, and the other four sites still fail. The run's verdict stands. Both sets of numbers
+  are in decision record 0014, which recommends keeping all five sites on Sen2Cor.
 - **Downloads cost more than they occupy.** Reading a 6 km window of all 13 bands downloads
   about 35 MB, because the archive stores the bands in large compressed blocks. Sen2Cor's layer
   needs about 0.1 MB per window.

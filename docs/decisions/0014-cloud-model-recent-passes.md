@@ -158,8 +158,9 @@ in `reports/validation/s2-cloud-recent/`.
   2B scene was chosen, as the rule says, for Newby Island and Shoreline. That product is missing
   from Google's mirror.
 - **6 partial windows.** These are at swath edges.
-- **18 without Sen2Cor.** The report counts 20, including the two read errors. All 18 are
-  late-2025 scenes whose L2A product has no data over the window.
+- **18 without Sen2Cor.** The report counts 20, including the two read errors.
+  - 2 are at swath edges.
+  - 16 come from a matching error, found after the run (see "Found after the run").
 
 | Criterion | Result | 90% range | Limit | |
 |---|---|---|---|---|
@@ -187,8 +188,8 @@ image:
 - **No problem with the newer images themselves:**
   - the -1000 offset is handled;
   - the model treats Sentinel-2C like 2A and 2B;
-  - on 2025 passes it calls usable and cloudy windows as well as on the test images, and better
-    than Sen2Cor where the two disagree.
+  - on 2025 passes its calls on clear and cloudy windows agree with Sen2Cor as closely as on
+    the test images.
 - **What fails is the surface risk named in the Context, in a wider form.** On clear days the
   model keeps flagging the same places:
   - bright rooftops and landfill surfaces, as cloud;
@@ -196,16 +197,55 @@ image:
   - This seldom changes a whole window's call (criterion 2).
   - But it is the error the pre-registered rule does not allow, and at Sonoma Central it covers
     a tenth of the circle around the site.
-- **Sen2Cor makes its own errors on these passes.**
-  - The model and Sen2Cor agreed on whether a window was usable for 455 of 477 windows.
-  - Sen2Cor set aside 13 windows the model kept. All 8 of those drawn for the eye check were
-    clear by eye, including clear days at Newby Island and Sonoma Central that Sen2Cor scored as
-    almost entirely cloud.
-  - For comparison, the tile rule and Sen2Cor disagreed on 76 windows.
+- **How often they agree.** The model and Sen2Cor agreed on whether a window was usable for 455
+  of 477 windows. The tile rule and Sen2Cor disagreed on 76.
+
+### Found after the run
+
+Both findings came from checking the result before publishing it. Neither changes the run's
+verdict. Both are reported here with their numbers.
+
+**1. The eye check could not see thin cirrus.**
+- **The windows.** Sen2Cor set aside 13 windows the model kept. In all 13, most of the
+  unusable pixels were Sen2Cor's thin-cirrus class (10).
+- **The evidence.** Band 10, the cirrus band, read 0.003 to 0.014 on average over those windows,
+  2 to 10 times its level on clear days (about 0.0013).
+- **Why the eye missed it.** Thin cirrus hardly shows in true colour. All 8 such windows in the
+  eye check looked clear, so criterion 6 was scored with a looser idea of "clear" than the
+  project uses: thin cloud counts as unusable.
+- **What follows.**
+  - The eye check does not show that Sen2Cor was wrong on these windows. It may well have been
+    right.
+  - If it was, the model counts some thin-cirrus passes as usable. That is the error the project
+    guards against most.
+  - Criterion 6 stands as scored, but its "model 12, Sen2Cor 4" says less than it seems.
+
+**2. Sen2Cor was matched to an empty granule for 16 windows.**
+- **The cause.** For seven Sentinel-2C dates on tile 10SEH, Earth Search holds two L2A granules
+  of the same pass. The code took the first, which was 72 to 97% empty. Those 16 windows had no
+  Sen2Cor share and were left out of criteria 2 to 6.
+- **The fix.** The code now takes the fullest granule. Only the Sen2Cor layer was read again
+  for these windows, about 85 to 120 KB each.
+- **Criteria 2 to 5 with the 16 windows included** (a sensitivity, not the result):
+
+| Criterion | As run | With the 16 windows |
+|---|---|---|
+| 2. Model unusable when Sen2Cor >= 99% clear | 0.0% of 261 | 0.0% of 265 |
+| 3. Model usable when Sen2Cor < 30% clear | 2.9% of 140 | 2.7% of 149 |
+| 4. Sentinel-2C minus 2A/2B | +0.015 | +0.009 |
+| 5. Acme Fill: area / circle | 6.58% / 2.24% fail | 6.72% / 2.50% fail |
+| 5. Newby Island | 23.24% / 4.64% fail | 23.24% / 4.64% fail |
+| 5. Potrero Hills | 1.01% / 3.72% fail | **0.92% / 3.26% pass** |
+| 5. Shoreline | 14.55% / 1.73% fail | 14.55% / 1.73% fail |
+| 5. Sonoma Central | 0.85% / 10.29% fail | 0.90% / 10.64% fail |
+
+- **What it means.** With correct matching, Potrero Hills would have passed criterion 5. Under
+  the rule above it would then have used the model, while the other four used Sen2Cor.
 
 ## Decision
 
-The check does not hold, so the pre-registered fallback applies.
+The check does not hold, so the pre-registered fallback applies. The verdict is the one from
+the single run; the findings above are reported, not used to change it.
 
 - **Which passes count.** The model does not decide this at any pilot site.
 - **`valid_frac`.** For Sentinel-2 passes it moves from the tile figure to the **per-site
@@ -220,6 +260,11 @@ The check does not hold, so the pre-registered fallback applies.
 
   A model change could mean training examples of roofs, ponds and landfill surfaces, or a
   per-site mask of pixels that are flagged on clear days again and again.
+- **Potrero Hills stays on Sen2Cor.** Moving it to the model would need a new ADR, which is
+  not recommended:
+  - it passes criterion 5 only narrowly, 0.92% against a 1% limit;
+  - the thin-cirrus finding suggests the model may count thin-cirrus passes as usable;
+  - one rule for all five sites keeps the results comparable.
 
 ## Consequences
 
@@ -230,8 +275,8 @@ The check does not hold, so the pre-registered fallback applies.
     JPEG 2000.
   - **An SCL window downloads about 0.1 MB.** A whole SCL tile is about 1.4 MB, in 512-pixel
     blocks, and a window touches at most 4 of its 121 blocks.
-- **The cost of the fallback.** Following the rule costs a few clear passes a year at each
-  site, the ones Sen2Cor wrongly sets aside (see Results).
+- **Thin cirrus.** Sen2Cor's thin-cirrus class counts as unusable in the per-site share, as in
+  ADR 0013. Whether such thin cirrus matters for plumes of 2 t/hr or more is not tested here.
 - **No Sen2Cor share.** A pass with no Sen2Cor share keeps the tile figure, and that is marked.
   This covers no L2A match, no data over the window, or a product missing from a mirror.
 - **Masking before detection.**
@@ -243,6 +288,8 @@ The check does not hold, so the pre-registered fallback applies.
   - one website row, `s2_cloud_recent`, with result "fail";
   - the per-site counts are left out.
 - **Files kept.** The windows file keeps the per-window shares as evidence of the check.
-- **Limits of the thumbnails.** The eye labels are one person's reading of 24 thumbnails. Four
-  of them were close to the 70% line (5, 12, 14 and 19 in `eye-labels.csv`). Reversing all four
-  would not change criterion 6.
+- **Limits of the thumbnails.**
+  - The eye labels are one person's reading of 24 thumbnails.
+  - Four were close to the 70% line (5, 12, 14 and 19 in `eye-labels.csv`). Reversing all four
+    would not change criterion 6.
+  - Thin cirrus cannot be seen in them (see "Found after the run").

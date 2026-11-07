@@ -247,8 +247,10 @@ const ref1 = usable?.m.reference?.rates;
         </TableWrap>
         {recentFailed && (
           <ul>
-            <li><strong>What held.</strong> The newer images and Sentinel-2C caused no problem. The model sorted clear and cloudy views as well as on the test images, and where it and Sen2Cor disagreed, the eye mostly sided with the model.</li>
+            <li><strong>What held.</strong> The newer images and Sentinel-2C caused no problem. The model's calls on clear and cloudy views agreed with Sen2Cor as closely as on the test images.</li>
             <li><strong>What failed.</strong> On clear days the model kept flagging the same places: bright rooftops and parts of the landfills as cloud, and dark ponds as shadow. This seldom changes whether a whole view counts, but the rule written in advance does not allow it, and at Sonoma Central it covers a tenth of the circle around the site.</li>
+            <li><strong>Found after the run: the eye could not see thin cirrus.</strong> Where only the model called a view usable, Sen2Cor's reason was mostly thin cirrus, and the cirrus band was 2 to 10 times its clear-day level. Thin cirrus hardly shows in true colour, so the look by eye cannot settle those views, and Sen2Cor may well have been right.</li>
+            <li><strong>Found after the run: 16 views left out.</strong> A matching error paired 16 views with an empty Sen2Cor file. With them included, Potrero Hills would have passed the false-cloud rule (0.92% of the area against 1%); the other four sites still fail. The result above is the single run; decision record 0014 gives both sets of numbers and keeps all five sites on Sen2Cor.</li>
           </ul>
         )}
       </>
@@ -292,7 +294,7 @@ const ref1 = usable?.m.reference?.rates;
     <ul>
       <li>The test images are from many places, not from Bay Area landfills. Only three test sites are in the Bay Area, too few to test on their own.</li>
       <li>Every training and test image dates from 2017 to 2020 and comes from Sentinel-2A or 2B. The landfill passes since 2022 use newer processing and include Sentinel-2C. {recent ? 'The check on 2025 passes above found no problem from that, but found fixed false clouds over roofs, ponds and parts of the landfills.' : 'The model needs checking on recent passes before it decides which ones count.'}</li>
-      <li>The look by eye is one person’s reading of 24 small images; four were close to the 70% line, and reading all four the other way would not change that rule’s result.</li>
+      <li>The look by eye is one person’s reading of 24 small images; four were close to the 70% line, and reading all four the other way would not change that rule’s result. Thin cirrus cannot be seen in such images.</li>
       <li>The simulated plumes are simple shapes. Real plumes are patchier, and no real Sentinel-2 plume at a Bay Area landfill has yet been confirmed.</li>
       <li>Thin cloud is counted as unusable, which is cautious; some passes under thin cloud might still be usable for large plumes.</li>
       <li>A narrower range for each site's estimate, or a smaller detectable drop in the before/after test, can only be shown in simulation until the first real model fit.</li>
