@@ -15,6 +15,10 @@ browser never talks to the database.
     nothing.
   - `0004` read views for the build, all running with the caller's own rights.
   - `0005` indexes.
+  - `0006` two pass columns from ADR 0014: `valid_frac_tile` keeps the whole-tile cloud figure for
+    Sentinel-2 passes beside `valid_frac` (now Sen2Cor's clear share over the site), and
+    `valid_frac_source` says which figure `valid_frac` holds (`site-sen2cor`, `tile` or `scene`).
+    Both are null in publications built before the change.
 
 ## Rules
 

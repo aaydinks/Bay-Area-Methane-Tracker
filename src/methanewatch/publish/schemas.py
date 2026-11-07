@@ -95,6 +95,12 @@ passes = pa.DataFrameSchema(
         "usable": pa.Column(bool),
         "coverage_frac": pa.Column(float, _frac, nullable=True),
         "valid_frac": pa.Column(float, _frac, nullable=True),
+        # ADR 0014 (migration 0006). Null when the overpass table predates them, and optional
+        # so snapshots written before them still load.
+        "valid_frac_tile": pa.Column(float, _frac, nullable=True, required=False),
+        "valid_frac_source": pa.Column(
+            str, pa.Check.isin(base.VALID_FRAC_SOURCES), nullable=True, required=False
+        ),
         "coverage_source": pa.Column(str, pa.Check.isin(base.COVERAGE_SOURCES), nullable=True),
         "detected": pa.Column(bool),
         "q_obs_kg_hr": pa.Column(float, pa.Check.gt(0), nullable=True),
