@@ -55,9 +55,12 @@ files.push(['default.png', card({
 
 for (const s of snapshot.sites) {
   const e = snapshot.site_estimates.find((x) => x.site_id === s.site_id && x.period === 'all');
-  const headline = e && e.e_t_yr_med != null
-    ? `About ${num(e.e_t_yr_med)} t/yr above the floor (90% range ${num(e.e_t_yr_lo)} to ${num(e.e_t_yr_hi)})`
-    : e?.status === 'insufficient_data' ? 'Not enough usable passes for an estimate yet' : 'No estimate in this update';
+  // A site marked insufficient data shows no figure, even when its row carries a median.
+  const headline = e?.status === 'insufficient_data'
+    ? 'Not enough data for an estimate yet'
+    : e && e.e_t_yr_med != null
+      ? `About ${num(e.e_t_yr_med)} t/yr above the floor (90% range ${num(e.e_t_yr_lo)} to ${num(e.e_t_yr_hi)})`
+      : 'No estimate in this update';
   const pd = snapshot.plume_days.find((x) => x.site_id === s.site_id);
   files.push([`${s.site_id}.png`, card({
     title: s.name ?? s.site_id,

@@ -6,7 +6,7 @@ import EmptyState from '../components/EmptyState.astro';
 import Carousel, { type Slide } from '../islands/Carousel';
 import Counter from '../islands/Counter';
 import { EXPECTED, RESULT, SITE_NAME, type ResultColour } from '../config';
-import { currentUpdates, estimateFor, hasPublication, latestCheckFor, publication, sites, totals } from '../lib/data';
+import { currentUpdates, estimateFor, hasPublication, latestCheckFor, publication, sites, totals, usableEstimate } from '../lib/data';
 import { date, num } from '../lib/format';
 import imagery from '../assets/imagery/imagery.json';
 
@@ -27,6 +27,7 @@ const landfillSlides: Slide[] = await Promise.all(sites.map(async (s) => {
   const id = s.site_id ?? '';
   const latest = latestCheckFor(id);
   const est = estimateFor(id);
+  const usable = usableEstimate(id);
   const colour = latest?.result_held ? 'grey' : (latest?.colour as ResultColour | undefined) ?? 'grey';
   const badge = latest?.result_held ? 'Result held back' : latest?.colour ? RESULT[latest.colour as ResultColour].label : 'Not yet tested';
   const photo = photoFor(id);
@@ -36,10 +37,9 @@ const landfillSlides: Slide[] = await Promise.all(sites.map(async (s) => {
   return {
     title: s.name ?? id,
     text: `${s.city}, ${s.county} County`,
-    // A site the model marks as insufficient data shows no figure, even when a median exists.
-    figure: est?.status === 'insufficient_data'
-      ? 'Not enough data for an estimate'
-      : est && est.e_t_yr_med != null ? `About ${num(est.e_t_yr_med)} t/yr above the floor` : 'No estimate yet',
+    figure: usable
+      ? `About ${num(usable.e_t_yr_med)} t/yr above the floor`
+      : est?.status === 'insufficient_data' ? 'Not enough data for an estimate' : 'No estimate yet',
     href: `/sites/${id}/`,
     colour,
     badge,

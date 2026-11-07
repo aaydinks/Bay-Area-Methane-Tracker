@@ -37,6 +37,20 @@ test('the home page carries the retrospective framing', async ({ page }) => {
   await expect(page.locator('body')).toContainText(/screening indication/i);
 });
 
+test('a site marked insufficient data is listed apart, never ranked, even with a median', async ({ page }) => {
+  // In the fixture, Acme Fill carries a median but its 90% range is too wide for an estimate.
+  await page.goto('/sites/');
+  const ranked = page.locator('section[aria-labelledby="ranked"]');
+  const thin = page.locator('section[aria-labelledby="thin"]');
+  await expect(ranked).toContainText('Newby Island');
+  await expect(ranked).not.toContainText('Acme');
+  await expect(thin).toContainText('Acme Fill');
+  await expect(thin).toContainText('too wide');
+  await page.goto('/');
+  const slide = page.locator('.carousel-slide', { hasText: 'Acme Fill' });
+  await expect(slide).toContainText('Not enough data for an estimate');
+});
+
 test('the site stays light when the system asks for dark', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');

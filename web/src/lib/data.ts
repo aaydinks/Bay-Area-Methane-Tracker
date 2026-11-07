@@ -75,6 +75,14 @@ export function estimateFor(siteId: string): SiteEstimate | undefined {
   return snapshot.site_estimates.find((e) => e.site_id === siteId && e.period === 'all');
 }
 
+// The estimate a page may show as a figure. A site the model marks as insufficient data can still
+// carry a median (for example when its 90% range spans more than a hundredfold); that median is
+// not an estimate, so it is never shown, ranked or charted.
+export function usableEstimate(siteId: string): (SiteEstimate & { e_t_yr_med: number }) | undefined {
+  const e = estimateFor(siteId);
+  return e && e.status !== 'insufficient_data' && e.e_t_yr_med != null ? (e as SiteEstimate & { e_t_yr_med: number }) : undefined;
+}
+
 export function checksFor(siteId: string): CheckWithResult[] {
   return snapshot.checks
     .filter((c) => c.site_id === siteId)
@@ -150,7 +158,7 @@ export const totals = {
   passes: snapshot.pass_months.reduce((n, p) => n + (p.n_passes ?? 0), 0),
   plumeDays: snapshot.plume_days.reduce((n, p) => n + (p.plume_days ?? 0), 0),
   plumes: snapshot.plumes.length,
-  estimates: snapshot.site_estimates.filter((e) => e.status !== 'insufficient_data').length,
+  estimates: snapshot.sites.filter((s) => usableEstimate(s.site_id ?? '')).length,
   checks: snapshot.checks.length,
   checkResults: snapshot.checks.filter((c) => c.colour).length,
 };

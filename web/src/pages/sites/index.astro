@@ -7,18 +7,20 @@ import EmptyState from '../../components/EmptyState.astro';
 import Range from '../../components/Range.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { EXPECTED } from '../../config';
-import { estimateFor, hasPublication, latestCheckFor, sites } from '../../lib/data';
-const withEstimate = sites.filter((s) => estimateFor(s.site_id ?? '')?.e_t_yr_med != null)
-  .sort((a, b) => (estimateFor(b.site_id ?? '')?.e_t_yr_med ?? 0) - (estimateFor(a.site_id ?? '')?.e_t_yr_med ?? 0));
+import { estimateFor, hasPublication, latestCheckFor, sites, usableEstimate } from '../../lib/data';
+// Only sites with a usable estimate are ranked; those the model marks as insufficient data are
+// listed apart with the reason, even when they carry a median.
+const withEstimate = sites.filter((s) => usableEstimate(s.site_id ?? ''))
+  .sort((a, b) => (usableEstimate(b.site_id ?? '')?.e_t_yr_med ?? 0) - (usableEstimate(a.site_id ?? '')?.e_t_yr_med ?? 0));
 const without = sites.filter((s) => !withEstimate.includes(s));
 const chartItems = withEstimate.map((s) => {
-  const e = estimateFor(s.site_id ?? '')!;
-  return { label: (s.name ?? '').replace(' Landfill', ''), med: e.e_t_yr_med as number, lo: e.e_t_yr_lo ?? (e.e_t_yr_med as number), hi: e.e_t_yr_hi ?? (e.e_t_yr_med as number), provisional: Boolean(e.provisional) };
+  const e = usableEstimate(s.site_id ?? '')!;
+  return { label: (s.name ?? '').replace(' Landfill', ''), med: e.e_t_yr_med, lo: e.e_t_yr_lo ?? e.e_t_yr_med, hi: e.e_t_yr_hi ?? e.e_t_yr_med, provisional: Boolean(e.provisional) };
 });
 ---
 <Base title="Landfills" description="The five landfills studied in depth, with their persistence estimates and latest checks." kind="sites">
   <h1>Landfills</h1>
-  <p class="lede">Each estimate is annual methane above the detection floor in daytime, clear-sky conditions, with its 90% range: a screening indication, not a site's total. Sites without enough passes are listed apart and not ranked.</p>
+  <p class="lede">Each estimate is annual methane above the detection floor in daytime, clear-sky conditions, with its 90% range: a screening indication, not a site's total. Sites without enough data for an estimate are listed apart, with the reason, and not ranked.</p>
   {hasPublication ? (
     <>
       <section aria-labelledby="ranked">
@@ -28,7 +30,7 @@ const chartItems = withEstimate.map((s) => {
           <RangeChart items={chartItems} unit="t/yr" title="Annual methane above the floor, by site" />
           <div class="grid">
             {withEstimate.map((s) => {
-              const e = estimateFor(s.site_id ?? '');
+              const e = usableEstimate(s.site_id ?? '');
               const latest = latestCheckFor(s.site_id ?? '');
               return (
                 <Card title={s.name ?? ''} href={`/sites/${s.site_id}/`}>
