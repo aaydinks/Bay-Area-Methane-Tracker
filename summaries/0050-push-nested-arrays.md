@@ -1,6 +1,6 @@
 # PR #50: Let the database loader save lists inside the check results
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/50)
+**Status:** merged 2026-11-06 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/50)
 
 ## In one sentence
 
