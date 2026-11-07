@@ -145,6 +145,8 @@ class InstrumentsConfig(_Strict):
 class Grid(_Strict):
     n_points: int = Field(ge=16)
     q_min_kg_hr: float | None = Field(default=None, gt=0)
+    q_min_source: str | None = None
+    q_min_confirmed: bool = False
     q_max_kg_hr: float = Field(gt=0)
 
 
