@@ -5,36 +5,80 @@ import { num } from '../lib/format';
 interface Item { label: string; med: number; lo: number; hi: number; provisional?: boolean }
 interface Props { items: Item[]; unit: string; title: string }
 const { items, unit, title } = Astro.props;
-const width = 720, left = 190, right = 30, rowH = 34, top = 28, bottom = 36;
-const height = top + bottom + items.length * rowH;
 const lo = Math.min(...items.map((i) => i.lo)), hi = Math.max(...items.map((i) => i.hi));
 const minLog = Math.floor(Math.log10(Math.max(lo, 1)));
 const maxLog = Math.ceil(Math.log10(Math.max(hi, 10)));
-const x = (v: number) => left + ((Math.log10(Math.max(v, 1)) - minLog) / (maxLog - minLog)) * (width - left - right);
-const ticks: number[] = [];
-for (let e = minLog; e <= maxLog; e += 1) for (const m of [1, 2, 5]) if (m * 10 ** e >= 10 ** minLog && m * 10 ** e <= 10 ** maxLog) ticks.push(m * 10 ** e);
 const summary = items.map((i) => `${i.label}: ${num(i.med)} ${unit}, 90% range ${num(i.lo)} to ${num(i.hi)}`).join('; ');
+
+// Two layouts of the same chart: a wide one, and a narrow one for phones, where the wide one
+// would shrink its text below a readable size. CSS shows one of them.
+const TICK_PX = 12, LABEL_PX = 13;
+function layout(width: number, left: number) {
+  const right = 34, rowH = 34, top = 28, bottom = 38;
+  const height = top + bottom + items.length * rowH;
+  const x = (v: number) => left + ((Math.log10(Math.max(v, 1)) - minLog) / (maxLog - minLog)) * (width - left - right);
+  // Gridlines at 1, 2 and 5 of each power of ten while there is room for them. Labels follow a
+  // regular step that keeps every label clear of its neighbours: every power of ten (with 2 and
+  // 5 too when all of those fit), or every second or third power of ten on a narrow chart.
+  const decadePx = (width - left - right) / (maxLog - minLog);
+  const grid: number[] = [];
+  for (let e = minLog; e <= maxLog; e += 1) {
+    for (const m of decadePx >= 90 ? [1, 2, 5] : [1]) {
+      const v = m * 10 ** e;
+      if (v >= 10 ** minLog && v <= 10 ** maxLog) grid.push(v);
+    }
+  }
+  const textW = (v: number) => num(v).length * TICK_PX * 0.62 + 10;
+  const clear = (vals: number[]) => vals.every((v, i) => i === 0 || x(v) - x(vals[i - 1]) >= (textW(v) + textW(vals[i - 1])) / 2);
+  let labelled = grid;
+  if (!clear(labelled)) {
+    const powers = grid.filter((g) => Number.isInteger(Math.log10(g)));
+    let step = 1;
+    do {
+      labelled = powers.filter((_, i) => i % step === 0);
+      step += 1;
+    } while (!clear(labelled) && step <= powers.length);
+  }
+  return { width, left, right, rowH, top, bottom, height, x, grid, labelled: new Set(labelled) };
+}
+const views = [
+  { key: 'wide', ...layout(720, 190) },
+  { key: 'narrow', ...layout(400, 128) },
+];
 ---
-<figure class="chart">
-  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${summary}.`}>
-    <line class="axis" x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} />
-    {ticks.map((t) => (
-      <g>
-        <line class="grid" x1={x(t)} x2={x(t)} y1={top - 6} y2={height - bottom} />
-        <text class="tick" x={x(t)} y={height - bottom + 16} text-anchor="middle">{num(t)}</text>
-      </g>
-    ))}
-    <text class="tick" x={width - right} y={height - 6} text-anchor="end">{unit}, log scale</text>
-    {items.map((i, k) => {
-      const y = top + k * rowH + rowH / 2;
-      return (
+<figure class="chart range-chart">
+  {views.map((v) => (
+    <svg class={`range-${v.key}`} viewBox={`0 0 ${v.width} ${v.height}`} role="img" aria-label={`${title}. ${summary}.`}>
+      <line class="axis" x1={v.left} x2={v.width - v.right} y1={v.height - v.bottom} y2={v.height - v.bottom} />
+      {v.grid.map((t) => (
         <g>
-          <text class="label" x={left - 10} y={y + 4} text-anchor="end">{i.label}{i.provisional ? ' *' : ''}</text>
-          <line class="whisker" x1={x(i.lo)} x2={x(i.hi)} y1={y} y2={y} />
-          <circle class="dot" cx={x(i.med)} cy={y} r="6" />
+          <line class="grid" x1={v.x(t)} x2={v.x(t)} y1={v.top - 6} y2={v.height - v.bottom} />
+          {v.labelled.has(t) && <text class="tick" x={v.x(t)} y={v.height - v.bottom + 17} text-anchor="middle" font-size={TICK_PX}>{num(t)}</text>}
         </g>
-      );
-    })}
-  </svg>
+      ))}
+      <text class="tick" x={v.width - v.right} y={v.height - 4} text-anchor="end" font-size={TICK_PX}>{unit}, log scale</text>
+      {items.map((i, k) => {
+        const y = v.top + k * v.rowH + v.rowH / 2;
+        return (
+          <g>
+            <text class="label" x={v.left - 10} y={y + 4} text-anchor="end" font-size={LABEL_PX}>{i.label}{i.provisional ? ' *' : ''}</text>
+            <line class="whisker" x1={v.x(i.lo)} x2={v.x(i.hi)} y1={y} y2={y} />
+            <circle class="dot" cx={v.x(i.med)} cy={y} r="6" />
+          </g>
+        );
+      })}
+    </svg>
+  ))}
   <figcaption>{title}. The dot is the median and the line its 90% range. {items.some((i) => i.provisional) ? '* provisional: detection curves not yet confirmed.' : ''}</figcaption>
 </figure>
+
+<style>
+  .range-narrow { display: none; }
+  @media (max-width: 40rem) {
+    .range-wide { display: none; }
+    .range-narrow { display: block; }
+  }
+  /* The class rules in charts.css set a size; the attribute above is the fallback. */
+  .range-chart :global(.tick) { font-size: 12px; }
+  .range-chart :global(.label) { font-size: 13px; }
+</style>
