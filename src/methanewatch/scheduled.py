@@ -11,8 +11,9 @@ The steps, in order. Nothing after a failed step runs:
 2. ``datasets``: rewrite ``datasets/emit``, ``datasets/sentinel2`` and ``datasets/carbonmapper``
    from the pulls. The annual sources (census, boundaries, GHGRP, CalRecycle) and the pixel steps
    stay manual (ADR 0011). The changes are left for the owner to review and commit.
-3. ``publish_build``: assemble and check a snapshot of that refresh. There is no model run until
-   detection curves are sourced, so estimates and check results stay empty (ADR 0009).
+3. ``publish_build``: assemble and check a snapshot of that refresh. It carries the estimates of
+   the newest usable model run (``latest_model_run``), so a scheduled copy never replaces a review
+   copy that has estimates with one that has none. Check results stay empty.
 4. ``push``: load it into the database as a draft (``SUPABASE_DB_URL`` in ``.env``).
 5. ``review``: make it visible to the protected review build. A scheduled run never makes anything
    public; that stays a confirmed, manual step (``mw publish set-visibility``).
@@ -55,6 +56,33 @@ LAUNCHD_LABEL = "local.methanewatch.scheduled-run"
 # runs the job when it wakes; missed times are merged into one run (launchd.plist(5)).
 LAUNCHD_TIMES = ({"Weekday": 1, "Hour": 8, "Minute": 0}, {"Weekday": 4, "Hour": 8, "Minute": 0})
 LAUNCHD_LOG = Path.home() / "Library" / "Logs" / "methanewatch-scheduled-run.log"
+
+
+def latest_model_run(processed: Path) -> tuple[str | None, str]:
+    """The newest model run fit to real data whose diagnostics passed, from a clean checkout,
+    with its estimates on disk; or None and the reason. The model is never refit here."""
+    runs = processed / "runs"
+    manifests = []
+    for path in runs.glob("*.json") if runs.exists() else []:
+        try:
+            manifests.append(json.loads(path.read_text()) | {"_stem": path.stem})
+        except (OSError, json.JSONDecodeError):
+            continue
+    if not manifests:
+        return None, "no model run on disk"
+    for m in sorted(manifests, key=lambda m: str(m.get("created_at", "")), reverse=True):
+        run_id = m.get("run_id", m["_stem"])
+        if (
+            m.get("kind") == "real"
+            and (m.get("diagnostics") or {}).get("ok") is True
+            and not m.get("git_dirty")
+            and (processed / "site_estimates" / f"{run_id}.parquet").exists()
+        ):
+            return run_id, ""
+    return None, (
+        f"none of the {len(manifests)} model runs on disk is a real fit from a clean checkout "
+        "that passed its checks"
+    )
 
 
 class Stop(Exception):
@@ -188,11 +216,13 @@ def run(
         }
 
     def publish_build() -> dict[str, Any]:
+        model_run_id, why_none = latest_model_run(project.resolve(project.paths.processed))
         s = snap.build(
             project,
             load_data_terms(),
             load_impact(),
             refresh_id=state["refresh_id"],
+            model_run_id=model_run_id,
             notes=f"scheduled run {run_id}",
         )
         s.write(project.resolve(project.paths.processed) / "publications")
@@ -200,6 +230,8 @@ def run(
         tables = s.tables
         return {
             "publish_id": s.publish_id,
+            "model_run_id": model_run_id,
+            **({"no_estimates": why_none} if model_run_id is None else {}),
             "rows": {k: len(v) for k, v in tables.items()},
             "restricted_rows": {
                 k: int(tables[k]["restricted"].sum())
