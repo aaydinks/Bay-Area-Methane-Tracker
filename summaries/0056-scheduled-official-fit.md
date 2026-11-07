@@ -40,11 +40,16 @@ says what changed.
 
 ## What we learned
 
-- **The November 6 run went through the installed launchd job.** Its log holds that run's
-  output, and launchd counts one run with exit code 0.
-- **It ran on a Friday at about 19:53.** That is not one of the job's times (Mondays and
-  Thursdays at 08:00), so it was most likely started by hand. Who started it is not known.
-- **The checkout had unsaved changes** at the time.
+- **Both scheduled runs so far went through the installed launchd job.** Its log holds both, and
+  launchd counts two runs, the last with exit code 0.
+- **Both ran on Friday evening, November 6, at about 19:53 and 20:02.** Neither time is one of the
+  job's times (Mondays and Thursdays at 08:00), so both were most likely started by hand. Who
+  started them is not recorded.
+- **The two runs had different results.**
+  - The first ran code from before PR 52 and pushed the copy without estimates.
+  - The second ran PR 52's code nine minutes later and carried the fit. Its copy is the reviewers'
+    copy now.
+- **The checkout had unsaved changes** both times.
 
 ## Still to do
 
