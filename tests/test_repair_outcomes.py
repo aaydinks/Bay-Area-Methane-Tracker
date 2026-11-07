@@ -220,14 +220,18 @@ def test_covariates_need_the_site_features_table(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError, match="run `mw features build` first"):
         run.site_covariates(project, cov_cfg, ["a", "b"])
 
-    # At the command line the same message exits with code 2
+    # At the command line the same message exits with code 2. A Carbon Mapper plume table
+    # marks EMIT's passes as searched, so they reach the covariate step (ADR 0016).
     _check_table().to_csv(registry / "checks.csv", index=False)
+    (interim / "plumes").mkdir()
+    pd.DataFrame({"plume_id": ["cm1"]}).to_parquet(interim / "plumes" / "carbonmapper.parquet")
     pd.DataFrame(
         {
             "overpass_id": ["p1", "p2"],
             "site_id": ["sonoma-central", "newby-island"],
             "instrument": "emit",
             "acquired_utc": pd.Timestamp("2023-01-01", tz="UTC"),
+            "detected": False,
         }
     ).to_parquet(interim / "detections.parquet")
     monkeypatch.setattr("methanewatch.config.load_project", lambda: project)

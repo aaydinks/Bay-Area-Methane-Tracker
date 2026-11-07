@@ -70,6 +70,35 @@ def _write_run(
     return path
 
 
+def select_searched(
+    interim: Path,
+    det: pd.DataFrame,
+    instruments: InstrumentsConfig,
+    include_unsearched: Iterable[str] = (),
+) -> searched.Selection:
+    """The detections a real fit may use: ``searched.select`` on the current plume tables.
+
+    Every real fit (this module, ``mw repair run``, the hold-out check) goes through here, so
+    all of them leave out the same instruments (ADR 0016). Prints what was left out or kept on
+    purpose; raises ConfigNotReadyError for an unknown instrument or when nothing is left.
+    """
+    tables = searched.plume_tables(interim)  # read errors are not config problems
+    try:
+        sel = searched.select(det, instruments, tables, include_unsearched=include_unsearched)
+    except ValueError as exc:
+        raise ConfigNotReadyError(str(exc)) from exc
+    if not sel.used:
+        raise ConfigNotReadyError(
+            "no instrument's passes have been searched for plumes: "
+            + ", ".join(sorted(sel.left_out))
+        )
+    for name, why in sel.left_out.items():
+        print(f"left out {name}: {why['reason']} ({why['n_passes']} usable passes)")
+    for name in sel.included_unsearched:
+        print(f"included {name} although its plume search has not run (--include-unsearched)")
+    return sel
+
+
 def fit_real(
     project: ProjectConfig,
     cfg: ModelConfig,
@@ -90,20 +119,7 @@ def fit_real(
     det = pd.read_parquet(path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
-    tables = searched.plume_tables(interim)
-    try:
-        sel = searched.select(det, instruments, tables, include_unsearched=include_unsearched)
-    except ValueError as exc:
-        raise ConfigNotReadyError(str(exc)) from exc
-    if not sel.used:
-        raise ConfigNotReadyError(
-            "no instrument's passes have been searched for plumes: "
-            + ", ".join(sorted(sel.left_out))
-        )
-    for name, why in sel.left_out.items():
-        print(f"left out {name}: {why['reason']} ({why['n_passes']} usable passes)")
-    for name in sel.included_unsearched:
-        print(f"included {name} although its plume search has not run (--include-unsearched)")
+    sel = select_searched(interim, det, instruments, include_unsearched)
     det = sel.detections
     used = sel.used
     inst = {k: instruments.instruments[k] for k in used}

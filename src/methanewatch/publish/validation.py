@@ -59,6 +59,31 @@ def _holdout(text: str) -> dict:
     return out
 
 
+# Display names, as on the website (web/src/config.ts)
+_INSTRUMENT_LABEL = {
+    "sentinel2": "Sentinel-2",
+    "emit": "NASA EMIT",
+    "tanager1": "Tanager-1",
+    "aircraft": "aircraft",
+}
+
+
+def _real_holdout_note(manifest: dict) -> str:
+    """A hold-out run on real detections, and the instruments it left out (ADR 0016)."""
+
+    def names(keys) -> str:
+        return ", ".join(_INSTRUMENT_LABEL.get(k, k) for k in sorted(keys))
+
+    note = "Hold-out prediction on real detections."
+    left = manifest.get("instruments_left_out") or {}
+    if left:
+        note += f" Left out because no plume search has run on their passes: {names(left)}."
+    kept = manifest.get("included_unsearched") or []
+    if kept:
+        note += f" Kept on purpose although no plume search has run on them: {names(kept)}."
+    return note
+
+
 def _placebo(text: str) -> dict:
     out = {}
     m = re.search(r"False-positive rate \(drop or rise\): \*\*([0-9.]+)\*\*", text)
@@ -285,7 +310,11 @@ def validation_rows(reports_root: Path) -> list[dict]:
             if metrics.get("covariates"):
                 note = "Gate 3 with site covariates (ADR 0008)."
         elif gate == "holdout":
-            note = "Dry run on simulated data, not Gate 4."
+            note = (
+                _real_holdout_note(manifest)
+                if manifest.get("kind") == "real"
+                else "Dry run on simulated data, not Gate 4."
+            )
         else:
             note = text.splitlines()[0].lstrip("# ").strip()
         rows.append(
