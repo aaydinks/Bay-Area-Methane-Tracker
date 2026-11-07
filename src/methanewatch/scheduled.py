@@ -11,13 +11,21 @@ The steps, in order. Nothing after a failed step runs:
 2. ``datasets``: rewrite ``datasets/emit``, ``datasets/sentinel2`` and ``datasets/carbonmapper``
    from the pulls. The annual sources (census, boundaries, GHGRP, CalRecycle) and the pixel steps
    stay manual (ADR 0011). The changes are left for the owner to review and commit.
-3. ``publish_build``: assemble and check a snapshot of that refresh. It carries the estimates of
-   the newest usable model run (``latest_model_run``), so a scheduled copy never replaces a review
-   copy that has estimates with one that has none. Check results stay empty.
-4. ``push``: load it into the database as a draft (``SUPABASE_DB_URL`` in ``.env``).
-5. ``review``: make it visible to the protected review build. A scheduled run never makes anything
-   public; that stays a confirmed, manual step (``mw publish set-visibility``).
-6. ``deploy_hook``: if ``CF_DEPLOY_HOOK_REVIEW`` is set, ask the host to rebuild the review site.
+3. ``model_run``: decide whether the copy carries the official fit, the checked run named in
+   ``publish.official_model_run`` (``config/project.yaml``). It does only while the detections that
+   fit used still equal the refreshed ones for the instruments it used (``official_fit``).
+   Instruments it left out, such as Sentinel-2 while its plume search has not run, are counted,
+   not compared. The model is never refit here: a refit is checked by a person before it is named.
+4. ``publish_build``: assemble and check a snapshot of that refresh, with the official fit's
+   estimates when it is carried and none otherwise. Check results stay empty.
+5. ``push``: load it into the database as a draft (``SUPABASE_DB_URL`` in ``.env``). This runs
+   with or without estimates, so the free database plan never sees seven quiet days (ADR 0009).
+6. ``review``: make it visible to the protected review build, only if it carries the official fit.
+   The review site shows the newest review copy, so a copy without those estimates would replace
+   the one with them. Otherwise the run stops here, the copy stays a draft, and the reason says
+   what to refit. A scheduled run never makes anything public; that stays a confirmed, manual step
+   (``mw publish set-visibility``).
+7. ``deploy_hook``: if ``CF_DEPLOY_HOOK_REVIEW`` is set, ask the host to rebuild the review site.
 
 Each run writes a manifest to ``processed/scheduled/`` (and ``latest.json``) with every step's
 result, its duration and, if the run stopped, the step and the reason. The connection string and
@@ -42,12 +50,23 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from methanewatch import datasets
 from methanewatch import refresh as refresh_mod
 from methanewatch.config import REPO_ROOT, ProjectConfig, load_data_terms, load_impact
 from methanewatch.provenance import new_id, run_manifest, utcnow
 
-STEPS = ("checkout", "refresh", "datasets", "publish_build", "push", "review", "deploy_hook")
+STEPS = (
+    "checkout",
+    "refresh",
+    "datasets",
+    "model_run",
+    "publish_build",
+    "push",
+    "review",
+    "deploy_hook",
+)
 HOOK_ENV = "CF_DEPLOY_HOOK_REVIEW"
 
 LAUNCHD_LABEL = "local.methanewatch.scheduled-run"
@@ -58,31 +77,120 @@ LAUNCHD_TIMES = ({"Weekday": 1, "Hour": 8, "Minute": 0}, {"Weekday": 4, "Hour": 
 LAUNCHD_LOG = Path.home() / "Library" / "Logs" / "methanewatch-scheduled-run.log"
 
 
-def latest_model_run(processed: Path) -> tuple[str | None, str]:
-    """The newest model run fit to real data whose diagnostics passed, from a clean checkout,
-    with its estimates on disk; or None and the reason. The model is never refit here."""
-    runs = processed / "runs"
-    manifests = []
-    for path in runs.glob("*.json") if runs.exists() else []:
-        try:
-            manifests.append(json.loads(path.read_text()) | {"_stem": path.stem})
-        except (OSError, json.JSONDecodeError):
-            continue
-    if not manifests:
-        return None, "no model run on disk"
-    for m in sorted(manifests, key=lambda m: str(m.get("created_at", "")), reverse=True):
-        run_id = m.get("run_id", m["_stem"])
-        if (
-            m.get("kind") == "real"
-            and (m.get("diagnostics") or {}).get("ok") is True
-            and not m.get("git_dirty")
-            and (processed / "site_estimates" / f"{run_id}.parquet").exists()
-        ):
-            return run_id, ""
-    return None, (
-        f"none of the {len(manifests)} model runs on disk is a real fit from a clean checkout "
-        "that passed its checks"
+# The detection columns the persistence model reads (``persistence.prepare``)
+MODEL_INPUTS = ("site_id", "instrument", "detected", "q_obs_kg_hr", "q_sigma_log")
+DRIFT_KINDS = ("added", "changed", "removed")
+
+
+def detections_drift(
+    fit: pd.DataFrame, now: pd.DataFrame, instruments: Sequence[str]
+) -> dict[str, dict[str, Any]]:
+    """How ``now`` differs from the detections a fit used, for each of ``instruments``.
+
+    Passes are matched on ``overpass_id`` and compared on ``MODEL_INPUTS`` only, so other columns
+    and row order do not count. Empty when they are equal. Each entry has the number of passes
+    ``added``, ``changed`` and ``removed`` since the fit and up to three example pass ids.
+    """
+    cols = ["overpass_id", *MODEL_INPUTS]
+    m = fit.loc[fit["instrument"].isin(instruments), cols].merge(
+        now.loc[now["instrument"].isin(instruments), cols],
+        on="overpass_id",
+        how="outer",
+        suffixes=("_fit", "_now"),
+        indicator=True,
     )
+    same = pd.Series(True, index=m.index)
+    for c in MODEL_INPUTS:
+        a, b = m[f"{c}_fit"], m[f"{c}_now"]
+        same &= (a == b).fillna(False).astype(bool) | (a.isna() & b.isna())
+    kind = (
+        pd.Series("", index=m.index)
+        .mask(~same, "changed")
+        .mask(m["_merge"].eq("left_only"), "removed")
+        .mask(m["_merge"].eq("right_only"), "added")
+    )
+    m = m.assign(kind=kind, instrument=m["instrument_fit"].fillna(m["instrument_now"]))
+    drift = {}
+    for inst, g in m[m["kind"] != ""].groupby("instrument"):
+        counts = g["kind"].value_counts()
+        drift[str(inst)] = {k: int(counts.get(k, 0)) for k in DRIFT_KINDS} | {
+            "examples": sorted(g["overpass_id"].astype(str))[:3]
+        }
+    return drift
+
+
+def describe_drift(drift: dict[str, dict[str, Any]]) -> str:
+    """``emit: 2 passes added, 1 pass changed (e.g. a:emit:2026-11-05, ...)``, per instrument."""
+    parts = []
+    for inst, d in sorted(drift.items()):
+        counts = ", ".join(
+            f"{d[k]} {'pass' if d[k] == 1 else 'passes'} {k}" for k in DRIFT_KINDS if d[k]
+        )
+        parts.append(f"{inst}: {counts} (e.g. {', '.join(d['examples'])})")
+    return "; ".join(parts)
+
+
+def official_fit(project: ProjectConfig) -> dict[str, Any]:
+    """Whether a copy of the current interim tables may carry the official fit's estimates.
+
+    ``model_run_id`` is the run to carry, or None with ``no_estimates`` saying why: no fit is
+    named, its files are missing, it is not a real fit from a clean checkout that passed its
+    checks, or the detections it used differ from ``interim/detections.parquet`` for its
+    instruments (``drift``). ``left_out`` counts the current detections of other instruments.
+    """
+    run_id = project.publish.official_model_run
+    if not run_id:
+        return {
+            "official": None,
+            "model_run_id": None,
+            "no_estimates": "no official fit is named (publish.official_model_run)",
+        }
+    out: dict[str, Any] = {"official": run_id, "model_run_id": None}
+    processed = project.resolve(project.paths.processed)
+    files = {
+        "manifest": processed / "runs" / f"{run_id}.json",
+        "estimates": processed / "site_estimates" / f"{run_id}.parquet",
+        "detections": processed / "runs" / f"{run_id}-detections.parquet",
+    }
+    missing = [k for k, path in files.items() if not path.exists()]
+    if missing:
+        why = f"official fit {run_id} has no {' or '.join(missing)} on disk"
+        return out | {"no_estimates": why}
+    manifest = json.loads(files["manifest"].read_text())
+    problems = []
+    if manifest.get("kind") != "real":
+        problems.append(f"it is a {manifest.get('kind') or 'unlabelled'} run, not a real fit")
+    if (manifest.get("diagnostics") or {}).get("ok") is not True:
+        problems.append("it failed its convergence checks")
+    if manifest.get("git_dirty"):
+        problems.append("it was fit from a checkout with unsaved changes")
+    if problems:
+        return out | {"no_estimates": f"official fit {run_id}: {'; '.join(problems)}"}
+
+    used = pd.read_parquet(files["detections"])
+    instruments = sorted(manifest.get("instruments") or used["instrument"].unique())
+    det_path = project.resolve(project.paths.interim) / "detections.parquet"
+    now = (
+        pd.read_parquet(det_path)
+        if det_path.exists()
+        else pd.DataFrame(columns=["overpass_id", *MODEL_INPUTS])
+    )
+    left_out = now.loc[~now["instrument"].isin(instruments), "instrument"].value_counts()
+    out |= {
+        "instruments": instruments,
+        "detections": int(used["instrument"].isin(instruments).sum()),
+        "left_out": {str(k): int(v) for k, v in left_out.sort_index().items()},
+    }
+    drift = detections_drift(used, now, instruments)
+    if drift:
+        return out | {
+            "drift": drift,
+            "no_estimates": (
+                f"official fit {run_id} no longer matches the refreshed detections "
+                f"({describe_drift(drift)})"
+            ),
+        }
+    return out | {"model_run_id": run_id}
 
 
 class Stop(Exception):
@@ -215,15 +323,22 @@ def run(
             "s2_tile_fallback": coverage.get("s2_tile_fallback"),
         }
 
+    def model_run() -> dict[str, Any]:
+        result = official_fit(project)
+        state["model_run_id"] = result["model_run_id"]
+        state["no_estimates"] = result.get("no_estimates")
+        return result
+
     def publish_build() -> dict[str, Any]:
-        model_run_id, why_none = latest_model_run(project.resolve(project.paths.processed))
+        model_run_id = state["model_run_id"]
         s = snap.build(
             project,
             load_data_terms(),
             load_impact(),
             refresh_id=state["refresh_id"],
             model_run_id=model_run_id,
-            notes=f"scheduled run {run_id}",
+            notes=f"scheduled run {run_id}; "
+            + (f"estimates from {model_run_id}" if model_run_id else "no estimates"),
         )
         s.write(project.resolve(project.paths.processed) / "publications")
         state["snapshot"] = s
@@ -231,7 +346,6 @@ def run(
         return {
             "publish_id": s.publish_id,
             "model_run_id": model_run_id,
-            **({"no_estimates": why_none} if model_run_id is None else {}),
             "rows": {k: len(v) for k, v in tables.items()},
             "restricted_rows": {
                 k: int(tables[k]["restricted"].sum())
@@ -249,6 +363,12 @@ def run(
     def review() -> dict[str, Any]:
         from methanewatch.publish import load
 
+        if state["no_estimates"]:
+            raise Stop(
+                f"{state['snapshot'].publish_id} stays a draft, so the review site keeps its copy: "
+                f"{state['no_estimates']}. Fit again (mw model fit), check the fit, and name it in "
+                "publish.official_model_run (config/project.yaml)"
+            )
         r = load.set_visibility(state["dsn"], state["snapshot"].publish_id, "review")
         return {"from": r["from"], "to": r["to"]}
 
@@ -267,6 +387,7 @@ def run(
         ("checkout", checkout if branch else None, "no branch required"),
         ("refresh", do_refresh, ""),
         ("datasets", (lambda: _datasets(project)) if build_datasets else None, "--no-datasets"),
+        ("model_run", model_run, ""),
         ("publish_build", publish_build, ""),
         ("push", do_push if push else None, "--no-push"),
         ("review", review if push else None, "--no-push"),
@@ -300,6 +421,7 @@ def run(
                 "branch": branch,
             },
             "refresh_id": state.get("refresh_id"),
+            "model_run_id": state.get("model_run_id"),
             "publish_id": state["snapshot"].publish_id if "snapshot" in state else None,
             "visibility": steps["review"].get("to") if steps["review"]["ok"] else None,
             "steps": {name: steps[name] for name in STEPS},

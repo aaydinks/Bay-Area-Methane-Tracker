@@ -859,6 +859,8 @@ def scheduled_run(
 ) -> None:
     """Refresh, rebuild datasets, build and push a review snapshot, call the review deploy hook.
 
+    The snapshot carries the official fit (publish.official_model_run) only while the refreshed
+    detections still match it; otherwise it is loaded as a draft and the run stops before review.
     Exits 0 when every step ran and 2 when the run stopped, with the step and the reason; both
     are kept in data/processed/scheduled/<run_id>.json. Never makes anything public.
     """
@@ -877,7 +879,11 @@ def scheduled_run(
         elif result.get("skipped"):
             typer.echo(f"{name}: skipped ({result['reason']})")
         elif result["ok"]:
-            typer.echo(f"{name}: ok ({result['seconds']} s)")
+            no_estimates = result.get("no_estimates")
+            typer.echo(
+                f"{name}: ok ({result['seconds']} s)"
+                + (f"; no estimates: {no_estimates}" if no_estimates else "")
+            )
         else:
             typer.secho(f"{name}: FAILED {result['error']}", fg=typer.colors.RED, err=True)
     typer.echo(f"manifest: data/processed/scheduled/{m['run_id']}.json")

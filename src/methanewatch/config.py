@@ -91,6 +91,8 @@ class ChecksSettings(_Strict):
 
 class PublishSettings(_Strict):
     source_lag_days: int = Field(default=30, ge=0)
+    # The checked fit whose estimates scheduled copies carry (``mw scheduled-run``)
+    official_model_run: str | None = None
 
 
 class ProjectConfig(_Strict):
