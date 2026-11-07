@@ -22,7 +22,8 @@ PUSH, SET_VISIBILITY = load.push, load.set_visibility
 
 
 @pytest.fixture
-def real_load(clean, monkeypatch):  # noqa: F811
+def real_load(clean, world, monkeypatch):  # noqa: F811
+    """The real push and visibility switch, set after ``world`` has replaced them."""
     monkeypatch.setattr(load, "push", PUSH)
     monkeypatch.setattr(load, "set_visibility", SET_VISIBILITY)
     monkeypatch.setenv("SUPABASE_DB_URL", clean)
