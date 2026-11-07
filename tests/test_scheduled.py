@@ -1,5 +1,6 @@
 """The scheduled run on a small fixture project: the network pulls, the dataset writers and the
-database are replaced, so nothing here touches the network (tests/db covers the real load)."""
+database are replaced, so nothing here touches the network (tests/db covers the real load). The
+fixture's official fit is made from the fixture's own refresh, so its detections match."""
 
 import json
 import plistlib
@@ -11,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from methanewatch import datasets, scheduled
+from methanewatch import refresh as refresh_mod
 from methanewatch.cli import app
 from methanewatch.config import load_project
 from methanewatch.ingest import pipeline
@@ -20,6 +22,7 @@ from tests.test_refresh import UTM, utm_box
 DSN = "postgresql://writer:s3cret-pw@db.example.invalid:5432/postgres"
 HOOK = "https://hooks.example.invalid/deploy/abc123"
 DAYS = pd.date_range("2025-01-05T18:00Z", periods=10, freq="14D")
+FIT = "fit-20251101T000000Z"
 
 
 def make_project(tmp_path):
@@ -47,7 +50,43 @@ def make_project(tmp_path):
                 "processed": tmp_path / "processed", "datasets": tmp_path / "datasets",
                 "reports": tmp_path / "reports"}
     )  # fmt: skip
-    return base.model_copy(update={"paths": paths})
+    publish = base.publish.model_copy(update={"official_model_run": None})
+    return base.model_copy(update={"paths": paths, "publish": publish})
+
+
+def name_fit(
+    project, run_id, detections, *, kind="real", ok=True, dirty=False, instruments=None, missing=()
+):
+    """Write a model run's files (all but ``missing``) and name it the official fit."""
+    processed = project.resolve(project.paths.processed)
+    (processed / "runs").mkdir(parents=True, exist_ok=True)
+    (processed / "site_estimates").mkdir(parents=True, exist_ok=True)
+    if "manifest" not in missing:
+        (processed / "runs" / f"{run_id}.json").write_text(
+            json.dumps(
+                {"run_id": run_id, "created_at": "2025-11-01T00:00:00Z", "kind": kind,
+                 "git_dirty": dirty, "provisional": True, "diagnostics": {"ok": ok},
+                 "instruments": instruments or sorted(detections["instrument"].unique())}
+            )
+        )  # fmt: skip
+    if "detections" not in missing:
+        detections.to_parquet(processed / "runs" / f"{run_id}-detections.parquet")
+    if "estimates" not in missing:
+        pd.DataFrame(
+            {"site_id": ["a", "b"], "period": "all", "run_id": run_id,
+             "n_usable_overpasses": [10, 10], "n_detections": [1, 0],
+             "f_med": 0.2, "f_lo": 0.1, "f_hi": 0.4,
+             "qbar_kg_hr_med": 500.0, "qbar_kg_hr_lo": 300.0, "qbar_kg_hr_hi": 800.0,
+             "E_t_yr_med": 876.0, "E_t_yr_lo": 300.0, "E_t_yr_hi": 2000.0,
+             "status": ["provisional", "insufficient_data"], "rhat_max": 1.004,
+             "ess_bulk_min": 700.0, "divergences": 0}
+        ).to_parquet(processed / "site_estimates" / f"{run_id}.parquet")  # fmt: skip
+    publish = project.publish.model_copy(update={"official_model_run": run_id})
+    return project.model_copy(update={"publish": publish})
+
+
+def fit_detections(root):
+    return pd.read_parquet(root / "processed" / "runs" / f"{FIT}-detections.parquet")
 
 
 @pytest.fixture
@@ -102,6 +141,9 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setenv("SUPABASE_DB_URL", DSN)
     monkeypatch.setenv("CF_DEPLOY_HOOK_REVIEW", HOOK)
+    # The official fit used the detections of a refresh with the same pulls
+    assert refresh_mod.run(project)["ok"]
+    project = name_fit(project, FIT, pd.read_parquet(interim / "detections.parquet"))
     return project, tmp_path, calls
 
 
@@ -117,9 +159,14 @@ def test_a_run_refreshes_builds_pushes_and_marks_review(world):
     assert calls["visibility"] == [(m["publish_id"], "review")]  # never public
     assert calls["hook"] == [HOOK]
     assert m["steps"]["refresh"]["refresh_id"] == m["refresh_id"]
+    # The official fit still matches the refresh, so its estimates are carried
+    fit = m["steps"]["model_run"]
+    assert m["model_run_id"] == fit["model_run_id"] == FIT and "no_estimates" not in fit
+    assert fit["instruments"] == ["emit"] and fit["detections"] > 0 and fit["left_out"] == {}
     # Carbon Mapper rows go into the snapshot restricted
     build = m["steps"]["publish_build"]
     assert build["rows"]["plumes"] == 1 and build["restricted_rows"]["plumes"] == 1
+    assert build["model_run_id"] == FIT and build["rows"]["site_estimates"] == 2
     assert (root / "processed" / "publications" / m["publish_id"] / "manifest.json").exists()
     # The manifest is on disk and holds neither the connection string nor the hook
     text = (root / "processed" / "scheduled" / "latest.json").read_text()
@@ -275,59 +322,117 @@ def test_cli_writes_the_launchd_job_and_prints_the_commands(tmp_path):
     assert f"launchctl bootout gui/$(id -u)/{scheduled.LAUNCHD_LABEL}" in result.output
 
 
-def _model_run(processed, run_id, created_at, *, kind="real", ok=True, dirty=False, estimates=True):
-    (processed / "runs").mkdir(parents=True, exist_ok=True)
-    (processed / "site_estimates").mkdir(parents=True, exist_ok=True)
-    (processed / "runs" / f"{run_id}.json").write_text(
-        json.dumps(
-            {"run_id": run_id, "created_at": created_at, "kind": kind, "git_dirty": dirty,
-             "provisional": True, "diagnostics": {"ok": ok}}
-        )
-    )  # fmt: skip
-    if estimates:
-        pd.DataFrame(
-            {"site_id": ["a", "b"], "period": "all", "run_id": run_id,
-             "n_usable_overpasses": [10, 10], "n_detections": [1, 0],
-             "f_med": 0.2, "f_lo": 0.1, "f_hi": 0.4,
-             "qbar_kg_hr_med": 500.0, "qbar_kg_hr_lo": 300.0, "qbar_kg_hr_hi": 800.0,
-             "E_t_yr_med": 876.0, "E_t_yr_lo": 300.0, "E_t_yr_hi": 2000.0,
-             "status": ["provisional", "insufficient_data"], "rhat_max": 1.004,
-             "ess_bulk_min": 700.0, "divergences": 0}
-        ).to_parquet(processed / "site_estimates" / f"{run_id}.parquet")  # fmt: skip
+def test_a_refresh_that_changes_the_fit_detections_leaves_the_copy_a_draft(world):
+    project, root, calls = world
+    # The fit saw one pass fewer and a different rate on another than this refresh gives
+    det = fit_detections(root)
+    seen = det.index[det["detected"]][0]
+    det.loc[seen, "q_obs_kg_hr"] *= 2
+    det.drop(index=det.index[~det["detected"]][0]).to_parquet(
+        root / "processed" / "runs" / f"{FIT}-detections.parquet"
+    )
+    m = scheduled.run(project)
+
+    fit = m["steps"]["model_run"]
+    assert fit["ok"] and fit["model_run_id"] is None and m["model_run_id"] is None
+    assert {k: fit["drift"]["emit"][k] for k in ("added", "changed", "removed")} == {
+        "added": 1, "changed": 1, "removed": 0
+    }  # fmt: skip
+    assert m["steps"]["publish_build"]["rows"]["site_estimates"] == 0
+    # Loaded as a draft, so the database stays active, but never marked review
+    assert calls["push"] == [DSN] and calls["visibility"] == [] and calls["hook"] == []
+    assert not m["ok"] and m["stopped_at"] == "review" and m["visibility"] is None
+    assert f"{m['publish_id']} stays a draft" in m["reason"]
+    assert f"official fit {FIT} no longer matches" in m["reason"]
+    assert "emit: 1 pass added, 1 pass changed" in m["reason"]
+    assert det.loc[seen, "overpass_id"] in m["reason"]
+    assert "publish.official_model_run" in m["reason"]
+    assert m["steps"]["deploy_hook"] == {"ok": False, "not_run": True}
 
 
-def test_the_newest_real_fit_that_passed_its_checks_is_chosen(tmp_path):
-    assert scheduled.latest_model_run(tmp_path) == (None, "no model run on disk")
-    _model_run(tmp_path, "fit-good", "2026-11-07T01:01:05Z")
-    _model_run(tmp_path, "fit-older", "2026-11-01T00:00:00Z")
-    _model_run(tmp_path, "fit-divergent", "2026-11-08T00:00:00Z", ok=False)
-    _model_run(tmp_path, "fit-dirty", "2026-11-09T00:00:00Z", dirty=True)
-    _model_run(tmp_path, "fit-no-estimates", "2026-11-10T00:00:00Z", estimates=False)
-    _model_run(tmp_path, "demo-x", "2026-11-11T00:00:00Z", kind="synthetic-demo")
-    assert scheduled.latest_model_run(tmp_path) == ("fit-good", "")
+def test_without_an_official_fit_the_copy_stays_a_draft(world):
+    project, _, calls = world
+    publish = project.publish.model_copy(update={"official_model_run": None})
+    m = scheduled.run(project.model_copy(update={"publish": publish}))
+
+    assert m["stopped_at"] == "review" and "no official fit is named" in m["reason"]
+    assert m["steps"]["model_run"]["official"] is None
+    assert calls["push"] == [DSN] and calls["visibility"] == []
 
 
-def test_only_unusable_runs_give_a_reason(tmp_path):
-    _model_run(tmp_path, "demo-x", "2026-11-11T00:00:00Z", kind="synthetic-demo")
-    run_id, why = scheduled.latest_model_run(tmp_path)
-    assert run_id is None and "none of the 1 model runs" in why
-
-
-def test_a_scheduled_copy_keeps_the_latest_estimates(world):
+@pytest.mark.parametrize(
+    ("change", "why"),
+    [
+        ({"kind": "synthetic-demo"}, "it is a synthetic-demo run, not a real fit"),
+        ({"ok": False}, "it failed its convergence checks"),
+        ({"dirty": True}, "it was fit from a checkout with unsaved changes"),
+        ({"missing": ("estimates",)}, "has no estimates on disk"),
+        ({"missing": ("manifest", "detections")}, "has no manifest or detections on disk"),
+    ],
+)
+def test_an_official_fit_that_cannot_be_carried_says_why(world, change, why):
     project, root, _ = world
-    _model_run(root / "processed", "fit-good", "2026-11-07T01:01:05Z")
-    m = scheduled.run(project)
+    project = name_fit(project, "fit-other", fit_detections(root), **change)
+    result = scheduled.official_fit(project)
 
-    build = m["steps"]["publish_build"]
-    assert m["ok"] and build["model_run_id"] == "fit-good"
-    assert build["rows"]["site_estimates"] == 2 and "no_estimates" not in build
+    assert result["official"] == "fit-other" and result["model_run_id"] is None
+    assert why in result["no_estimates"]
 
 
-def test_without_a_usable_fit_the_copy_says_why_it_has_no_estimates(world):
-    project, _, _ = world
-    m = scheduled.run(project)
+def test_instruments_the_fit_left_out_are_counted_not_compared(world):
+    project, root, _ = world
+    det = pd.read_parquet(root / "interim" / "detections.parquet")
+    s2 = det.head(2).assign(
+        instrument="sentinel2",
+        overpass_id=lambda d: d["site_id"] + ":sentinel2:" + d.index.astype(str),
+        detected=False,
+        q_obs_kg_hr=float("nan"),
+    )
+    pd.concat([det, s2]).to_parquet(root / "interim" / "detections.parquet")
+    result = scheduled.official_fit(project)
 
-    build = m["steps"]["publish_build"]
-    assert m["ok"] and build["model_run_id"] is None
-    assert build["rows"]["site_estimates"] == 0
-    assert build["no_estimates"] == "no model run on disk"
+    assert result["model_run_id"] == FIT and result["instruments"] == ["emit"]
+    assert result["left_out"] == {"sentinel2": 2}
+
+
+def test_detections_drift_compares_the_model_inputs_by_pass():
+    fit = pd.DataFrame(
+        {"overpass_id": ["a:emit:1", "a:emit:2", "b:emit:1", "a:tanager1:1"],
+         "site_id": ["a", "a", "b", "a"], "instrument": ["emit"] * 3 + ["tanager1"],
+         "detected": [True, False, False, False], "q_obs_kg_hr": [500.0, None, None, None],
+         "q_sigma_log": [0.3, None, None, None], "n_scenes": [1, 1, 1, 1]}
+    )  # fmt: skip
+    # Order, other columns and instruments outside the fit do not count; missing equals missing
+    same = fit.iloc[::-1].assign(n_scenes=2)
+    other = pd.DataFrame({"overpass_id": ["a:sentinel2:1"], "site_id": "a",
+                          "instrument": "sentinel2", "detected": True,
+                          "q_obs_kg_hr": 90.0, "q_sigma_log": 0.5})  # fmt: skip
+    assert scheduled.detections_drift(fit, pd.concat([same, other]), ["emit", "tanager1"]) == {}
+
+    now = fit.copy()
+    now.loc[0, "q_obs_kg_hr"] = 510.0  # changed
+    now = pd.concat([now.drop(index=2), now.head(1).assign(overpass_id="a:emit:3")])
+    drift = scheduled.detections_drift(fit, now, ["emit", "tanager1"])
+    assert drift == {
+        "emit": {"added": 1, "changed": 1, "removed": 1,
+                 "examples": ["a:emit:1", "a:emit:3", "b:emit:1"]}
+    }  # fmt: skip
+    assert scheduled.describe_drift(drift) == (
+        "emit: 1 pass added, 1 pass changed, 1 pass removed (e.g. a:emit:1, a:emit:3, b:emit:1)"
+    )
+
+
+def test_cli_reports_a_copy_without_estimates(world):
+    project, root, _ = world
+    fit_detections(root).head(0).to_parquet(
+        root / "processed" / "runs" / f"{FIT}-detections.parquet"
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("methanewatch.config.load_project", lambda: project)
+        stopped = CliRunner().invoke(app, ["scheduled-run"])
+        built = CliRunner().invoke(app, ["scheduled-run", "--no-push"])
+
+    assert stopped.exit_code == 2 and "stopped at review" in stopped.output
+    assert "stays a draft" in stopped.output and "no longer matches" in stopped.output
+    assert built.exit_code == 0 and "model_run: ok" in built.output
+    assert "no estimates: official fit" in built.output and "not loaded" in built.output

@@ -62,8 +62,7 @@ Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 ### Scheduled run
 
 `mw scheduled-run` chains one refresh, the EMIT, Sentinel-2 and Carbon Mapper folders in `datasets/`, a
-snapshot of that refresh (carrying the estimates of the newest real model fit that passed its checks; the model
-is never refit here), its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
+snapshot of that refresh, its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
 review visibility, then calls `CF_DEPLOY_HOOK_REVIEW` if it is set. It never makes anything public. Nothing
 after a failed step runs; a refresh with a failed source stops the run before anything is published. That
 includes Sen2Cor's scene classification for new Sentinel-2 passes (ADR 0014): a pass it could not read keeps the
@@ -71,6 +70,16 @@ tile cloud figure, and the run stops. It exits 0
 when every step ran and 2 when it stopped, and writes the step, the reason and each step's timing to
 `data/processed/scheduled/<run_id>.json`. `--no-push` builds the snapshot only. Changes to `datasets/` are left
 for review and commit.
+
+The run never fits the model. Its snapshot carries the estimates of the official fit, the checked run named in
+`publish.official_model_run` in `config/project.yaml` (now `fit-20261107T010105Z`), but only while that fit's
+detections (`data/processed/runs/<run>-detections.parquet`) still equal the refreshed ones for the instruments
+it used. Instruments the fit left out, such as Sentinel-2 until its plume search runs, are counted in the
+manifest and not compared. When the detections differ, for example after a new EMIT pass, or when no usable fit
+is named, the snapshot has no estimates. It is still loaded as a draft, so the database stays active, but it is
+not marked review: the review site shows the newest review copy, and it keeps the one with estimates. The run
+stops at `review`, says which passes changed, and shows the notification. To bring the review copy up to date,
+run `mw model fit`, check the fit, name it in `publish.official_model_run` on `main`, and run the job again.
 
 On the owner's Mac a launchd job runs it on Mondays and Thursdays at 08:00 (a Mac that is asleep runs it on
 waking), so the free database plan never sees seven quiet days. The job uses the checkout it was written from

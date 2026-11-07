@@ -56,3 +56,7 @@ checks:
 # `mw publish`: how a snapshot is described to the website.
 publish:
   source_lag_days: 30 # sources publish about this long after an observation
+  # The checked fit whose estimates `mw scheduled-run` carries into review copies (a run in
+  # data/processed/runs). Change it only after a new fit has been checked; a scheduled run
+  # leaves review alone while the refreshed detections differ from this fit's.
+  official_model_run: fit-20261107T010105Z
