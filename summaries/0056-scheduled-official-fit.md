@@ -1,6 +1,6 @@
 # PR #56: Only the official fit in scheduled review copies
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/56)
+**Status:** merged 2026-11-06 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/56)
 
 ## In one sentence
 
