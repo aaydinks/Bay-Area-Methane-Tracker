@@ -2,6 +2,8 @@
 
 import geopandas as gpd
 import pandas as pd
+import pandas.api.types as ptypes
+import pytest
 from shapely.geometry import box
 
 from methanewatch.config import load_project
@@ -16,7 +18,8 @@ def utm_box(x0, y0, x1, y1):
     return gpd.GeoSeries([box(x0, y0, x1, y1)], crs=UTM).to_crs("EPSG:4326").iloc[0]
 
 
-def test_pipeline_on_fixture(tmp_path):
+def fixture_project(tmp_path):
+    """Two pilot sites, a compost neighbour and ten EMIT scenes over both; no plumes yet."""
     reg, interim = tmp_path / "registry", tmp_path / "interim"
     (interim / "footprints").mkdir(parents=True)
     (interim / "plumes").mkdir()
@@ -58,7 +61,11 @@ def test_pipeline_on_fixture(tmp_path):
         geometry=[utm_box(585000, 4140000, 605000, 4150000)] * 10,
         crs="EPSG:4326",
     ).to_parquet(interim / "footprints" / "emit.parquet")
+    return project, reg, interim, days
 
+
+def test_pipeline_on_fixture(tmp_path):
+    project, reg, interim, days = fixture_project(tmp_path)
     origin = gpd.GeoSeries(
         gpd.points_from_xy([590500, 601200, 590500], [4146500, 4146100, 4146500]), crs=UTM
     ).to_crs("EPSG:4326")
@@ -98,3 +105,35 @@ def test_pipeline_on_fixture(tmp_path):
         table, result, tmp_path / "reports", unmatched=counts["unmatched_plumes"]
     )
     assert "PASS" in report.read_text()
+
+
+@pytest.mark.parametrize(
+    "plume_files",
+    [
+        {},
+        {"carbonmapper.parquet": pd.DataFrame()},
+        {"emit.parquet": pd.DataFrame(columns=["plume_id", "q_kg_hr", "acquired_utc"])},
+    ],
+    ids=["no-files", "empty-file", "empty-file-with-columns"],
+)
+def test_build_without_plumes(tmp_path, plume_files):
+    """A refresh whose plume sources all came back empty: every usable pass is a non-detection."""
+    project, _, interim, _ = fixture_project(tmp_path)
+    for name, frame in plume_files.items():
+        frame.to_parquet(interim / "plumes" / name)
+
+    counts = build.build(project)
+    assert counts["overpasses"] == counts["usable"] == 20
+    assert counts["detections"] == 0
+    assert counts["unmatched_plumes"] == 0
+
+    det = pd.read_parquet(interim / "detections.parquet")
+    assert len(det) == 20 and not det["detected"].any()
+    assert ptypes.is_float_dtype(det["q_obs_kg_hr"]) and det["q_obs_kg_hr"].isna().all()
+    assert ptypes.is_float_dtype(det["q_sigma_log"])
+
+    att = pd.read_parquet(interim / "plumes_attributed.parquet")
+    assert att.empty and {"source", "distance_m"} <= set(att.columns)  # read by the snapshot
+    assert ptypes.is_float_dtype(att["q_kg_hr"]) and ptypes.is_float_dtype(att["q_sigma_kg_hr"])
+    assert isinstance(att["acquired_utc"].dtype, pd.DatetimeTZDtype)
+    assert str(att["acquired_utc"].dt.tz) == "UTC"

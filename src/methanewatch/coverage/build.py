@@ -63,19 +63,7 @@ def build(project: ProjectConfig) -> dict[str, int]:
         else None
     )
     if plumes is None or plumes.empty:
-        plumes = pd.DataFrame(
-            columns=[
-                "plume_id",
-                "instrument",
-                "acquired_utc",
-                "q_kg_hr",
-                "q_sigma_kg_hr",
-                "site_id",
-                "attribution",
-                "origin_lon",
-                "origin_lat",
-            ]
-        )
+        plumes = no_plumes()
     else:
         plumes = attribute_plumes(
             plumes,
@@ -101,6 +89,16 @@ def build(project: ProjectConfig) -> dict[str, int]:
         "detections": int(detections["detected"].sum()),
         "unmatched_plumes": len(unmatched),
     }
+
+
+def no_plumes() -> pd.DataFrame:
+    """An attributed plume table with no rows, typed by the plume schema.
+
+    Untyped empty columns are object dtype, and the detection join then cannot take the log of
+    the rates. The full column set also lets later steps read ``plumes_attributed.parquet``
+    (the snapshot filters on ``source``).
+    """
+    return schemas.plumes.validate(pd.DataFrame(columns=list(schemas.plumes.columns)))
 
 
 def latest(path: Path) -> Path:
