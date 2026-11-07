@@ -312,8 +312,20 @@ def model_fit(
     allow_unconfirmed: Annotated[
         bool, typer.Option(help="Fit with unconfirmed POD curves; stamps outputs provisional.")
     ] = False,
+    include_unsearched: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Keep this instrument's passes although its plume search has not run, so "
+            "each one counts as a pass that saw nothing. Repeat for several. Recorded in the "
+            "run manifest."
+        ),
+    ] = None,
 ) -> None:
-    """Fit the persistence model to data/interim/detections.parquet."""
+    """Fit the persistence model to data/interim/detections.parquet.
+
+    An instrument whose plume search has not run (no plume table from any of its sources in
+    data/interim/plumes) is left out, and the run manifest says so (decision record 0016).
+    """
     from methanewatch.model import run
 
     instruments = config.load_instruments()
@@ -333,6 +345,7 @@ def model_fit(
             config.load_model(),
             instruments,
             allow_unconfirmed=allow_unconfirmed,
+            include_unsearched=tuple(include_unsearched or ()),
         )
     except run.ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
@@ -701,6 +714,10 @@ def publish_build(
     out = s.write(_publications_dir())
     for name, df in s.tables.items():
         typer.echo(f"{name}: {len(df)} rows")
+    used, left = s.model_instruments()
+    if used:
+        gaps = "; left out: " + ", ".join(f"{k} ({v})" for k, v in left.items()) if left else ""
+        typer.echo(f"model run instruments: {', '.join(used)}{gaps}")
     flags = ", ".join(k for k in ("simulated", "provisional") if s.publication[k])
     typer.echo(
         f"wrote {out} (data through {s.publication['data_through']}{', ' + flags if flags else ''})"

@@ -8,6 +8,11 @@
 #
 # All curves are for a wind of about 3 m/s; the model has no wind term (PLAN 6.2).
 # meas_sigma_log is only a fallback: every detection row carries its own q_sigma_log.
+#
+# plume_sources: the sources whose plume search covers the instrument's scenes. A real fit takes
+# an instrument's passes only once one of them has written data/interim/plumes/<source>.parquet.
+# An empty table counts (the search ran and found nothing). Without one, every usable pass would
+# count as "looked and saw nothing" when nobody looked. Decision record 0016.
 
 instruments:
   tanager1:
@@ -29,6 +34,7 @@ instruments:
       note: "lognormal error with no bias and MAPE 0.44 gives sigma = 0.51; a group figure, not Tanager alone"
       confirmed: false
     release_prob: { value: 1.0, source: "assumption; sensitivity runs use 0.7 and 0.85", confirmed: false }
+    plume_sources: [carbonmapper]
 
   emit:
     platform: satellite
@@ -52,6 +58,7 @@ instruments:
       value: 1.0
       source: "assumption; EMIT plumes are manually reviewed before release"
       confirmed: false
+    plume_sources: [carbonmapper, emit-v2] # Carbon Mapper republishes EMIT plumes with rates
 
   aircraft:
     platform: aircraft # Carbon Mapper's GAO and AVIRIS-3 flights
@@ -74,6 +81,7 @@ instruments:
       note: "lognormal error with no bias and 68% inside [0.5, 1.5] x metered gives sigma = 0.53"
       confirmed: false
     release_prob: { value: 1.0, source: "assumption", confirmed: false }
+    plume_sources: [carbonmapper]
 
   sentinel2:
     platform: satellite
@@ -94,3 +102,4 @@ instruments:
       note: "lognormal error with no bias and 75% inside [0.5, 1.5] x metered gives sigma = 0.46"
       confirmed: false
     release_prob: { value: 1.0, source: "local retrieval; no review step", confirmed: false }
+    plume_sources: [s2-local] # the project's own search (PLAN phase 3)

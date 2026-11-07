@@ -318,6 +318,8 @@ for (const [name, { rows, columns }] of Object.entries(DOWNLOADS)) {
 }
 const credits = raw.data_terms.filter((t) => t.credit_line).map((t) => `- ${t.display_name}: ${t.credit_line}`);
 const p = raw.publication;
+// The model run's manifest names its instruments and, since decision record 0016, those it left out.
+const modelManifest = raw.runs.find((r) => r.run_id === p?.model_run_id)?.manifest ?? {};
 await writeFile(
   path.join(publicDir, 'README.txt'),
   [
@@ -330,6 +332,8 @@ await writeFile(
     p ? `Data through: ${p.data_through ?? 'unknown'}; sources publish about ${p.source_lag_days ?? 30} days after an observation` : '',
     p?.refresh_id ? `Data refresh: ${p.refresh_id}` : '',
     p?.model_run_id ? `Model run: ${p.model_run_id}` : '',
+    modelManifest.instruments ? `Instruments in the model run: ${modelManifest.instruments.join(', ')}` : '',
+    ...Object.entries(modelManifest.instruments_left_out ?? {}).map(([k, v]) => `Left out of the model run: ${k} (${v.reason ?? 'no reason recorded'})`),
     p?.check_run_id ? `Checks run: ${p.check_run_id}` : '',
     p?.git_sha ? `Code: ${p.git_sha}` : '',
     `Built: ${snapshot.meta.fetched_at} (${SITE_MODE} build from ${DATA_SOURCE})`,

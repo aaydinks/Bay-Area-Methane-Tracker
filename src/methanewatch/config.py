@@ -124,11 +124,18 @@ class PodCurve(_Strict):
         return self.q50_kg_hr is not None and self.w is not None
 
 
+# Plume sources (schemas.PLUME_SOURCES, repeated here so config needs no pandera import)
+PlumeSource = Literal["carbonmapper", "emit-v2", "s2-local"]
+
+
 class Instrument(_Strict):
     platform: Literal["satellite", "aircraft"]
     pod: PodCurve
     meas_sigma_log: Sourced
     release_prob: Sourced
+    # Sources whose plume search covers this instrument's scenes. Its passes enter a real fit
+    # only once one of them has written its plume table (model/searched.py, ADR 0016).
+    plume_sources: list[PlumeSource] = Field(default_factory=list)
 
 
 class InstrumentsConfig(_Strict):

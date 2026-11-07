@@ -107,6 +107,27 @@ export function passesByInstrument(siteId: string): { instrument: string; passes
   return [...out.values()].sort((a, b) => a.instrument.localeCompare(b.instrument));
 }
 
+// The model run's manifest names the instruments it used and, since decision record 0016,
+// those it left out because their plume search had not run. For an older run only the gap
+// between its instruments and the published passes is known, so the reason stays null.
+export interface LeftOut { instrument: string; reason: string | null }
+export const NOT_SEARCHED = 'plume search not run';
+interface ModelManifest { instruments?: string[]; instruments_left_out?: Record<string, { reason?: string }> }
+
+export function modelInstruments(): { used: string[]; leftOut: LeftOut[] } {
+  const run = snapshot.runs.find((r) => r.run_id === publication?.model_run_id);
+  const m = (run?.manifest ?? {}) as ModelManifest;
+  if (!run || !m.instruments) return { used: [], leftOut: [] };
+  const used = [...m.instruments].sort();
+  const recorded = m.instruments_left_out ?? {};
+  const leftOut: LeftOut[] = Object.entries(recorded).map(([instrument, v]) => ({ instrument, reason: v.reason ?? null }));
+  const usable = new Set(snapshot.pass_months.filter((p) => (p.n_usable ?? 0) > 0).map((p) => p.instrument ?? ''));
+  for (const inst of [...usable].sort()) {
+    if (inst && !used.includes(inst) && !(inst in recorded)) leftOut.push({ instrument: inst, reason: null });
+  }
+  return { used, leftOut };
+}
+
 export function operatorReportsFor(siteId: string): OperatorReport[] {
   return snapshot.operator_reports.filter((o) => o.site_id === siteId).sort((a, b) => a.year - b.year);
 }

@@ -452,3 +452,46 @@ def test_insufficient_reasons_name_the_part_of_the_rule_that_applies():
     assert r["few-and-wide"].startswith("too few usable passes (6;")
     assert "; the 90% range is too wide" in r["few-and-wide"]
     assert r["old-rule"] == "marked insufficient by the model run"
+
+
+def _set_model_manifest(tmp_path, **fields):
+    path = tmp_path / "processed" / "runs" / "model-1.json"
+    manifest = json.loads(path.read_text())
+    path.write_text(json.dumps({**manifest, **fields}))
+
+
+def test_snapshot_names_the_instruments_a_fit_left_out(tmp_path):
+    # ADR 0016: the published model manifest says which instruments were left out and why
+    _write_inputs(tmp_path)
+    _set_model_manifest(
+        tmp_path,
+        instruments=["emit", "tanager1"],
+        instruments_left_out={"sentinel2": {"reason": "plume search not run", "n_passes": 1}},
+    )
+    s = snap.build(_project(tmp_path), load_data_terms(), load_impact(), model_run_id="model-1")
+    model = next(r for r in s.runs if r["kind"] == "model")["manifest"]
+    assert model["instruments_left_out"]["sentinel2"]["reason"] == "plume search not run"
+    assert s.model_instruments() == (["emit", "tanager1"], {"sentinel2": "plume search not run"})
+
+
+def test_snapshot_of_an_older_fit_shows_the_gap_without_a_reason(tmp_path):
+    _write_inputs(tmp_path)
+    _set_model_manifest(tmp_path, instruments=["emit", "tanager1"])
+    s = snap.build(_project(tmp_path), load_data_terms(), load_impact(), model_run_id="model-1")
+    assert s.model_instruments() == (["emit", "tanager1"], {"sentinel2": "not in this model run"})
+
+
+def test_cli_build_says_which_instruments_the_model_run_used(tmp_path, monkeypatch):
+    _write_inputs(tmp_path)
+    _set_model_manifest(
+        tmp_path,
+        instruments=["emit", "tanager1"],
+        instruments_left_out={"sentinel2": {"reason": "plume search not run"}},
+    )
+    monkeypatch.setattr("methanewatch.config.load_project", lambda: _project(tmp_path))
+    result = CliRunner().invoke(app, ["publish", "build", "--model-run", "model-1"])
+    assert result.exit_code == 0, result.output
+    assert (
+        "model run instruments: emit, tanager1; left out: sentinel2 (plume search not run)"
+        in result.output
+    )

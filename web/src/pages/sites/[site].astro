@@ -9,10 +9,10 @@ import Range from '../../components/Range.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
 import {
-  checksFor, estimateFor, featuresFor, neighboursFor, operatorReportsFor, passesByInstrument,
-  passMonthsFor, plumeDaysFor, populationFor, sites, type Site,
+  checksFor, estimateFor, featuresFor, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
+  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, sites, type Site,
 } from '../../lib/data';
-import { date, num, pct } from '../../lib/format';
+import { date, listText, num, pct } from '../../lib/format';
 
 export function getStaticPaths() {
   return sites.map((s) => ({ params: { site: s.site_id ?? '' }, props: { site: s } }));
@@ -29,6 +29,14 @@ const reports = operatorReportsFor(id);
 const residents = populationFor(id);
 const neighbours = neighboursFor(id);
 const features = featuresFor(id);
+// Instruments the model run used, and those with usable passes here that it left out (ADR 0016).
+const model = modelInstruments();
+const label = (i: string) => INSTRUMENT[i] ?? i;
+const leftHere = model.leftOut
+  .map((l) => ({ ...l, usable: passes.find((p) => p.instrument === l.instrument)?.usable ?? 0 }))
+  .filter((l) => l.usable > 0);
+const showModel = Boolean(estimate) && model.used.length > 0;
+const leftNames = new Set(showModel ? leftHere.map((l) => l.instrument) : []);
 ---
 <Base title={site.name ?? id} description={`Persistence estimate, passes, checks and operator-reported figures for ${site.name}.`} kind="site" image={`/og/${id}.png`}>
   <h1>{site.name}</h1>
@@ -55,6 +63,14 @@ const features = featuresFor(id);
     ) : (
       <EmptyState title="Insufficient data" expected={estimate?.insufficient_reason ? `${estimate.insufficient_reason}. ${EXPECTED.estimates}` : EXPECTED.estimates} />
     )}
+    {showModel && (
+      <p class="muted" data-testid="model-instruments">
+        The model run uses {listText(model.used.map(label))}.
+        {leftHere.map((l) => l.reason === NOT_SEARCHED
+          ? ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are left out: no plume search has run on them yet, and a pass nobody searched is not a pass that saw nothing.`
+          : ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are not part of this model run.`)}
+      </p>
+    )}
   </section>
 
   <section aria-labelledby="passes">
@@ -68,7 +84,7 @@ const features = featuresFor(id);
           <thead><tr><th scope="col">Instrument</th><th scope="col" class="num">Passes</th><th scope="col" class="num">Usable</th><th scope="col" class="num">With a detection</th></tr></thead>
           <tbody>
             {passes.map((p) => (
-              <tr><th scope="row">{INSTRUMENT[p.instrument] ?? p.instrument}</th><td class="num">{num(p.passes)}</td><td class="num">{num(p.usable)}</td><td class="num">{num(p.detected)}</td></tr>
+              <tr><th scope="row">{INSTRUMENT[p.instrument] ?? p.instrument}{leftNames.has(p.instrument) && <span class="muted"> · not in the estimate</span>}</th><td class="num">{num(p.passes)}</td><td class="num">{num(p.usable)}</td><td class="num">{num(p.detected)}</td></tr>
             ))}
           </tbody>
         </table>

@@ -49,6 +49,28 @@ class Snapshot:
     def publish_id(self) -> str:
         return self.publication["publish_id"]
 
+    def model_instruments(self) -> tuple[list[str], dict[str, str]]:
+        """Instruments in the model run, and those with usable passes it left out, with why.
+
+        A run that records ``instruments_left_out`` (ADR 0016) gives its reason. For an older
+        run only the gap between its instruments and the published passes is known.
+        """
+        model = next((r["manifest"] for r in self.runs if r["kind"] == "model"), None)
+        if not model:
+            return [], {}
+        used = sorted(model.get("instruments") or [])
+        recorded = model.get("instruments_left_out") or {}
+        left = {k: v.get("reason", "") for k, v in recorded.items()}
+        passes = self.tables.get("passes")
+        usable = (
+            set(passes.loc[passes["usable"].astype(bool), "instrument"])
+            if passes is not None and len(passes)
+            else set()
+        )
+        for name in sorted(usable - set(used) - set(left)):
+            left[name] = "not in this model run"
+        return used, left
+
     def write(self, root: Path) -> Path:
         out = root / self.publish_id
         out.mkdir(parents=True, exist_ok=True)

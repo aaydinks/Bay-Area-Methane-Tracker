@@ -356,6 +356,7 @@ Sampler: 4 chains × 1000 draws after 1000 tuning steps, `target_accept=0.95` (0
 | Manual review: some real plumes never released | Sensitivity run with a release probability r_j ∈ {0.7, 0.85, 1.0} multiplying POD |
 | POD curve uncertainty | Rerun with q50 × {0.5, 1, 2}. Report rank stability |
 | Neighbor contamination | Only `inside`/`buffer` plumes. Count `ambiguous` per site on the dashboard |
+| Passes nobody searched counted as "saw nothing" | An instrument enters a real fit only once a plume table from one of its sources exists (ADR 0016); the run manifest and site pages name any instrument left out |
 
 ### 6.6 "Insufficient data" rule (config)
 

@@ -40,12 +40,40 @@ def test_fit_passes_allow_unconfirmed_through(monkeypatch):
 
     seen = {}
 
-    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False):
+    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False, include_unsearched=()):
         seen["allow_unconfirmed"] = allow_unconfirmed
+        seen["include_unsearched"] = include_unsearched
         return "fit-test"
 
     monkeypatch.setattr(run, "fit_real", fake_fit_real)
     result = runner.invoke(app, ["model", "fit", "--allow-unconfirmed"])
     assert result.exit_code == 0, result.output
-    assert seen == {"allow_unconfirmed": True}
+    assert seen == {"allow_unconfirmed": True, "include_unsearched": ()}
     assert "run fit-test" in result.output
+
+
+def test_fit_passes_include_unsearched_through(monkeypatch):
+    # ADR 0016: keeping an unsearched instrument is a deliberate, named choice per instrument
+    from methanewatch.model import run
+
+    seen = {}
+
+    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False, include_unsearched=()):
+        seen["include_unsearched"] = include_unsearched
+        return "fit-test"
+
+    monkeypatch.setattr(run, "fit_real", fake_fit_real)
+    result = runner.invoke(
+        app,
+        [
+            "model",
+            "fit",
+            "--allow-unconfirmed",
+            "--include-unsearched",
+            "sentinel2",
+            "--include-unsearched",
+            "emit",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert seen == {"include_unsearched": ("sentinel2", "emit")}
