@@ -382,3 +382,39 @@ def test_a_failed_window_is_listed_and_the_others_still_score(tmp_path, monkeypa
     assert out.loc[0, "clear_model"] == 1.0 and out.loc[0, "scored"]
     assert "Remote end closed" in out.loc[1, "error"] and not out.loc[1, "scored"]
     assert len(new) == 1
+
+
+def test_of_two_granules_of_one_pass_the_fuller_sen2cor_is_used(monkeypatch):
+    l1c = "S2C_MSIL1C_20251104T185601_N0511_R113_T10SEH_20251104T203612.SAFE"
+    stem = "S2C_MSIL2A_20251104T185601_N0511_R113_T10SEH_20251104T2"
+    empty = item(stem + "10000.SAFE")
+    empty.properties["s2:nodata_pixel_percentage"] = 96.1
+    full = item(stem + "20000.SAFE")
+    full.properties["s2:nodata_pixel_percentage"] = 0.0
+    cat = StubCatalogue({"sentinel-2-c1-l2a": [empty, full]})
+    assert sc.find_scl(l1c, cat)["href"] == full.assets["scl"].href
+
+    # Even if the catalogue's figure misleads, the window with more data wins
+    full.properties["s2:nodata_pixel_percentage"] = 99.0
+    n = sc.WINDOW_PX
+    data = {empty.assets["scl"].href: np.zeros((n, n), np.uint8)}
+    data[full.assets["scl"].href] = np.full((n, n), 4, np.uint8)
+    monkeypatch.setattr(sc, "read_scl", lambda href, bounds: data[href])
+    scl, src = sc.best_scl(l1c, np.zeros(4), cat)
+    assert src["href"] == full.assets["scl"].href and (scl == 4).all()
+
+
+def test_a_newer_pull_supersedes_an_older_copy_of_a_window(tmp_path, monkeypatch):
+    old, new = tmp_path / "s2windows-20261101T000000Z", tmp_path / "s2windows-20261107T000000Z"
+    window().save(sc.cache_file(old, "s", "p.SAFE"))
+    w = window(scl=np.full((sc.WINDOW_PX,) * 2, 9, np.uint8))  # all cloud in the newer copy
+    w.save(sc.cache_file(new, "s", "p.SAFE"))
+    passes = pd.DataFrame(
+        {"overpass_id": ["a"], "site_id": ["s"], "product_uri": ["p.SAFE"], "x": [0.0], "y": [0.0]}
+    )
+    import pystac_client
+
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(lambda url: None))
+    n = sc.WINDOW_PX
+    out, _, _ = sc.run(passes, StubModel(np.zeros((n, n), bool)), [old, new], tmp_path / "x")
+    assert out.loc[0, "clear_scl"] == 0.0

@@ -137,8 +137,12 @@ def _sensing(product_uri: str) -> tuple[str, str, str]:
     return m.groups()
 
 
-def find_scl(product_uri: str, client=None) -> dict | None:
-    """The L2A scene classification of the same acquisition: platform, tile and sensing time."""
+def scl_candidates(product_uri: str, client=None) -> list[dict]:
+    """L2A scene classifications of the same acquisition (platform, tile and sensing time).
+
+    Earth Search can hold two L2A granules for one pass and tile, one of them nearly empty, so
+    every match is returned, the fullest first (``s2:nodata_pixel_percentage``).
+    """
     from pystac_client import Client
 
     from methanewatch.sentinel2.search import EARTH_SEARCH
@@ -157,11 +161,24 @@ def find_scl(product_uri: str, client=None) -> dict | None:
         )
 
     for coll in L2A_COLLECTIONS:
-        for it in search(coll):
-            uri = it.properties.get("s2:product_uri") or ""
-            if uri.startswith(f"{platform}_MSIL2A_{stamp}_") and "scl" in it.assets:
-                return {"collection": coll, "item": it.id, "href": it.assets["scl"].href}
-    return None
+        hits = [
+            it
+            for it in search(coll)
+            if (it.properties.get("s2:product_uri") or "").startswith(f"{platform}_MSIL2A_{stamp}_")
+            and "scl" in it.assets
+        ]
+        if hits:
+            hits.sort(key=lambda it: it.properties.get("s2:nodata_pixel_percentage") or 0.0)
+            return [
+                {"collection": coll, "item": it.id, "href": it.assets["scl"].href} for it in hits
+            ]
+    return []
+
+
+def find_scl(product_uri: str, client=None) -> dict | None:
+    """The fullest matching L2A scene classification, or None."""
+    hits = scl_candidates(product_uri, client)
+    return hits[0] if hits else None
 
 
 @retry(
@@ -220,10 +237,21 @@ class Window13:
             return Window13(z["dn"], z["valid"], scl, z["bounds"], meta["consts"], src)
 
 
+def best_scl(product_uri: str, bounds: np.ndarray, client=None) -> tuple[np.ndarray | None, dict]:
+    """The candidate SCL with the most data over the window (stops at the first full one)."""
+    best, src = None, None
+    for cand in scl_candidates(product_uri, client):
+        scl = read_scl(cand["href"], bounds)
+        if best is None or (scl != SCL_NODATA).mean() > (best != SCL_NODATA).mean():
+            best, src = scl, cand
+        if (scl != SCL_NODATA).all():
+            break
+    return best, src
+
+
 def fetch_window(product_uri: str, x: float, y: float, client=None) -> Window13:
     w = read_l1c(product_uri, x, y)
-    src = find_scl(product_uri, client)
-    scl = read_scl(src["href"], w["bounds"]) if src else None
+    scl, src = best_scl(product_uri, w["bounds"], client)
     return Window13(w["dn"], w["valid"], scl, w["bounds"], w["consts"], src)
 
 
@@ -292,7 +320,9 @@ def run(
     client = Client.open(EARTH_SEARCH)
 
     def get(r) -> tuple[Path | None, str | None]:
-        for root in [*cache_roots, pull_dir]:
+        # Newest pull first, so a window read again (for example with a better SCL match)
+        # supersedes the older copy; pull ids sort by time
+        for root in [pull_dir, *sorted(cache_roots, reverse=True)]:
             p = cache_file(root, r.site_id, r.product_uri)
             if p.exists():
                 return p, None
