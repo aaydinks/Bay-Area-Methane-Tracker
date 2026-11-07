@@ -18,7 +18,7 @@ show it.
 
 - **The Bay from space.** A Sentinel-2 true-colour picture of the Bay Area from 17 June 2025 (two
   cloud-free tiles from the same pass), with a red marker and name for each landfill and a faint
-  satellite swath sweeping across it. The swath stops for visitors who ask for reduced motion.
+  satellite swath that sweeps across it once. Visitors who ask for reduced motion see no sweep.
 - **Each landfill from the air.** An aerial close-up of every site from the US Geological
   Survey's public image service, centred on the site's location. No outline is drawn on them,
   since the outlines are still placeholders.
@@ -31,6 +31,10 @@ show it.
   stays on the Methods page.
 - **Credits** under each picture and on the Data page. The pictures are made once by a script in
   the website folder and committed, so a build never depends on the image services being up.
+- **No figure for sites without an estimate.** The landfill cards showed a median for every site,
+  including the three the model marks as insufficient data because their 90% range spans more
+  than a hundredfold (Acme Fill, Shoreline, Sonoma Central). They now say "Not enough data for an
+  estimate", matching the count of two sites with an estimate.
 - **A fix to the number counters.** The four headline counts stopped on their first frame and
   showed 0 (for example "0 usable passes"). They now count up to the real figure.
 
@@ -43,5 +47,8 @@ show it.
 
 ## Still to do
 
-Nothing for the home page. If the site list changes, the pictures are remade with the script
-(see the website README).
+- The Landfills page still ranks and charts the three insufficient-data sites under "Sites with an
+  estimate"; that is a separate fix.
+- The pictures are remade with the script when the site list changes (see the website README).
+  The committed close-ups came from the same image request the script makes; the script's own
+  last full run could not finish its USGS part because that service kept timing out.

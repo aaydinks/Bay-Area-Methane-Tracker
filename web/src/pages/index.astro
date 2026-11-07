@@ -36,9 +36,10 @@ const landfillSlides: Slide[] = await Promise.all(sites.map(async (s) => {
   return {
     title: s.name ?? id,
     text: `${s.city}, ${s.county} County`,
-    figure: est && est.e_t_yr_med != null
-      ? `About ${num(est.e_t_yr_med)} t/yr above the floor`
-      : est?.status === 'insufficient_data' ? 'Too few passes for an estimate' : 'No estimate yet',
+    // A site the model marks as insufficient data shows no figure, even when a median exists.
+    figure: est?.status === 'insufficient_data'
+      ? 'Not enough data for an estimate'
+      : est && est.e_t_yr_med != null ? `About ${num(est.e_t_yr_med)} t/yr above the floor` : 'No estimate yet',
     href: `/sites/${id}/`,
     colour,
     badge,
