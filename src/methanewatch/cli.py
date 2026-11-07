@@ -315,7 +315,7 @@ def model_fit(
             config.load_project(),
             config.load_model(),
             instruments,
-            allow_unconfirmed,
+            allow_unconfirmed=allow_unconfirmed,
         )
     except run.ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
