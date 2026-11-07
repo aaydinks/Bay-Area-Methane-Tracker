@@ -140,6 +140,8 @@ def config_check() -> None:
     ]
     if model.grid.q_min_kg_hr is None:
         pending.append("model.grid.q_min_kg_hr (unset)")
+    elif not model.grid.q_min_confirmed:
+        pending.append("model.grid.q_min_kg_hr")
     if pending:
         typer.secho("unconfirmed (outputs will be provisional):", fg=typer.colors.YELLOW)
         for p in pending:

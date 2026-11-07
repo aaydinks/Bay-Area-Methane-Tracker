@@ -9,6 +9,7 @@ def test_config_check():
     result = runner.invoke(app, ["config", "check"])
     assert result.exit_code == 0
     assert "unconfirmed" in result.output
+    assert "model.grid.q_min_kg_hr" in result.output
 
 
 def test_unbuilt_steps_exit_with_code_2(tmp_path, monkeypatch):
