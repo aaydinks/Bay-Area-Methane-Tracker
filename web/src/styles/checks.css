@@ -5,14 +5,14 @@
 .checks-count { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.75rem; }
 
 .checks-table th button {
-  all: unset; cursor: pointer; font-weight: 600; display: inline-flex; gap: 0.3rem; align-items: center;
+  all: unset; cursor: pointer; display: inline-flex; gap: 0.3rem; align-items: center;
 }
 .checks-table th button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 .checks-table th button .dir { color: var(--muted); font-size: 0.8em; }
 .checks-table td.result { min-width: 14rem; }
 .checks-table .expand { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; width: 2rem; height: 2rem; cursor: pointer; font: inherit; }
 .checks-table tr.detail td { background: var(--surface); }
-.checks-table .reading { margin: 0 0 0.5rem; font-weight: 600; }
+.checks-table .reading { margin: 0 0 0.5rem; }
 .checks-table .muted-line { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
 .checks-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
@@ -20,10 +20,10 @@
 .checks-cards summary { padding: 0.75rem 0.9rem; display: flex; gap: 0.6rem; align-items: center; border-left: 6px solid var(--result-grey); }
 .checks-cards summary.red { border-left-color: var(--result-red); }
 .checks-cards summary.orange { border-left-color: var(--result-orange); }
-.checks-cards summary.yellow { border-left-color: var(--result-yellow); }
-.checks-cards summary.green { border-left-color: var(--result-green); }
+.checks-cards summary.yellow { border-left: 6px dashed var(--red); }
+.checks-cards summary.green { border-left-color: var(--green-line); }
 .checks-cards summary.grey { border-left-color: var(--result-grey); }
-.checks-cards summary .title { font-weight: 600; }
+.checks-cards summary .title { color: var(--text); }
 .checks-cards .body { padding: 0.25rem 0.9rem 0.9rem; }
 .checks-cards dl.facts { margin: 0.5rem 0; }
 

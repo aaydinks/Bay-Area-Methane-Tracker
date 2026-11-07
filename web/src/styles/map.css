@@ -4,7 +4,7 @@
 
 .map-controls { display: flex; flex-direction: column; gap: 0.75rem; }
 .map-controls fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem 0.75rem; margin: 0; background: var(--surface); }
-.map-controls legend { font-weight: 600; padding: 0 0.3rem; }
+.map-controls legend { padding: 0 0.3rem; }
 .map-controls label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.95rem; padding: 0.15rem 0; }
 .map-controls input[type="range"] { width: 100%; }
 .map-controls .range-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
@@ -21,7 +21,7 @@
 .site-marker svg { width: 18px; height: 18px; }
 .site-marker.red { color: var(--result-red); }
 .site-marker.orange { color: var(--result-orange); }
-.site-marker.yellow { color: var(--result-yellow); }
+.site-marker.yellow { color: var(--result-yellow); border-style: dashed; }
 .site-marker.green { color: var(--result-green); }
 .site-marker.grey { color: var(--result-grey); }
 .site-marker.is-selected { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -38,13 +38,14 @@
 .map-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0.75rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: var(--muted); }
 .map-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
 .map-legend .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--border); }
-.map-legend .swatch.heat { background: linear-gradient(90deg, rgba(11, 107, 91, 0.2), #e8b421, #a4161a); }
-.map-legend .swatch.plume { border-radius: 999px; background: #a4161a; }
-.map-legend .swatch.ambiguous { border-radius: 999px; border: 2px solid #a4161a; background: transparent; }
-.map-legend .swatch.new { border-radius: 999px; background: #a4161a; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
-.map-legend .swatch.pass { border-radius: 999px; background: rgba(11, 87, 164, 0.25); border-color: #0b57a4; }
-.map-legend .swatch.outline { background: transparent; border: 2px dashed var(--accent); }
-.map-legend .swatch.neighbour { border-radius: 2px; background: #6b4e9b; }
+/* These match the layer colours in MethaneMap.tsx. */
+.map-legend .swatch.heat { background: linear-gradient(90deg, rgba(143, 197, 156, 0.45), #e5707f, #9b0d22); }
+.map-legend .swatch.plume { border-radius: 999px; background: #c8102e; }
+.map-legend .swatch.ambiguous { border-radius: 999px; border: 2px solid #c8102e; background: transparent; }
+.map-legend .swatch.new { border-radius: 999px; background: #c8102e; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--black); }
+.map-legend .swatch.pass { border-radius: 999px; background: rgba(17, 17, 17, 0.12); border-color: #111111; }
+.map-legend .swatch.outline { background: rgba(143, 197, 156, 0.35); border: 2px dashed var(--green-ink); }
+.map-legend .swatch.neighbour { border-radius: 2px; background: #111111; }
 .map-legend .swatch.boundary { background: transparent; border: 1px solid var(--muted); }
 
 .map-status { font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; }
@@ -52,7 +53,6 @@
 /* MapLibre's own controls in both themes */
 .maplibregl-ctrl-group { background: var(--bg) !important; }
 .maplibregl-ctrl-group button { filter: none; }
-:root[data-theme="dark"] .maplibregl-ctrl-group button span { filter: invert(1); }
 .maplibregl-ctrl-attrib { font-size: 0.75rem; }
 
 .map-placeholder {

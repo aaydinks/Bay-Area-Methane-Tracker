@@ -26,16 +26,18 @@ function wrap(text, max) {
 }
 
 function card({ title, headline, detail, footer }) {
-  const head = wrap(headline, 44).map((l, i) => `<text x="72" y="${300 + i * 54}" font-family="Helvetica, Arial, sans-serif" font-size="42" fill="#5fd0b8">${esc(l)}</text>`).join('');
-  const det = wrap(detail, 70).map((l, i) => `<text x="72" y="${440 + i * 38}" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#aab3bc">${esc(l)}</text>`).join('');
+  // The site's four colours: white, black, red and a light green.
+  const head = wrap(headline, 44).map((l, i) => `<text x="72" y="${300 + i * 54}" font-family="Helvetica, Arial, sans-serif" font-size="42" fill="#c8102e">${esc(l)}</text>`).join('');
+  const det = wrap(detail, 70).map((l, i) => `<text x="72" y="${440 + i * 38}" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#4f4f4f">${esc(l)}</text>`).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#121417"/>
-  <rect x="0" y="0" width="1200" height="14" fill="#5fd0b8"/>
-  <text x="72" y="118" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#aab3bc">Bay Area Landfill Methane Watch · retrospective tracker</text>
-  <text x="72" y="210" font-family="Helvetica, Arial, sans-serif" font-size="${String(title).length > 26 ? 52 : 66}" font-weight="700" fill="#e6e9ec">${esc(title)}</text>
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <rect x="0" y="0" width="1200" height="14" fill="#c8102e"/>
+  <rect x="0" y="606" width="1200" height="24" fill="#cfe8d5"/>
+  <text x="72" y="118" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#4f4f4f">Bay Area Landfill Methane Watch · retrospective tracker</text>
+  <text x="72" y="210" font-family="Helvetica, Arial, sans-serif" font-size="${String(title).length > 26 ? 52 : 66}" font-weight="700" fill="#111111">${esc(title)}</text>
   ${head}
   ${det}
-  <text x="72" y="580" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#aab3bc">${esc(footer)}</text>
+  <text x="72" y="570" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#4f4f4f">${esc(footer)}</text>
 </svg>`;
 }
 
