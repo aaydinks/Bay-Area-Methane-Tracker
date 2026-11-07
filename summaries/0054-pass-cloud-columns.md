@@ -40,9 +40,15 @@ machine this was built on.
 ## Still to do
 
 - **The owner must apply the migration before the next push.** Until it is applied to the live
-  database, every `mw publish push`, including the scheduled run's, stops with an error that the
-  column does not exist. Nothing is half-loaded: the push runs in one transaction. The earlier
-  migrations were applied through the Supabase connector, so this one goes the same way, followed
-  by the security and performance advisors.
-- **Rebuild the review snapshot.** The copy reviewers see predates PR 51. A rebuild after the
-  migration fills both columns for its Sentinel-2 passes.
+  database, every `mw publish push` from this code stops with an error that the column does not
+  exist. Nothing is half-loaded: the push runs in one transaction. The earlier migrations were
+  applied through the Supabase connector, so this one goes the same way, followed by the security
+  and performance advisors.
+- **Apply it before updating the owner's checkout.** The twice-weekly scheduled run uses
+  whatever code that checkout holds. Older code keeps loading into the migrated database, since
+  both columns may be empty. Code from this change cannot load into a database without them. So
+  the migration goes first, then the pull.
+- **Rebuild the review snapshot to fill the columns.** The newest review copy,
+  `pub-20261107T035610Z`, already uses Sen2Cor's share, but it was built before this change, so
+  its passes carry neither column. Rebuilding it with this code fills both for its Sentinel-2
+  passes.
