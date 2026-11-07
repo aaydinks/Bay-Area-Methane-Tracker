@@ -78,7 +78,14 @@ def test_pipeline_on_fixture(tmp_path):
     ).to_parquet(interim / "plumes" / "emit.parquet")
 
     counts = build.build(project)
-    assert counts == {"overpasses": 20, "usable": 20, "detections": 1, "unmatched_plumes": 1}
+    assert counts == {
+        "overpasses": 20,
+        "usable": 20,
+        "s2_site_share": 0,
+        "s2_tile_fallback": 0,
+        "detections": 1,
+        "unmatched_plumes": 1,
+    }
     att = pd.read_parquet(interim / "plumes_attributed.parquet").set_index("plume_id")
     assert att.loc["p2", "attribution"] == "ambiguous"  # compost facility within the buffer
 

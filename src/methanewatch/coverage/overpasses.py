@@ -76,6 +76,32 @@ def from_footprints(
     return schemas.overpasses.validate(out)
 
 
+def apply_site_clear(
+    overpasses: pd.DataFrame, site_clear: pd.DataFrame | None, coverage: Coverage
+) -> pd.DataFrame:
+    """Sentinel-2 passes take Sen2Cor's clear share over the site as ``valid_frac`` (ADR 0014).
+
+    ``site_clear`` is ``sentinel2/siteclear``'s table (``overpass_id``, ``valid_frac_site``).
+    The tile figure is kept in ``valid_frac_tile``. A Sentinel-2 pass with no Sen2Cor share keeps
+    the tile figure, marked ``valid_frac_source = "tile"``. Other instruments are left as they
+    are (``"scene"``). ``usable`` is then worked out again from the new ``valid_frac``.
+    """
+    ov = overpasses.copy()
+    s2 = ov["instrument"] == "sentinel2"
+    ov["valid_frac_tile"] = ov["valid_frac"].where(s2)
+    ov["valid_frac_source"] = np.where(s2, schemas.VALID_FRAC_TILE, schemas.VALID_FRAC_SCENE)
+    if site_clear is not None and len(site_clear):
+        share = site_clear.dropna(subset=["valid_frac_site"]).set_index("overpass_id")
+        site = ov["overpass_id"].map(share["valid_frac_site"])
+        has = s2 & site.notna()
+        ov.loc[has, "valid_frac"] = site[has]
+        ov.loc[has, "valid_frac_source"] = schemas.VALID_FRAC_SITE
+    ov["usable"] = (ov["coverage_frac"] >= coverage.min_coverage_frac) & (
+        ov["valid_frac"] >= coverage.min_valid_frac
+    )
+    return schemas.overpasses.validate(ov)
+
+
 def _empty() -> pd.DataFrame:
     cols = [
         "overpass_id",

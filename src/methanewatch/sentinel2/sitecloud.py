@@ -239,8 +239,13 @@ class Window13:
 
 def best_scl(product_uri: str, bounds: np.ndarray, client=None) -> tuple[np.ndarray | None, dict]:
     """The candidate SCL with the most data over the window (stops at the first full one)."""
+    return fullest_scl(scl_candidates(product_uri, client), bounds)
+
+
+def fullest_scl(cands: list[dict], bounds: np.ndarray) -> tuple[np.ndarray | None, dict | None]:
+    """Of ``scl_candidates``, the SCL with the most data over the window."""
     best, src = None, None
-    for cand in scl_candidates(product_uri, client):
+    for cand in cands:
         scl = read_scl(cand["href"], bounds)
         if best is None or (scl != SCL_NODATA).mean() > (best != SCL_NODATA).mean():
             best, src = scl, cand

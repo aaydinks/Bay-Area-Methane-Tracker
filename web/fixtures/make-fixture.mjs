@@ -130,6 +130,11 @@ const neighbours = PUBS.map((pub) => ({
 const gen1 = passesAndPlumes(PUBS[0], '2026-08');
 seed = 20261030;
 const gen2 = passesAndPlumes(PUBS[1], '2026-09');
+// The review update's refresh ran after Sentinel-2 passes moved to Sen2Cor's share over each
+// site (ADR 0014); the public one ran before. The cloud model page reads which from the manifest.
+RUNS.find((r) => r.run_id === 'fixture-refresh-2').manifest.steps = {
+  coverage: { s2_site_share: gen2.passes.filter((p) => p.instrument === 'sentinel2').length, s2_tile_fallback: 0 },
+};
 
 const site_estimates = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, model_run_id: 'fixture-model-1', site_id: 'newby-island', period: 'all', n_usable_overpasses: 61, n_detections: 19, f_med: 0.31, f_lo: 0.21, f_hi: 0.43, qbar_kg_hr_med: 1500, qbar_kg_hr_lo: 900, qbar_kg_hr_hi: 2600, e_t_yr_med: 4100, e_t_yr_lo: 1900, e_t_yr_hi: 8300, status: 'provisional', insufficient_reason: null, rhat_max: 1.004, ess_bulk_min: 812, divergences: 0, provisional: true, restricted: true },
