@@ -273,3 +273,61 @@ def test_cli_writes_the_launchd_job_and_prints_the_commands(tmp_path):
     assert job["ProgramArguments"][1:3] == ["scheduled-run", "--branch"]
     assert f"launchctl bootstrap gui/$(id -u) {out}" in result.output
     assert f"launchctl bootout gui/$(id -u)/{scheduled.LAUNCHD_LABEL}" in result.output
+
+
+def _model_run(processed, run_id, created_at, *, kind="real", ok=True, dirty=False, estimates=True):
+    (processed / "runs").mkdir(parents=True, exist_ok=True)
+    (processed / "site_estimates").mkdir(parents=True, exist_ok=True)
+    (processed / "runs" / f"{run_id}.json").write_text(
+        json.dumps(
+            {"run_id": run_id, "created_at": created_at, "kind": kind, "git_dirty": dirty,
+             "provisional": True, "diagnostics": {"ok": ok}}
+        )
+    )  # fmt: skip
+    if estimates:
+        pd.DataFrame(
+            {"site_id": ["a", "b"], "period": "all", "run_id": run_id,
+             "n_usable_overpasses": [10, 10], "n_detections": [1, 0],
+             "f_med": 0.2, "f_lo": 0.1, "f_hi": 0.4,
+             "qbar_kg_hr_med": 500.0, "qbar_kg_hr_lo": 300.0, "qbar_kg_hr_hi": 800.0,
+             "E_t_yr_med": 876.0, "E_t_yr_lo": 300.0, "E_t_yr_hi": 2000.0,
+             "status": ["provisional", "insufficient_data"], "rhat_max": 1.004,
+             "ess_bulk_min": 700.0, "divergences": 0}
+        ).to_parquet(processed / "site_estimates" / f"{run_id}.parquet")  # fmt: skip
+
+
+def test_the_newest_real_fit_that_passed_its_checks_is_chosen(tmp_path):
+    assert scheduled.latest_model_run(tmp_path) == (None, "no model run on disk")
+    _model_run(tmp_path, "fit-good", "2026-11-07T01:01:05Z")
+    _model_run(tmp_path, "fit-older", "2026-11-01T00:00:00Z")
+    _model_run(tmp_path, "fit-divergent", "2026-11-08T00:00:00Z", ok=False)
+    _model_run(tmp_path, "fit-dirty", "2026-11-09T00:00:00Z", dirty=True)
+    _model_run(tmp_path, "fit-no-estimates", "2026-11-10T00:00:00Z", estimates=False)
+    _model_run(tmp_path, "demo-x", "2026-11-11T00:00:00Z", kind="synthetic-demo")
+    assert scheduled.latest_model_run(tmp_path) == ("fit-good", "")
+
+
+def test_only_unusable_runs_give_a_reason(tmp_path):
+    _model_run(tmp_path, "demo-x", "2026-11-11T00:00:00Z", kind="synthetic-demo")
+    run_id, why = scheduled.latest_model_run(tmp_path)
+    assert run_id is None and "none of the 1 model runs" in why
+
+
+def test_a_scheduled_copy_keeps_the_latest_estimates(world):
+    project, root, _ = world
+    _model_run(root / "processed", "fit-good", "2026-11-07T01:01:05Z")
+    m = scheduled.run(project)
+
+    build = m["steps"]["publish_build"]
+    assert m["ok"] and build["model_run_id"] == "fit-good"
+    assert build["rows"]["site_estimates"] == 2 and "no_estimates" not in build
+
+
+def test_without_a_usable_fit_the_copy_says_why_it_has_no_estimates(world):
+    project, _, _ = world
+    m = scheduled.run(project)
+
+    build = m["steps"]["publish_build"]
+    assert m["ok"] and build["model_run_id"] is None
+    assert build["rows"]["site_estimates"] == 0
+    assert build["no_estimates"] == "no model run on disk"
