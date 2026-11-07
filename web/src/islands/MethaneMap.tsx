@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 setWorkerUrl(workerUrl);
 
-const STYLES = { light: 'https://tiles.openfreemap.org/styles/positron', dark: 'https://tiles.openfreemap.org/styles/dark' };
+// The light basemap only: the site has one light theme.
+const STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const SOURCES = [
   { id: 'carbonmapper', label: 'Carbon Mapper' },
   { id: 'emit-v2', label: 'NASA EMIT' },
@@ -60,9 +61,6 @@ function monthLabel(key: string) {
   const [y, m] = key.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
-function currentTheme(): 'light' | 'dark' {
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-}
 function fmt(x: number | null | undefined) {
   if (x == null) return '–';
   return x.toLocaleString('en-US', { maximumSignificantDigits: 3 });
@@ -73,18 +71,18 @@ function addLayers(map: MapLibreMap) {
     if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: EMPTY });
   }
   const specs: LayerSpecification[] = [
-    { id: 'boundaries-line', type: 'line', source: 'boundaries', paint: { 'line-color': '#7a848e', 'line-width': 1, 'line-dasharray': [2, 2] } },
-    { id: 'sites-fill', type: 'fill', source: 'sites', paint: { 'fill-color': '#0b6b5b', 'fill-opacity': 0.12 } },
-    { id: 'sites-line', type: 'line', source: 'sites', filter: ['!', ['to-boolean', ['get', 'provisional']]], paint: { 'line-color': '#0b6b5b', 'line-width': 2 } },
-    { id: 'sites-line-provisional', type: 'line', source: 'sites', filter: ['to-boolean', ['get', 'provisional']], paint: { 'line-color': '#0b6b5b', 'line-width': 2, 'line-dasharray': [3, 2] } },
+    { id: 'boundaries-line', type: 'line', source: 'boundaries', paint: { 'line-color': '#6b6b6b', 'line-width': 1, 'line-dasharray': [2, 2] } },
+    { id: 'sites-fill', type: 'fill', source: 'sites', paint: { 'fill-color': '#8fc59c', 'fill-opacity': 0.35 } },
+    { id: 'sites-line', type: 'line', source: 'sites', filter: ['!', ['to-boolean', ['get', 'provisional']]], paint: { 'line-color': '#2f6b3f', 'line-width': 2 } },
+    { id: 'sites-line-provisional', type: 'line', source: 'sites', filter: ['to-boolean', ['get', 'provisional']], paint: { 'line-color': '#2f6b3f', 'line-width': 2, 'line-dasharray': [3, 2] } },
     {
       id: 'passes-circle', type: 'circle', source: 'passes',
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['get', 'usable_passes'], 0, 6, 50, 18, 500, 44],
-        'circle-color': '#0b57a4', 'circle-opacity': 0.18, 'circle-stroke-color': '#0b57a4', 'circle-stroke-width': 1.5,
+        'circle-color': '#111111', 'circle-opacity': 0.12, 'circle-stroke-color': '#111111', 'circle-stroke-width': 1.5,
       },
     },
-    { id: 'neighbours-point', type: 'circle', source: 'neighbours', paint: { 'circle-radius': 6, 'circle-color': '#6b4e9b', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } },
+    { id: 'neighbours-point', type: 'circle', source: 'neighbours', paint: { 'circle-radius': 6, 'circle-color': '#111111', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } },
     {
       id: 'plumes-heat', type: 'heatmap', source: 'plumes', maxzoom: 15,
       paint: {
@@ -92,16 +90,16 @@ function addLayers(map: MapLibreMap) {
         'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 13, 2],
         'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 7, 10, 13, 40],
         'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.85, 14, 0.4],
-        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(11,107,91,0)', 0.2, 'rgba(11,107,91,0.35)', 0.5, '#e8b421', 0.8, '#d4621c', 1, '#a4161a'],
+        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(143,197,156,0)', 0.2, 'rgba(143,197,156,0.45)', 0.5, '#e5707f', 0.8, '#c8102e', 1, '#9b0d22'],
       },
     },
     {
       id: 'plumes-point', type: 'circle', source: 'plumes', minzoom: 10,
       paint: {
         'circle-radius': 5,
-        'circle-color': '#a4161a',
+        'circle-color': '#c8102e',
         'circle-opacity': ['case', ['==', ['get', 'attribution'], 'ambiguous'], 0, 0.85],
-        'circle-stroke-color': ['case', ['to-boolean', ['get', 'new_in_update']], '#0b6b5b', '#a4161a'],
+        'circle-stroke-color': ['case', ['to-boolean', ['get', 'new_in_update']], '#111111', '#c8102e'],
         'circle-stroke-width': ['case', ['to-boolean', ['get', 'new_in_update']], 3, ['==', ['get', 'attribution'], 'ambiguous'], 2, 1],
       },
     },
@@ -173,13 +171,13 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
     [sites],
   );
 
-  // The map itself. Every style load (first paint and each theme switch) re-adds the layers and
-  // bumps `ready`, so the data and toggle effects below run again on the fresh style.
+  // The map itself. The style load adds the layers and bumps `ready`, so the data and toggle
+  // effects below run on the loaded style.
   useEffect(() => {
     if (!container.current || mapRef.current) return;
     const map = new MapLibreMap({
       container: container.current,
-      style: STYLES[currentTheme()],
+      style: STYLE,
       center: [-122.25, 37.85],
       zoom: 8.2,
       attributionControl: { compact: false },
@@ -191,10 +189,7 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
       setReady((n) => n + 1);
     });
     mapRef.current = map;
-    const observer = new MutationObserver(() => map.setStyle(STYLES[currentTheme()]));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => {
-      observer.disconnect();
       map.remove();
       mapRef.current = null;
     };

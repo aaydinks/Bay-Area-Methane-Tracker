@@ -6,7 +6,7 @@ const { med, lo, hi, unit = '' } = Astro.props;
 const has = med !== null && med !== undefined;
 ---
 {has ? (
-  <span class="range"><strong>{num(med)}</strong>{unit ? ` ${unit}` : ''} <span class="muted">(90% range {num(lo)} to {num(hi)})</span></span>
+  <span class="range"><span class="range-med">{num(med)}</span>{unit ? ` ${unit}` : ''} <span class="muted">(90% range {num(lo)} to {num(hi)})</span></span>
 ) : (
   <span class="muted">{MISSING}</span>
 )}

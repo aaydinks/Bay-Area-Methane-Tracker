@@ -86,6 +86,8 @@ Mapper plumes; 28 plume days.
    evidence of a severe increase, orange for strong moderate, yellow for a strong slight increase or any
    increase with weak evidence, grey for insufficient data, green otherwise. Colour never carries meaning
    alone: every result has an icon and a text label, and the shades pass WCAG AA in light and dark modes.
+   (Amended November 2026, PR 59: the site now has one light theme in white, black, red and light green.
+   Orange shows as a red tint and yellow as a dashed red outline, beside their icons and labels.)
 7. **Checks, not only repairs.** The before/after test runs on dated records of five types: Air District
    inspection, Air District notice, operator repair (with its kind), CARB plume notice, other. The result is
    "the change after this record", never a cause. The placebo check applies to every type (ADR 0010).

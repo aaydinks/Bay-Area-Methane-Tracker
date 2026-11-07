@@ -37,11 +37,9 @@ test('the home page carries the retrospective framing', async ({ page }) => {
   await expect(page.locator('body')).toContainText(/screening indication/i);
 });
 
-test('dark mode toggles without a reload', async ({ page }) => {
+test('the site stays light when the system asks for dark', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
-  const html = page.locator('html');
-  const before = await html.getAttribute('data-theme');
-  await page.getByRole('button', { name: /theme/i }).click();
-  const after = await html.getAttribute('data-theme');
-  expect(after).not.toBe(before);
+  const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(background).toBe('rgb(255, 255, 255)');
 });

@@ -45,8 +45,8 @@ const summary = items.map((i) => `${i.label}: ${fmt(i.value)}, 90% range ${fmt(i
 </figure>
 
 <style>
-  /* The model is in the accent colour and bold; the methods it is compared with are muted */
-  .label.strong { font-weight: 700; }
+  /* The model is in red; the methods it is compared with are grey */
+  .label.strong { fill: var(--red); }
   .whisker:not(.highlight) { stroke: var(--muted); }
   .dot:not(.highlight) { fill: var(--muted); }
 </style>
