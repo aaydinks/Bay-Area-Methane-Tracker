@@ -1,6 +1,6 @@
 # PR #52: Keep the latest estimates in scheduled review copies
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/52)
+**Status:** merged 2026-11-06 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/52)
 
 ## In one sentence
 
