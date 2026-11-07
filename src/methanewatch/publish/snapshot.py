@@ -348,6 +348,18 @@ def build(
         else pd.DataFrame(),
     )
     seen = {c: recorded[c].where(pass_restricted, open_only[c]) for c in recorded.columns}
+    # The tile figure and the source of valid_frac (ADR 0014). Overpass tables written before
+    # the change have neither; they stay null then rather than being guessed.
+    tile = (
+        ov["valid_frac_tile"]
+        if "valid_frac_tile" in ov
+        else pd.Series(float("nan"), index=ov.index)
+    )
+    frac_source = (
+        ov["valid_frac_source"]
+        if "valid_frac_source" in ov
+        else pd.Series(None, index=ov.index, dtype=object)
+    )
     tables["passes"] = pd.DataFrame(
         {
             "overpass_id": ov["overpass_id"],
@@ -357,6 +369,8 @@ def build(
             "usable": ov["usable"],
             "coverage_frac": ov["coverage_frac"],
             "valid_frac": ov["valid_frac"],
+            "valid_frac_tile": tile.astype(float),
+            "valid_frac_source": frac_source,
             "coverage_source": ov["coverage_source"],
             "detected": seen["detected"],
             "q_obs_kg_hr": seen["q_obs_kg_hr"],

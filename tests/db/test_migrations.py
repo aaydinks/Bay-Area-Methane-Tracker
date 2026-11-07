@@ -169,6 +169,42 @@ def test_anon_aggregates_use_unrestricted_passes_only(db):
     assert (usable_all, plume_days_all, includes_all) == (3, 2, True)
 
 
+def test_anon_reads_both_cloud_figures_of_a_pass(db):
+    # Migration 0006 (ADR 0014): Sen2Cor's share over the site in valid_frac, the whole-tile
+    # figure beside it. Rows written without them, like the fixture's, read back as null.
+    with db.transaction(force_rollback=True):
+        db.execute(
+            "insert into public.passes (publish_id, overpass_id, site_id, instrument, "
+            "acquired_utc, usable, valid_frac, valid_frac_tile, valid_frac_source, restricted) "
+            "values ('pub-public', 'newby-island:sentinel2:2025-06-03', 'newby-island', "
+            "'sentinel2', '2025-06-03T18:40:00Z', true, 0.9, 0.4, 'site-sen2cor', false)"
+        )
+        with as_role(db, "anon"):
+            got = rows(
+                db,
+                "select instrument, valid_frac, valid_frac_tile, valid_frac_source "
+                "from public.passes order by acquired_utc",
+            )
+    assert got == [
+        ("emit", None, None, None),
+        ("emit", None, None, None),
+        ("sentinel2", 0.9, 0.4, "site-sen2cor"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("column", "value"), [("valid_frac_tile", 1.5), ("valid_frac_source", "bogus")]
+)
+def test_pass_cloud_columns_refuse_values_outside_their_range(db, column, value):
+    with pytest.raises(errors.CheckViolation):
+        db.execute(
+            "insert into public.passes (publish_id, overpass_id, site_id, instrument, "
+            f"acquired_utc, usable, {column}) values ('pub-draft', 'newby-island:sentinel2:x', "
+            "'newby-island', 'sentinel2', '2025-06-03T18:40:00Z', true, %s)",
+            (value,),
+        )
+
+
 def test_anon_sees_runs_of_public_publications_only(db):
     with as_role(db, "anon"):
         assert rows(db, "select run_id from public.runs") == [("model-public",)]
