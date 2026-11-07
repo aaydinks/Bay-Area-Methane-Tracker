@@ -1,127 +1,151 @@
 ---
+import { getImage } from 'astro:assets';
 import Base from '../layouts/Base.astro';
-import Card from '../components/Card.astro';
+import BayHero from '../components/BayHero.astro';
 import EmptyState from '../components/EmptyState.astro';
-import Carousel from '../islands/Carousel';
+import Carousel, { type Slide } from '../islands/Carousel';
 import Counter from '../islands/Counter';
-import Hero from '../islands/Hero';
 import { EXPECTED, RESULT, SITE_NAME, type ResultColour } from '../config';
 import { currentUpdates, estimateFor, hasPublication, latestCheckFor, publication, sites, totals } from '../lib/data';
 import { date, num } from '../lib/format';
+import imagery from '../assets/imagery/imagery.json';
 
-const STEPS = [
-  { title: 'A satellite passes over a landfill', text: 'NASA EMIT, Tanager-1, aircraft and Sentinel-2 each look down at different times and with different eyes.' },
-  { title: 'It sees a plume, or it does not', text: 'A plume is a visible cloud of extra methane. Most passes show none, and that is information too.' },
-  { title: 'Every pass counts', text: 'Passes with no plume are kept, so a site that is observed often is not mistaken for a site that leaks often.' },
-  { title: 'The model gives each site a 90% range', text: 'How often the site was emitting and how much, with the band we are 90% sure the truth sits in.' },
-  { title: 'Control sites remove shared shifts', text: 'A new instrument or a change of season hits every site at once; the other landfills show it, so it is not credited to a repair.' },
-  { title: 'Compared with what operators report', text: 'The satellite view is set beside the annual methane each operator reports to the EPA.' },
-].map((s, i) => ({ ...s, step: i + 1 }));
+// Aerial close-ups, one per landfill, made by scripts/make-imagery.py.
+const photos = import.meta.glob<{ default: ImageMetadata }>('../assets/imagery/*.jpg', { eager: true });
+const photoFor = (id: string) => photos[`../assets/imagery/${id}.jpg`]?.default;
 
-// Positions of the five landfills on the hero's stylised map (viewBox 800 x 500).
-const HERO_SITES: Record<string, { x: number; y: number }> = {
-  'newby-island': { x: 455, y: 425 },
-  'shoreline': { x: 395, y: 410 },
-  'acme-fill': { x: 395, y: 115 },
-  'potrero-hills': { x: 540, y: 95 },
-  'sonoma-central': { x: 150, y: 70 },
-};
-const heroSites = (sites.length ? sites : Object.keys(HERO_SITES).map((id) => ({ site_id: id, name: id })))
-  .filter((s) => s.site_id && HERO_SITES[s.site_id])
-  .map((s) => ({ name: (s.name ?? s.site_id ?? '').replace(' Landfill', ''), ...HERO_SITES[s.site_id as string] }));
-const plumeAt = Math.max(0, heroSites.findIndex((s) => s.name.startsWith('Newby')));
+const STEPS: Slide[] = [
+  { art: 'pass', title: 'A satellite passes over', text: 'EMIT, Tanager-1, aircraft and Sentinel-2 each look down on their own schedule.' },
+  { art: 'plume', title: 'It sees a plume, or not', text: 'Most passes see none. That counts too.' },
+  { art: 'count', title: 'Every pass is kept', text: 'So a site seen often is not mistaken for a site that leaks often.' },
+  { art: 'range', title: 'A 90% range per site', text: 'How often each site was emitting, and how much.' },
+  { art: 'controls', title: 'Control sites', text: 'A shift that hits every landfill at once is not credited to a repair.' },
+  { art: 'report', title: 'Set beside EPA reports', text: 'The satellite view next to what each operator reports.' },
+];
 
-const landfillSlides = sites.map((s) => {
-  const latest = latestCheckFor(s.site_id ?? '');
-  const est = estimateFor(s.site_id ?? '');
-  const colour = latest?.result_held ? 'grey' : (latest?.colour as ResultColour | undefined) ?? null;
-  const badge = latest?.result_held ? 'Result held back' : colour ? RESULT[colour as ResultColour].label : null;
-  const estimateText = est && est.e_t_yr_med != null
-    ? `About ${num(est.e_t_yr_med)} t/yr above the floor (90% range ${num(est.e_t_yr_lo)} to ${num(est.e_t_yr_hi)}).`
-    : est?.status === 'insufficient_data' ? 'Not enough usable passes for an estimate yet.' : 'No estimate in this update.';
+const landfillSlides: Slide[] = await Promise.all(sites.map(async (s) => {
+  const id = s.site_id ?? '';
+  const latest = latestCheckFor(id);
+  const est = estimateFor(id);
+  const colour = latest?.result_held ? 'grey' : (latest?.colour as ResultColour | undefined) ?? 'grey';
+  const badge = latest?.result_held ? 'Result held back' : latest?.colour ? RESULT[latest.colour as ResultColour].label : 'Not yet tested';
+  const photo = photoFor(id);
+  const image = photo
+    ? await getImage({ src: photo, widths: [400, 640, 960], format: 'webp', quality: 72 })
+    : null;
   return {
-    title: s.name ?? s.site_id ?? '',
-    text: `${s.city}, ${s.county} County${s.status ? `, ${s.status}` : ''}. ${estimateText}`,
-    href: `/sites/${s.site_id}/`,
-    linkText: 'Landfill page',
+    title: s.name ?? id,
+    text: `${s.city}, ${s.county} County`,
+    figure: est && est.e_t_yr_med != null
+      ? `About ${num(est.e_t_yr_med)} t/yr above the floor`
+      : est?.status === 'insufficient_data' ? 'Too few passes for an estimate' : 'No estimate yet',
+    href: `/sites/${id}/`,
     colour,
     badge,
+    image: image
+      ? {
+          src: image.src,
+          srcset: image.srcSet.attribute,
+          sizes: '(min-width: 72rem) 34rem, 46vw',
+          width: photo!.width,
+          height: photo!.height,
+          alt: `Aerial view of ${s.name ?? id}`,
+        }
+      : undefined,
   };
-});
-
-const resultSlides = currentUpdates.map((u) => ({
-  title: u.kind.replace(/-/g, ' ').replace(/^\w/, (c) => c.toUpperCase()),
-  text: u.text,
-  href: u.site_id ? `/sites/${u.site_id}/` : '/updates/',
-  linkText: u.site_id ? 'Landfill page' : 'All updates',
 }));
+
+const LIMITS = [
+  { icon: 'sun', text: 'Daytime and clear skies only, about 30 days behind' },
+  { icon: 'big', text: 'Sentinel-2 sees only plumes of about 2 t/hr or more' },
+  { icon: 'floor', text: 'Annual figures count methane above a detection floor, not a site’s total' },
+  { icon: 'near', text: 'Plumes near another source are never assigned to a landfill' },
+];
 ---
 <Base title={SITE_NAME} kind="home">
   <section class="hero" aria-labelledby="mission">
-    <div>
+    <div class="hero-text">
       <h1 id="mission">How persistently do Bay Area landfills leak methane, and did repairs change that?</h1>
-      <p class="lede">
-        This tracker reads back through public satellite and aircraft passes over five Bay Area landfills.
-        It estimates how often each site was seen emitting and how much, tests whether a measured change
-        followed each dated repair or inspection, and compares the satellite view with what operators report
-        to the EPA.
+      <p class="lede">Years of public satellite and aircraft passes over five landfills, read back site by site. Every result is a screening indication for investigation.</p>
+      <p class="hero-actions">
+        <a class="button primary" href="/map/">Open the map</a>
+        <a class="button" href="/sites/">See the landfills</a>
       </p>
-      <p>
-        Regulators already learn about individual plumes. The gaps are persistence, follow-up and the
-        comparison with reported figures, and every result here is a screening indication for investigation.
-      </p>
-      <p><a href="/map/">Open the map</a> · <a href="/checks/">Past checks</a> · <a href="/how-to-read/">How to read this site</a></p>
     </div>
-    <Hero client:idle sites={heroSites} plumeAt={plumeAt} />
+    <BayHero sites={sites} />
   </section>
+
+  {hasPublication ? (
+    <>
+      <section class="stats reveal" aria-label="In numbers">
+        <Counter client:visible value={totals.sites} label="landfills" />
+        <Counter client:visible value={totals.usablePasses} label="usable passes" />
+        <Counter client:visible value={totals.plumeDays} label="days with a plume" />
+        <Counter client:visible value={totals.estimates} label="sites with an estimate" />
+      </section>
+      <p class="stats-note muted">
+        Data through {date(publication?.data_through)}.
+        {currentUpdates.length > 0 && <> <a href="/updates/">What changed in this update</a>.</>}
+      </p>
+
+      <section class="reveal" aria-labelledby="landfills">
+        <h2 id="landfills">The five landfills</h2>
+        <Carousel client:visible label="The five landfills" slides={landfillSlides} kind="photos" />
+        <p class="credit">Aerial photos: {imagery.credits.sites}</p>
+      </section>
+    </>
+  ) : (
+    <EmptyState title="No results yet" expected={EXPECTED.publication}>
+      <p>Counts and landfill cards appear here once the first snapshot is published.</p>
+    </EmptyState>
+  )}
 
   <section class="reveal" aria-labelledby="method">
     <h2 id="method">How it works</h2>
-    <p class="muted">Six steps, from a pass to a comparison. Use the arrows, or the left and right keys when the strip has focus.</p>
     <Carousel client:visible label="How it works, step by step" slides={STEPS} kind="steps" />
-    <p>More in <a href="/methods/">Methods</a>.</p>
-  </section>
-
-  <section class="reveal" aria-labelledby="findings">
-    <h2 id="findings">Latest findings</h2>
-    {hasPublication ? (
-      <>
-        <div class="grid counters">
-          <Card><Counter client:visible value={totals.sites} label="landfills watched" /></Card>
-          <Card><Counter client:visible value={totals.usablePasses} label="usable passes, all instruments" /></Card>
-          <Card><Counter client:visible value={totals.plumeDays} label="days with a plume seen" /></Card>
-          <Card><Counter client:visible value={totals.estimates} label="sites with an estimate" /></Card>
-        </div>
-        <p class="muted">Counts follow how often a site was observed. A site that was flown more often shows more plumes; see plume days per usable pass on the <a href="/map/">map</a>. Data through {date(publication?.data_through)}.</p>
-        <h3>Landfills</h3>
-        <Carousel client:visible label="The five landfills" slides={landfillSlides} kind="cards" />
-        <h3>Latest data update</h3>
-        {resultSlides.length ? (
-          <Carousel client:visible label="What changed in the latest update" slides={resultSlides} kind="cards" />
-        ) : (
-          <p class="muted">No change notes in this update. See <a href="/updates/">all updates</a>.</p>
-        )}
-      </>
-    ) : (
-      <EmptyState title="No results yet" expected={EXPECTED.publication}>
-        <p>Counters, landfill cards and the latest update appear here once the first snapshot is published.</p>
-      </EmptyState>
-    )}
+    <p class="more"><a href="/methods/">The method in full</a></p>
   </section>
 
   <section class="reveal" aria-labelledby="limits">
     <h2 id="limits">What satellites can't see</h2>
     <ul class="limits">
-      <li>Sentinel-2 only sees plumes of about 2 tonnes per hour or more, so it is a check on large events, not a main detector.</li>
-      <li>Satellites only see in daytime and in clear skies, and sources publish about 30 days after an observation.</li>
-      <li>Annual figures are methane above a detection floor in those conditions, not a site's total emissions.</li>
-      <li>Plumes close to another methane source are marked ambiguous and never assigned to a landfill.</li>
+      {LIMITS.map((l) => (
+        <li>
+          <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false" fill="none">
+            {l.icon === 'sun' && (
+              <>
+                <circle cx="20" cy="20" r="8" fill="var(--red)" />
+                <path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.7 8.7l3.5 3.5M27.8 27.8l3.5 3.5M8.7 31.3l3.5-3.5M27.8 12.2l3.5-3.5" stroke="var(--black)" stroke-width="2" stroke-linecap="round" />
+                <path d="M22 40a8 8 0 0 1 8-8 9 9 0 0 1 16 4 5 5 0 0 1-2 9H26a4 4 0 0 1-4-5z" fill="var(--green)" stroke="var(--black)" stroke-width="1.5" />
+              </>
+            )}
+            {l.icon === 'big' && (
+              <>
+                <circle cx="14" cy="34" r="4" fill="none" stroke="var(--black)" stroke-width="1.5" stroke-dasharray="2 2" />
+                <circle cx="31" cy="24" r="13" fill="var(--red)" opacity="0.85" />
+                <path d="M4 44h40" stroke="var(--black)" stroke-width="1.5" />
+              </>
+            )}
+            {l.icon === 'floor' && (
+              <>
+                <rect x="6" y="28" width="36" height="14" fill="var(--green)" />
+                <path d="M6 28h36" stroke="var(--black)" stroke-width="2" stroke-dasharray="4 3" />
+                <path d="M12 24c4-10 8-14 12-14s8 6 12 14" stroke="var(--red)" stroke-width="3" stroke-linecap="round" />
+              </>
+            )}
+            {l.icon === 'near' && (
+              <>
+                <rect x="6" y="26" width="12" height="16" fill="var(--green)" stroke="var(--black)" stroke-width="1.5" />
+                <rect x="30" y="26" width="12" height="16" fill="var(--white)" stroke="var(--black)" stroke-width="1.5" />
+                <circle cx="24" cy="14" r="7" fill="var(--red)" />
+                <path d="M21 11l6 6M27 11l-6 6" stroke="var(--white)" stroke-width="2" />
+              </>
+            )}
+          </svg>
+          <span>{l.text}</span>
+        </li>
+      ))}
     </ul>
-  </section>
-
-  <section class="reveal" aria-labelledby="credits">
-    <h2 id="credits">Data and credits</h2>
-    <p>Built from public data: NASA EMIT, ESA Copernicus Sentinel-2, Carbon Mapper (non-commercial use), the US EPA Greenhouse Gas Reporting Program, Air District public records, CalRecycle and the US Census Bureau. Full credits and terms on the <a href="/data/">data page</a>.</p>
   </section>
 
   <script>

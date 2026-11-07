@@ -65,3 +65,10 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
 - `src/lib/data.ts`: the typed snapshot and the helpers pages use; `database.types.ts` is
   generated from the live schema.
 - `fixtures/make-fixture.mjs`: writes the sample snapshot. Nothing in it is a real result.
+- `src/islands/Carousel.tsx`: the home page carousels. Two slides in view; it moves on by one
+  every 5 seconds and loops, and pauses on hover, on keyboard focus, when its pause button is
+  pressed, while the tab is hidden and under reduced motion.
+- `src/assets/imagery/`: the home page pictures (the Bay from Sentinel-2 and an aerial close-up of
+  each landfill), with their credits and marker positions in `imagery.json`. They are committed,
+  not fetched at build time. To remake them after the site list changes, run `npm run fetch`, then
+  from the repository root `uv run --with pillow python web/scripts/make-imagery.py`.

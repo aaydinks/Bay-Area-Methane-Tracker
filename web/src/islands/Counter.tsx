@@ -12,19 +12,25 @@ export default function Counter({ value, label }: Props) {
   const inView = useInView(ref, { once: true, margin: '-10% 0px' });
   const reduced = useReducedMotion();
   const [shown, setShown] = useState(value);
-  const [started, setStarted] = useState(false);
+  // A ref, not state: setting state here re-ran the effect, whose cleanup stopped the count on
+  // its first frame and left the number at 0.
+  const started = useRef(false);
 
   useEffect(() => {
-    if (!inView || started) return;
-    setStarted(true);
+    if (!inView || started.current) return;
+    started.current = true;
     if (reduced || value === 0) return;
     const controls = animate(0, value, {
       duration: 1.1,
       ease: 'easeOut',
       onUpdate: (v) => setShown(Math.round(v)),
     });
-    return () => controls.stop();
-  }, [inView, started, reduced, value]);
+    // If anything interrupts the count, show the real figure rather than a partial one.
+    return () => {
+      controls.stop();
+      setShown(value);
+    };
+  }, [inView, reduced, value]);
 
   return (
     <span className="counter">

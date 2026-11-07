@@ -1,0 +1,86 @@
+{
+  "credits": {
+    "bay": "Contains modified Copernicus Sentinel data 2025.",
+    "sites": "USGS, USDA, The National Map: Orthoimagery."
+  },
+  "bay": {
+    "file": "bay.jpg",
+    "scene": [
+      "S2C_T10SEG_20250617T190057_L2A",
+      "S2C_T10SEH_20250617T190057_L2A"
+    ],
+    "date": "2025-06-17",
+    "bounds_lonlat": [
+      -122.84,
+      37.34,
+      -121.78,
+      38.36
+    ],
+    "width": 1200,
+    "height": 1479,
+    "sites": {
+      "acme-fill": {
+        "x": 0.7134,
+        "y": 0.3289
+      },
+      "newby-island": {
+        "x": 0.86,
+        "y": 0.8796
+      },
+      "potrero-hills": {
+        "x": 0.8121,
+        "y": 0.1462
+      },
+      "shoreline": {
+        "x": 0.7225,
+        "y": 0.911
+      },
+      "sonoma-central": {
+        "x": 0.0836,
+        "y": 0.0647
+      }
+    }
+  },
+  "sites": {
+    "acme-fill": {
+      "file": "acme-fill.jpg",
+      "width_m": 2600.0,
+      "centre": [
+        -122.08729997057,
+        38.0253200288977
+      ]
+    },
+    "newby-island": {
+      "file": "newby-island.jpg",
+      "width_m": 2600.0,
+      "centre": [
+        -121.941080043947,
+        37.4589699875438
+      ]
+    },
+    "potrero-hills": {
+      "file": "potrero-hills.jpg",
+      "width_m": 2600.0,
+      "centre": [
+        -121.980810084068,
+        38.2118800365007
+      ]
+    },
+    "shoreline": {
+      "file": "shoreline.jpg",
+      "width_m": 2600.0,
+      "centre": [
+        -122.085129992692,
+        37.4278800298578
+      ]
+    },
+    "sonoma-central": {
+      "file": "sonoma-central.jpg",
+      "width_m": 2600.0,
+      "centre": [
+        -122.749510041405,
+        38.2996400437136
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+---
+// The Bay from Sentinel-2 with the five landfills marked, and a satellite swath sweeping over
+// it. The picture is real; the swath is decorative and stops under reduced motion.
+import { Picture } from 'astro:assets';
+import bay from '../assets/imagery/bay.jpg';
+import imagery from '../assets/imagery/imagery.json';
+
+interface Props { sites: { site_id: string | null; name: string | null }[] }
+const { sites } = Astro.props;
+
+// Where each name sits beside its marker (right by default), so close neighbours and names near
+// the picture's edge never collide or get cut off.
+const LABEL_AT: Record<string, string> = { shoreline: 'left', 'potrero-hills': 'left', 'newby-island': 'above-left' };
+const marks = sites
+  .map((s) => ({ id: s.site_id ?? '', name: (s.name ?? s.site_id ?? '').replace(/ Landfill$/, '') }))
+  .map((s) => ({ ...s, at: (imagery.bay.sites as Record<string, { x: number; y: number }>)[s.id] }))
+  .filter((s) => s.at);
+const when = new Date(`${imagery.bay.date}T00:00:00Z`).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+---
+<figure class="bay-hero">
+  <div class="bay-frame">
+    <Picture
+      src={bay}
+      formats={['avif', 'webp']}
+      widths={[420, 640, 960, 1200]}
+      sizes="(min-width: 56rem) 30rem, calc(100vw - 2rem)"
+      alt={`The San Francisco Bay Area seen by Sentinel-2 on ${when}, with the five landfills marked: ${marks.map((m) => m.name).join(', ')}.`}
+      loading="eager"
+      fetchpriority="high"
+      class="bay-image"
+    />
+    <div class="bay-swath" aria-hidden="true"></div>
+    <ul class="bay-marks" aria-hidden="true">
+      {marks.map((m) => (
+        <li class:list={['bay-mark', LABEL_AT[m.id]]} style={`left: ${(m.at.x * 100).toFixed(2)}%; top: ${(m.at.y * 100).toFixed(2)}%`}>
+          <span class="bay-dot"></span>
+          <span class="bay-name">{m.name}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+  <figcaption class="credit">Sentinel-2, {when}. {imagery.credits.bay}</figcaption>
+</figure>

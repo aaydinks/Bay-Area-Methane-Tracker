@@ -3,6 +3,7 @@ import TableWrap from '../components/TableWrap.astro';
 import Base from '../layouts/Base.astro';
 import { hasPublication, meta, publication, snapshot } from '../lib/data';
 import { date } from '../lib/format';
+import imagery from '../assets/imagery/imagery.json';
 ---
 <Base title="Data and credits" description="Where the data comes from, what each source allows, and the downloads." kind="data">
   <h1>Data and credits</h1>
@@ -51,6 +52,11 @@ import { date } from '../lib/format';
   ) : (
     <p class="muted">Credits appear with the first published data update.</p>
   )}
+  <h2>Pictures on the home page</h2>
+  <ul>
+    <li>The Bay Area from Sentinel-2 on {date(imagery.bay.date)} (scenes {imagery.bay.scene.join(' and ')}). {imagery.credits.bay}</li>
+    <li>An aerial close-up of each landfill, centred on its location, with no site outline drawn. Credit: {imagery.credits.sites}</li>
+  </ul>
   <h2>Use</h2>
   <p>Non-commercial use only, because Carbon Mapper's terms require it. Raw source files are never redistributed here. Cite the publication id with any figure you reuse.</p>
 </Base>
