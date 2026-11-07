@@ -140,8 +140,9 @@ def test_a_cloud_model_rehearsal_is_never_published(tmp_path):
 
 
 def test_the_committed_cloud_model_test_gives_one_row_per_claim(rows):
-    cloud = {r["gate"]: r for r in rows.values() if r["gate"].startswith("s2_cloud")}
-    assert set(cloud) == {"s2_cloud_usable", "s2_cloud_detections"}
+    held_out = ("s2_cloud_usable", "s2_cloud_detections")
+    cloud = {r["gate"]: r for r in rows.values() if r["gate"] in held_out}
+    assert set(cloud) == set(held_out)
     usable = cloud["s2_cloud_usable"]["metrics"]
     # Every compared method has a rate with its 90% range, and every comparison a verdict
     assert {"tile_rule", "threshold", "sen2cor", "s2cloudless", "model"} <= set(usable["rates"])
@@ -187,3 +188,12 @@ def test_a_failed_recent_pass_check_publishes_no_counts(tmp_path):
 def test_an_unfinished_recent_pass_check_is_not_published(tmp_path):
     _write_recent_report(tmp_path, holds=None)
     assert validation_rows(tmp_path) == []
+
+
+def test_the_committed_recent_pass_check_failed_and_publishes_no_counts(rows):
+    (recent,) = [r for r in rows.values() if r["gate"] == "s2_cloud_recent"]
+    assert recent["result"] == "fail"
+    assert "per_site_2025" not in recent["metrics"]
+    crit = recent["metrics"]["criteria"]
+    assert not crit["5_false_clouds"]["passed"] and crit["6_eye"]["passed"]
+    assert recent["metrics"]["verdict"]["model_sites"] == []

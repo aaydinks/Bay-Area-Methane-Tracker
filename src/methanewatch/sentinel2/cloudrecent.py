@@ -224,8 +224,8 @@ def thumbnail_sheets(draw: pd.DataFrame, out_dir: Path, per_sheet: int = 12) -> 
             ax.set_title(f"{r.thumb:02d}", fontsize=12)
         fig.suptitle("Sentinel-2 true colour (B4, B3, B2; 0 to 0.3 reflectance). Box: scored 5 km")
         fig.tight_layout()
-        p = out_dir / f"eye-sheet-{k // per_sheet + 1}.png"
-        fig.savefig(p)
+        p = out_dir / f"eye-sheet-{k // per_sheet + 1}.jpg"  # JPEG keeps each sheet under 1 MB
+        fig.savefig(p, pil_kwargs={"quality": 88})
         plt.close(fig)
         paths.append(p)
     return paths
@@ -463,16 +463,23 @@ def report_markdown(r: dict) -> str:
     lines += ["|---|---|---|---|---|"]
     for s, v in sorted(c["5_false_clouds"]["sites"].items()):
         lines.append(
-            f"| {s} | {v['n_clear_days']} | {_pct(v['area_share_flagged'])} |"
-            f" {_pct(v['site_share_flagged'])} | {ok[v['passed']]} |"
+            f"| {s} | {v['n_clear_days']} | {100 * v['area_share_flagged']:.2f}% |"
+            f" {100 * v['site_share_flagged']:.2f}% | {ok[v['passed']]} |"
         )
-    lines += ["", "Usable site-days in 2025 (clear share >= 0.7), descriptive only:", ""]
-    lines += ["| Site | Site-days | Tile rule | Sen2Cor | Model |", "|---|---|---|---|---|"]
-    for s, v in sorted(r["per_site"].items()):
-        lines.append(
-            f"| {s} | {v['site_days']} | {v['usable_tile_rule']} | {v['usable_sen2cor']} |"
-            f" {v['usable_model']} |"
-        )
+    if r.get("verdict", {}).get("holds"):
+        lines += ["", "Usable site-days in 2025 (clear share >= 0.7), descriptive only:", ""]
+        lines += ["| Site | Site-days | Tile rule | Sen2Cor | Model |", "|---|---|---|---|---|"]
+        for s, v in sorted(r["per_site"].items()):
+            lines.append(
+                f"| {s} | {v['site_days']} | {v['usable_tile_rule']} | {v['usable_sen2cor']} |"
+                f" {v['usable_model']} |"
+            )
+    elif "verdict" in r:
+        lines += [
+            "",
+            "Per-site usable-pass counts from the model are not shown: ADR 0013 and ADR 0014"
+            " publish them only when this check holds.",
+        ]
     if "verdict" in r:
         v = r["verdict"]
         lines += [
@@ -481,6 +488,7 @@ def report_markdown(r: dict) -> str:
             f" Model share for: {', '.join(v['model_sites']) or 'none'}."
             f" Sen2Cor share for: {', '.join(v['sen2cor_sites']) or 'none'}.",
         ]
+    lines += ["", "Thumbnails and maps contain modified Copernicus Sentinel data (2025)."]
     manifest = {k: r[k] for k in ("run_id", "created_at", "git_sha", "git_dirty", "model_sha256")}
     lines += ["", "```json", json.dumps(manifest, indent=2), "```", ""]
     return "\n".join(lines)

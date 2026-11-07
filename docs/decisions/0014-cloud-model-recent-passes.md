@@ -1,7 +1,7 @@
 # 0014: Checking the cloud model on recent pilot passes
 
-- **Status:** proposed
-- **Date:** 2026-10-31
+- **Status:** accepted
+- **Date:** 2026-10-31 (criteria); 2026-11-07 (result)
 
 ## Context
 
@@ -136,13 +136,113 @@ Point estimates decide criteria 2 to 4. Their 90% ranges are reported beside the
 
 ## Results
 
-To be filled in after the run, with the code version and the files under
-`reports/validation/s2-cloud-recent/`.
+One run, `s2-cloud-recent-20261107T010417Z`, from commit `422d14a`, clean tree. The files are
+in `reports/validation/s2-cloud-recent/`.
+
+**Order.**
+- **Criteria first.** The criteria were committed on Oct 31 (`9367577`), before any pilot
+  window was scored.
+- **Commits between the criteria and the run.** These changed only how failed reads are
+  retried and reported, not what is measured.
+- **The blind labels.** The 24 thumbnails were labelled by eye before the key or any result
+  was opened.
+- **Changes after the run.** None changed a number:
+  - the report no longer lists per-site counts when the check fails (see Consequences);
+  - the two thumbnail sheets were saved again as JPEG to stay under the repository's 1 MB file
+    limit.
+
+**Windows.**
+- 501 site-days on 157 days: 203 Sentinel-2C, 202 2B, 96 2A, all baseline N0511.
+- 493 were scored.
+- **2 read errors.** On 2025-08-21 the overpass table merges a Sentinel-2A and a 2B pass. The
+  2B scene was chosen, as the rule says, for Newby Island and Shoreline. That product is missing
+  from Google's mirror.
+- **6 partial windows.** These are at swath edges.
+- **18 without Sen2Cor.** The report counts 20, including the two read errors. All 18 are
+  late-2025 scenes whose L2A product has no data over the window.
+
+| Criterion | Result | 90% range | Limit | |
+|---|---|---|---|---|
+| 1. Band 12 of Sen2Cor water on clear windows | 0.014 (1.77 million pixels) | | -0.02 to 0.03 | pass |
+| 2. Model unusable when Sen2Cor >= 99% clear | 0.0% of 261 windows (held-out 5.8%) | 0.0 to 0.0 | 15.8% | pass |
+| 3. Model usable when Sen2Cor < 30% clear | 2.9% of 140 windows (held-out 8.7%) | 0.6 to 6.1 | 18.7% | pass |
+| 4. Sentinel-2C minus 2A/2B, mean (model − Sen2Cor) clear share | +0.015 | −0.012 to +0.042 | ±0.05 | pass |
+| 5. No fixed false clouds | fails at all five sites (below) | | 1% of area, 5% of site | **fail** |
+| 6. Blind look by eye | disagreements: model right 12 of 16, Sen2Cor 4 of 16; agreements against the eye: 0 of 8 | | model >= Sen2Cor; at most 1 | pass |
+
+Criterion 5. These are the pixels the model flags as cloud or shadow on more than 20% of
+Sen2Cor-clear days. Each site polygon is still the provisional 500 m circle around its
+CalRecycle point. The right-hand column is from the false-cloud map laid over a clear true-colour
+image:
+
+| Site | Sen2Cor-clear days | Share of scored area | Share of site circle | What they are |
+|---|---|---|---|---|
+| Acme Fill | 45 | 6.58% | 2.24% | a long dark basin to the north-east and the edges of a pond to the south-west (called shadow); refinery tanks and roofs |
+| Newby Island | 47 | 23.24% | 4.64% | rooftops to the east; the dark rectangular ponds to the south (called shadow); the edges of the salt pond to the north-west |
+| Potrero Hills | 44 | 1.01% | 3.72% | the bright active area at the east end of the landfill; a few small ponds |
+| Shoreline | 44 | 14.55% | 1.73% | rooftops of the built-up area to the south |
+| Sonoma Central | 81 | 0.85% | 10.29% | two patches on the landfill surface and a bright roof at its east edge |
+
+**What it shows.**
+- **No problem with the newer images themselves:**
+  - the -1000 offset is handled;
+  - the model treats Sentinel-2C like 2A and 2B;
+  - on 2025 passes it calls usable and cloudy windows as well as on the test images, and better
+    than Sen2Cor where the two disagree.
+- **What fails is the surface risk named in the Context, in a wider form.** On clear days the
+  model keeps flagging the same places:
+  - bright rooftops and landfill surfaces, as cloud;
+  - dark ponds and basins, as shadow.
+  - This seldom changes a whole window's call (criterion 2).
+  - But it is the error the pre-registered rule does not allow, and at Sonoma Central it covers
+    a tenth of the circle around the site.
+- **Sen2Cor makes its own errors on these passes.**
+  - The model and Sen2Cor agreed on whether a window was usable for 455 of 477 windows.
+  - Sen2Cor set aside 13 windows the model kept. All 8 of those drawn for the eye check were
+    clear by eye, including clear days at Newby Island and Sonoma Central that Sen2Cor scored as
+    almost entirely cloud.
+  - For comparison, the tile rule and Sen2Cor disagreed on 76 windows.
 
 ## Decision
 
-To be filled in after the run.
+The check does not hold, so the pre-registered fallback applies.
+
+- **Which passes count.** The model does not decide this at any pilot site.
+- **`valid_frac`.** For Sentinel-2 passes it moves from the tile figure to the **per-site
+  Sen2Cor share**, at all five sites. Sen2Cor beat the tile rule on both errors in the held-out
+  test.
+- **The tile figure.** It is kept beside the new share so the two can be compared.
+- **What is not published.** The model's per-site usable-pass counts are not published as a
+  result. Its numbers here stay a method check, shown as failed.
+- **No re-run.** The test is not re-run with new settings or limits. A model change must:
+  - come under a new ADR;
+  - report both runs.
+
+  A model change could mean training examples of roofs, ponds and landfill surfaces, or a
+  per-site mask of pixels that are flagged on clear days again and again.
 
 ## Consequences
 
-To be filled in after the run.
+- **Pixels needed.** Applying the Sen2Cor share to all 2022-08 to 2026-10 passes needs only
+  the SCL layer per window, not the 13 L1C bands. So the bulk L1C download is not needed for
+  `valid_frac`. The two costs:
+  - **An L1C window downloads about 35 MB**, because Google's mirror stores the bands as tiled
+    JPEG 2000.
+  - **An SCL window downloads about 0.1 MB.** A whole SCL tile is about 1.4 MB, in 512-pixel
+    blocks, and a window touches at most 4 of its 121 blocks.
+- **The cost of the fallback.** Following the rule costs a few clear passes a year at each
+  site, the ones Sen2Cor wrongly sets aside (see Results).
+- **No Sen2Cor share.** A pass with no Sen2Cor share keeps the tile figure, and that is marked.
+  This covers no L2A match, no data over the window, or a product missing from a mirror.
+- **Masking before detection.**
+  - ADR 0013's Claim 2 allowed the model mask before Sentinel-2 detection.
+  - This check shows it would mask parts of the landfill on clear days: 10% of Sonoma Central's
+    circle and 4% of Potrero Hills'. That is where a plume starts.
+  - So the model mask is not used before detection at the pilot sites without a new ADR.
+- **What is published.** The check's own numbers are published as a method check:
+  - one website row, `s2_cloud_recent`, with result "fail";
+  - the per-site counts are left out.
+- **Files kept.** The windows file keeps the per-window shares as evidence of the check.
+- **Limits of the thumbnails.** The eye labels are one person's reading of 24 thumbnails. Four
+  of them were close to the 70% line (5, 12, 14 and 19 in `eye-labels.csv`). Reversing all four
+  would not change criterion 6.

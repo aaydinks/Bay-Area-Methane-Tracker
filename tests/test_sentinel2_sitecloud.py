@@ -328,7 +328,9 @@ def test_a_site_with_fixed_false_clouds_falls_back_to_sen2cor(tmp_path, monkeypa
     assert out["criteria"]["6_eye"]["passed"]
     assert out["criteria"]["6_eye"]["model_matches_eye"] == 2
     assert out["verdict"] == {"holds": False, "model_sites": ["a"], "sen2cor_sites": ["b"]}
-    assert "Verdict" in (res / "s2-cloud-recent-x.md").read_text()
+    md = (res / "s2-cloud-recent-x.md").read_text()
+    assert "Verdict" in md and "| Model |" not in md
+    assert "not shown" in md and "Copernicus Sentinel data" in md
     with pytest.raises(FileExistsError):
         cr.finish(tmp_path)
 
