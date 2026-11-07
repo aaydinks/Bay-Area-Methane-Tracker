@@ -393,3 +393,31 @@ def test_cli_build_writes_a_snapshot(tmp_path, monkeypatch):
     assert (tmp_path / "processed" / "publications" / pub_id / "manifest.json").exists()
     check = CliRunner().invoke(app, ["publish", "check", pub_id])
     assert check.exit_code == 0 and "passed" in check.output
+
+
+def test_insufficient_reasons_name_the_part_of_the_rule_that_applies():
+    # The rule (PLAN 6.6): fewer than 8 usable passes, a 90% range over 2 orders of magnitude,
+    # or failed diagnostics. Each insufficient row says which; estimated rows say nothing.
+    from methanewatch.config import load_model
+
+    cfg = load_model()
+    est = pd.DataFrame(
+        {
+            "site_id": ["ok", "few", "wide", "diverged", "few-and-wide", "old-rule"],
+            "n_usable_overpasses": [28, 5, 18, 30, 6, 30],
+            "e_t_yr_lo": [11000.0, 900.0, 8.0, 300.0, 1.0, 300.0],
+            "e_t_yr_hi": [17000.0, 1800.0, 998.0, 1500.0, 900.0, 1500.0],
+            "status": ["provisional"] + ["insufficient_data"] * 5,
+            "rhat_max": [1.005, 1.005, 1.005, 1.005, 1.005, 1.005],
+            "ess_bulk_min": [700.0] * 6,
+            "divergences": [0, 0, 0, 2, 0, 0],
+        }
+    )
+    r = snap.insufficient_reasons(est, cfg).set_axis(est["site_id"])
+    assert r["ok"] is None
+    assert r["few"] == "too few usable passes (5; at least 8 needed)"
+    assert r["wide"] == "the 90% range is too wide (its top is more than 100 times its bottom)"
+    assert r["diverged"] == "the model fit failed its convergence checks"
+    assert r["few-and-wide"].startswith("too few usable passes (6;")
+    assert "; the 90% range is too wide" in r["few-and-wide"]
+    assert r["old-rule"] == "marked insufficient by the model run"

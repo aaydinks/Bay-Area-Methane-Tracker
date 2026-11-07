@@ -16,7 +16,13 @@ from typing import Any
 
 import pandas as pd
 
-from methanewatch.config import DataTermsConfig, ImpactConfig, ProjectConfig
+from methanewatch.config import (
+    DataTermsConfig,
+    ImpactConfig,
+    ModelConfig,
+    ProjectConfig,
+    load_model,
+)
 from methanewatch.provenance import git_dirty, git_sha, new_id, utcnow
 from methanewatch.publish import schemas as pub
 from methanewatch.publish.labels import label_result
@@ -175,6 +181,43 @@ def check_wording(tables: dict[str, pd.DataFrame]) -> list[str]:
     return problems
 
 
+def insufficient_reasons(est: pd.DataFrame, model: ModelConfig) -> pd.Series:
+    """Why each insufficient estimate is insufficient, from the rule in PLAN section 6.6.
+
+    ``est`` has the publish column names (``e_t_yr_lo``/``e_t_yr_hi``). Rows with an estimate
+    get None. Every part of the rule that applies is named; a row marked insufficient under
+    thresholds that have since changed gets a plain label.
+    """
+    rule, lim = model.insufficient_data, model.diagnostics
+    factor = 10**rule.max_interval_orders_of_magnitude
+    lo = pd.to_numeric(est["e_t_yr_lo"], errors="coerce").clip(lower=1e-12)
+    hi = pd.to_numeric(est["e_t_yr_hi"], errors="coerce")
+    too_wide = (hi / lo) > factor
+    too_few = est["n_usable_overpasses"] < rule.min_usable_overpasses
+    failed = (
+        (est["rhat_max"] > lim.rhat_max)
+        | (est["ess_bulk_min"] < lim.ess_bulk_min)
+        | (est["divergences"] > lim.max_divergences)
+    )
+    reasons = []
+    for i in range(len(est)):
+        if est["status"].iloc[i] != "insufficient_data":
+            reasons.append(None)
+            continue
+        parts = []
+        if too_few.iloc[i]:
+            n, need = int(est["n_usable_overpasses"].iloc[i]), rule.min_usable_overpasses
+            parts.append(f"too few usable passes ({n}; at least {need} needed)")
+        if too_wide.iloc[i]:
+            parts.append(
+                f"the 90% range is too wide (its top is more than {factor:,.0f} times its bottom)"
+            )
+        if failed.iloc[i]:
+            parts.append("the model fit failed its convergence checks")
+        reasons.append("; ".join(parts) or "marked insufficient by the model run")
+    return pd.Series(reasons, index=est.index, dtype=object)
+
+
 def build(
     project: ProjectConfig,
     terms: DataTermsConfig,
@@ -187,6 +230,7 @@ def build(
     allow_simulated: bool = False,
     publish_id: str | None = None,
     notes: str | None = None,
+    model: ModelConfig | None = None,
 ) -> Snapshot:
     """The snapshot for one run. Raises on a simulated run or a wording hit."""
     interim = project.resolve(project.paths.interim)
@@ -360,13 +404,10 @@ def build(
         est = est.rename(
             columns={"E_t_yr_med": "e_t_yr_med", "E_t_yr_lo": "e_t_yr_lo", "E_t_yr_hi": "e_t_yr_hi"}
         )
-        insufficient = est["status"] == "insufficient_data"
         tables["site_estimates"] = est.assign(
             model_run_id=model_run_id,
             period=est.get("period", "all"),
-            insufficient_reason=insufficient.map(
-                {True: "too few usable passes or a fit that failed its diagnostics", False: None}
-            ),
+            insufficient_reason=insufficient_reasons(est, model or load_model()),
             provisional=bool(model_manifest and model_manifest.get("provisional")),
             restricted=derived_restricted,
         )[list(pub.site_estimates.columns)]
