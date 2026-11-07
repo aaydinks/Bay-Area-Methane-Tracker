@@ -106,8 +106,10 @@ def test_fit_real_needs_floor_and_detections(tmp_path):
         run.fit_real(project, load_model(), load_instruments())
     (tmp_path / "interim").mkdir()
     pd.DataFrame({"instrument": ["emit"]}).to_parquet(tmp_path / "interim" / "detections.parquet")
+    cfg = load_model()
+    no_floor = cfg.model_copy(update={"grid": cfg.grid.model_copy(update={"q_min_kg_hr": None})})
     with pytest.raises(run.ConfigNotReadyError, match="q_min"):
-        run.fit_real(project, load_model(), load_instruments())
+        run.fit_real(project, no_floor, load_instruments())
 
 
 def test_superseded_repair_reports_are_labelled(tmp_path):

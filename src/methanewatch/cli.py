@@ -140,6 +140,8 @@ def config_check() -> None:
     ]
     if model.grid.q_min_kg_hr is None:
         pending.append("model.grid.q_min_kg_hr (unset)")
+    elif not model.grid.q_min_confirmed:
+        pending.append("model.grid.q_min_kg_hr")
     if pending:
         typer.secho("unconfirmed (outputs will be provisional):", fg=typer.colors.YELLOW)
         for p in pending:
@@ -313,7 +315,7 @@ def model_fit(
             config.load_project(),
             config.load_model(),
             instruments,
-            allow_unconfirmed,
+            allow_unconfirmed=allow_unconfirmed,
         )
     except run.ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)

@@ -6,7 +6,7 @@ One short file per decision: context, options, choice, consequences. Copy `0000-
 |---|---|---|
 | 0001 | Carbon Mapper API: endpoints, fields, footprint/coverage availability, rate limits | week 1 |
 | 0002 | [Wind product and U_eff](0002-wind-product.md) (proposed): HRRR primary, ERA5 cross-check | week 3 |
-| 0003 | Detection-probability curves per instrument, with citations | week 3–4 |
+| 0003 | Detection-probability curves per instrument: written as [0015](0015-detection-curves.md) | week 3–4 |
 | 0004 | Open Sentinel-2 pipeline: inputs, license, what was reused | week 3 |
 | 0005 | Priors and prior predictive check ([proposed](0005-priors.md)) | week 5 |
 | 0006 | [Repair call rule](0006-repair-call-rule.md): calls at P = 0.975, intervals at 90% | week 9 |
@@ -18,3 +18,4 @@ One short file per decision: context, options, choice, consequences. Copy `0000-
 | 0012 | [Telling clouds from plumes in the Sentinel-2 retrieval: feasibility](0012-cloud-plume-feasibility.md) (accepted): CloudSEN12+ (CC0) for cloud labels, no real plume labels usable for training, pixels from the Google mirror or Copernicus Data Space, a small tree model against Sen2Cor and s2cloudless | Month 2 |
 | 0013 | [Pre-registered test of the Sentinel-2 cloud model](0013-cloud-model-preregistration.md) (accepted): held-out sites and tiles, false-usable rate and cloud-caused detections against the tile rule, threshold mask, Sen2Cor and s2cloudless, 90% site bootstrap, published only if it passes | Month 2 |
 | 0014 | [Checking the cloud model on recent pilot passes](0014-cloud-model-recent-passes.md) (accepted): on 2025 passes the model matched Sen2Cor's clear and cloudy calls and beat it by eye, but kept flagging rooftops, dark ponds and parts of the landfills as cloud or shadow on clear days, so the check failed; `valid_frac` moves to the per-site Sen2Cor share | Month 2 |
+| 0015 | [Detection curves per instrument and the emission floor](0015-detection-curves.md) (proposed): sourced q50 and width for Tanager-1, EMIT, aircraft and Sentinel-2, floor 18 kg/hr, all unconfirmed | Month 2 |

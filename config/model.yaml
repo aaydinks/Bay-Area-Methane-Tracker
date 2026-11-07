@@ -3,7 +3,11 @@
 
 grid:
   n_points: 96
-  q_min_kg_hr: null # emission floor; set near the most sensitive instrument's ~10% POD point
+  # Emission floor (PLAN 6.1): the 10% point of the most sensitive instrument's curve, the
+  # aircraft curve in instruments.yaml: 28.6 x exp(-0.353 x 1.2816) = 18.2 kg/hr. ADR 0015.
+  q_min_kg_hr: 18
+  q_min_source: "10% point of the aircraft POD curve in config/instruments.yaml (ADR 0015)"
+  q_min_confirmed: false
   q_max_kg_hr: 20000
 
 priors:
@@ -22,7 +26,9 @@ sampler:
   chains: 4
   draws: 1000
   tune: 1000
-  target_accept: 0.9
+  # 0.95, not 0.9: the first real-data fit at 0.9 had 1-2 divergences at three seeds; at 0.95 four
+  # seeds had none and the estimates did not move (summaries/0047-sampler-step.md).
+  target_accept: 0.95
   seed: 20261003
 
 diagnostics:

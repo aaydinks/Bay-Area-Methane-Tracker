@@ -9,6 +9,7 @@ def test_config_check():
     result = runner.invoke(app, ["config", "check"])
     assert result.exit_code == 0
     assert "unconfirmed" in result.output
+    assert "model.grid.q_min_kg_hr" in result.output
 
 
 def test_unbuilt_steps_exit_with_code_2(tmp_path, monkeypatch):
@@ -31,3 +32,20 @@ def test_repair_synthetic_command_is_registered():
     validate = typer.main.get_command(app).commands["validate"]
     params = {p.name for p in validate.commands["repair-synthetic"].params}
     assert {"worlds", "per_world", "power"} <= params
+
+
+def test_fit_passes_allow_unconfirmed_through(monkeypatch):
+    # The flag must reach fit_real, whose allow_unconfirmed is keyword-only
+    from methanewatch.model import run
+
+    seen = {}
+
+    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False):
+        seen["allow_unconfirmed"] = allow_unconfirmed
+        return "fit-test"
+
+    monkeypatch.setattr(run, "fit_real", fake_fit_real)
+    result = runner.invoke(app, ["model", "fit", "--allow-unconfirmed"])
+    assert result.exit_code == 0, result.output
+    assert seen == {"allow_unconfirmed": True}
+    assert "run fit-test" in result.output

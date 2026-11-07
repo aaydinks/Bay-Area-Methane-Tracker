@@ -343,7 +343,7 @@ z_f, z_μ ~ N(0, 1)
 
 The numbers are starting points. Run a **prior predictive check** first. Implied annual totals should span plausible landfill magnitudes (from a few t/yr to tens of thousands of t/yr) without piling up at the extremes. Record the final priors in ADR 0005.
 
-Sampler: 4 chains × 1000 draws after 1000 tuning steps, `target_accept=0.9`. A fit **fails the diagnostics** if `r̂ > 1.01`, bulk ESS < 400, or there are any divergences. A failed fit is not reported.
+Sampler: 4 chains × 1000 draws after 1000 tuning steps, `target_accept=0.95` (0.9 until the first real-data fit diverged at it; summary 0047). A fit **fails the diagnostics** if `r̂ > 1.01`, bulk ESS < 400, or there are any divergences. A failed fit is not reported.
 
 ### 6.5 Known modeling caveats (each gets a check)
 
