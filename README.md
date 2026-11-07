@@ -62,7 +62,8 @@ Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 ### Scheduled run
 
 `mw scheduled-run` chains one refresh, the EMIT, Sentinel-2 and Carbon Mapper folders in `datasets/`, a
-snapshot of that refresh, its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
+snapshot of that refresh (carrying the estimates of the newest real model fit that passed its checks; the model
+is never refit here), its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
 review visibility, then calls `CF_DEPLOY_HOOK_REVIEW` if it is set. It never makes anything public. Nothing
 after a failed step runs; a refresh with a failed source stops the run before anything is published. That
 includes Sen2Cor's scene classification for new Sentinel-2 passes (ADR 0014): a pass it could not read keeps the

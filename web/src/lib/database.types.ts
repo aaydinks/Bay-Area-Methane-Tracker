@@ -390,6 +390,8 @@ export type Database = {
           site_id: string
           usable: boolean
           valid_frac: number | null
+          valid_frac_source: string | null
+          valid_frac_tile: number | null
         }
         Insert: {
           acquired_utc: string
@@ -405,6 +407,8 @@ export type Database = {
           site_id: string
           usable: boolean
           valid_frac?: number | null
+          valid_frac_source?: string | null
+          valid_frac_tile?: number | null
         }
         Update: {
           acquired_utc?: string
@@ -420,6 +424,8 @@ export type Database = {
           site_id?: string
           usable?: boolean
           valid_frac?: number | null
+          valid_frac_source?: string | null
+          valid_frac_tile?: number | null
         }
         Relationships: [
           {

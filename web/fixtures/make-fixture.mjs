@@ -104,9 +104,16 @@ function passesAndPlumes(pub, through) {
           const detected = usable && rand() < (inst.detectRate[s.site_id] ?? 0.02);
           const overpass_id = `${s.site_id}:${inst.instrument}:${acquired.slice(0, 10)}`;
           const q = detected ? Math.round(300 + rand() * 2500) : null;
+          // Which figure valid_frac holds (ADR 0014). The public update was built before the
+          // change and carries neither column; in the review update, Sentinel-2 passes use
+          // Sen2Cor's share over the site, with the whole-tile figure kept beside it.
+          const s2 = inst.instrument === 'sentinel2';
+          const cloud = !pub.sen2cor ? { valid_frac_tile: null, valid_frac_source: null }
+            : s2 ? { valid_frac_tile: day % 3 === 0 ? 0.55 : usable ? 0.8 : 0.3, valid_frac_source: 'site-sen2cor' }
+            : { valid_frac_tile: null, valid_frac_source: 'scene' };
           passes.push({
             publish_id: pub.publish_id, overpass_id, site_id: s.site_id, instrument: inst.instrument, acquired_utc: acquired,
-            usable, coverage_frac: usable ? 0.95 : 0.6, valid_frac: usable ? 0.9 : 0.4, coverage_source: inst.instrument === 'emit' ? 'cmr-granule' : inst.instrument === 'sentinel2' ? 's2-scene' : 'stac-footprint',
+            usable, coverage_frac: usable ? 0.95 : 0.6, valid_frac: usable ? 0.9 : 0.4, ...cloud, coverage_source: inst.instrument === 'emit' ? 'cmr-granule' : inst.instrument === 'sentinel2' ? 's2-scene' : 'stac-footprint',
             detected, q_obs_kg_hr: q, n_plumes: detected ? 1 : 0, restricted: inst.restricted,
           });
           if (detected) {
@@ -138,7 +145,7 @@ const neighbours = PUBS.map((pub) => ({
 
 const gen1 = passesAndPlumes(PUBS[0], '2026-08');
 seed = 20261030;
-const gen2 = passesAndPlumes(PUBS[1], '2026-09');
+const gen2 = passesAndPlumes({ ...PUBS[1], sen2cor: true }, '2026-09');
 // The review update's refresh ran after Sentinel-2 passes moved to Sen2Cor's share over each
 // site (ADR 0014); the public one ran before. The cloud model page reads which from the manifest.
 RUNS.find((r) => r.run_id === 'fixture-refresh-2').manifest.steps = {

@@ -29,7 +29,9 @@ def _project(tmp_path):
     return base.model_copy(update={"paths": paths})
 
 
-def _write_inputs(tmp_path, *, bad_description=False, demo=False):
+def _write_inputs(tmp_path, *, bad_description=False, demo=False, cloud_detail=True):
+    """``cloud_detail=False`` writes an overpass table from before ADR 0014, without
+    ``valid_frac_tile`` and ``valid_frac_source``."""
     registry, interim, processed = (
         tmp_path / "registry",
         tmp_path / "interim",
@@ -87,6 +89,10 @@ def _write_inputs(tmp_path, *, bad_description=False, demo=False):
             "coverage_source": ["cmr-granule", "stac-footprint", "s2-scene"],
         }
     )
+    if cloud_detail:
+        # Sen2Cor sees the Sentinel-2 site clear (0.9) on a day the whole tile is mostly cloud
+        ov["valid_frac_tile"] = [None, None, 0.4]
+        ov["valid_frac_source"] = ["scene", "scene", "site-sen2cor"]
     ov.to_parquet(interim / "overpasses.parquet")
     pd.DataFrame(
         {
@@ -274,6 +280,31 @@ def test_build_marks_restricted_rows_and_labels_results(tmp_path):
     out = s.write(tmp_path / "publications")
     again = snap.Snapshot.read(out)
     assert again.publish_id == "pub-test" and len(again.tables["passes"]) == 3
+    cloud = again.tables["passes"].set_index("instrument")
+    assert cloud.loc[
+        "sentinel2", ["valid_frac", "valid_frac_tile", "valid_frac_source"]
+    ].tolist() == [
+        0.9,
+        0.4,
+        "site-sen2cor",
+    ]
+    assert cloud.loc[["emit", "tanager1"], "valid_frac_tile"].isna().all()
+    assert (cloud.loc[["emit", "tanager1"], "valid_frac_source"] == "scene").all()
+
+
+def test_overpass_tables_from_before_the_cloud_columns_publish_them_as_null(tmp_path):
+    _write_inputs(tmp_path, cloud_detail=False)
+    s = snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        check_run_id="repairs-1",
+        publish_id="pub-old",
+    )
+    passes = snap.Snapshot.read(s.write(tmp_path / "publications")).tables["passes"]
+    assert len(passes) == 3 and (passes["valid_frac"] == 0.9).all()
+    assert passes["valid_frac_tile"].isna().all() and passes["valid_frac_source"].isna().all()
 
 
 @pytest.mark.parametrize("with_open_plume", [False, True])
