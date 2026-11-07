@@ -192,6 +192,42 @@ def _cloud_model_rows(md: Path, run_id: str, created: str | None) -> list[dict]:
     ]
 
 
+def _cloud_recent_rows(md: Path, run_id: str, created: str | None) -> list[dict]:
+    """One row from the ADR 0014 check of the cloud model on 2025 pilot passes.
+
+    Nothing is published until the blind eye check is scored and a verdict exists. Per-site
+    usable-pass counts are published only when the check holds (ADR 0013, ADR 0014).
+    """
+    r = json.loads(md.with_suffix(".json").read_text())
+    if "verdict" not in r:
+        return []
+    crit = {
+        k: {f: v for f, v in c.items() if f not in ("thumbnails", "land_band_means")}
+        for k, c in r["criteria"].items()
+    }
+    metrics = {
+        "windows": r["windows"],
+        "reference": r["reference"],
+        "criteria": crit,
+        "verdict": r["verdict"],
+    }
+    if r["verdict"]["holds"]:
+        metrics["per_site_2025"] = r["per_site"]
+    return [
+        {
+            "run_id": run_id,
+            "report_id": run_id,
+            "gate": "s2_cloud_recent",
+            "result": "pass" if r["verdict"]["holds"] else "fail",
+            "metrics": metrics,
+            "superseded": False,
+            "note": "Sentinel-2 cloud model on 2025 pilot passes (ADR 0014): a transfer check"
+            " against Sen2Cor and a blind look by eye, not a second held-out test.",
+            "created_at": created,
+        }
+    ]
+
+
 def validation_rows(reports_root: Path) -> list[dict]:
     """One row per method check (two for a repair dry run: placebo and power; two for the
     Sentinel-2 cloud model: one per pre-registered claim)."""
@@ -204,6 +240,9 @@ def validation_rows(reports_root: Path) -> list[dict]:
         created = manifest.get("created_at")
         if folder == "s2-cloud-model":
             rows.extend(_cloud_model_rows(md, run_id, created))
+            continue
+        if folder == "s2-cloud-recent":
+            rows.extend(_cloud_recent_rows(md, run_id, created))
             continue
         if folder == "repair-synthetic":
             superseded = "Call rule:" not in text

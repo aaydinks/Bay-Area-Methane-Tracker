@@ -1,0 +1,482 @@
+{
+  "adr": "0014",
+  "run_id": "s2-cloud-recent-20261107T010417Z",
+  "created_at": "2026-11-07T01:04:18.118655+00:00",
+  "git_sha": "422d14a2ed3060f39a44c68c8e60dbc773a961da",
+  "git_dirty": false,
+  "config_sha256": {
+    "data_terms.yaml": "dd5d64f076bd2c416a5b1254e5145b7e7907198a724d2ef27f9c06ed5ca5b146",
+    "impact.yaml": "04043a72046ae032c34f072d49d808d2b5c5b8961dcc20c1df23c843420def29",
+    "instruments.yaml": "1a5a3da021ca9cfb6dde1deeb19a6d59f7137965cb8d931a0c04fe473f152129",
+    "model.yaml": "1f24562854d55d922e9a2e1a570708c8cdb12987d61315cda05c56e0689ac768",
+    "project.yaml": "226c90ce9ffd924d95d72b5e7b3c84bcabbc9e9bc71e90942c6102a8a7a45629",
+    "quantify.yaml": "b0db0f49668b7bc6d1637ae5096524d1152b0c244190e66b8478ae1d98923217",
+    "sentinel2.yaml": "a56d97cb7468c5ca73336ad31e40494f540e12aaeb14c9e05212097955ed3307",
+    "synthetic.yaml": "69785b159e118ff9e7b6128d161851119b966ff20b9d4becf0bf6b72a156a926"
+  },
+  "versions": {
+    "pymc": "6.3.2",
+    "pytensor": "3.3.3",
+    "numpy": "2.5.3"
+  },
+  "model_sha256": "da8c9552b6d606095a71198961cfffa41cdbe738f49a2c3ab8a97bb6b5eed3f0",
+  "year": 2025,
+  "windows": {
+    "site_days": 501,
+    "acquisition_days": 157,
+    "scored": 493,
+    "read_errors": 2,
+    "partial": 6,
+    "no_scl": 20,
+    "scl_collections": {
+      "sentinel-2-c1-l2a": 499
+    },
+    "platforms": {
+      "sentinel-2c": 203,
+      "sentinel-2b": 202,
+      "sentinel-2a": 96
+    },
+    "baselines": {
+      "N0511": 501
+    }
+  },
+  "criteria": {
+    "1_scale": {
+      "water_b12_median": 0.014399999752640724,
+      "water_b12_p05_p95": [
+        0.002199999988079071,
+        0.08950000256299973
+      ],
+      "water_pixels": 1769618,
+      "limits": [
+        -0.02,
+        0.03
+      ],
+      "passed": true,
+      "land_band_means": {
+        "B01": 0.1464,
+        "B02": 0.1272,
+        "B03": 0.1203,
+        "B04": 0.1257,
+        "B05": 0.1514,
+        "B06": 0.2088,
+        "B07": 0.2374,
+        "B08": 0.2367,
+        "B8A": 0.2666,
+        "B09": 0.087,
+        "B10": 0.0015,
+        "B11": 0.2399,
+        "B12": 0.1508
+      },
+      "land_pixels": 14819096
+    },
+    "2_clear_kept": {
+      "value": 0.0,
+      "interval": [
+        0.0,
+        0.0
+      ],
+      "n_windows": 261,
+      "n_days": 102,
+      "limit": 0.158,
+      "passed": true
+    },
+    "3_cloudy_rejected": {
+      "value": 0.02857142857142857,
+      "interval": [
+        0.006172839506172839,
+        0.061359131665880126
+      ],
+      "n_windows": 140,
+      "n_days": 66,
+      "limit": 0.187,
+      "passed": true
+    },
+    "4_platform": {
+      "value": 0.015327439410843167,
+      "interval": [
+        -0.012062647239285204,
+        0.04196934730375866
+      ],
+      "mean_diff_s2c": -0.019119648383676063,
+      "mean_diff_s2ab": -0.03444708779451923,
+      "n_s2c": 186,
+      "n_s2ab": 291,
+      "limit": 0.05,
+      "passed": true
+    },
+    "5_false_clouds": {
+      "sites": {
+        "acme-fill": {
+          "n_clear_days": 45,
+          "area_share_flagged": 0.0657976315952632,
+          "site_share_flagged": 0.022426095820591234,
+          "median_flag_share": 0.0,
+          "passed": false
+        },
+        "newby-island": {
+          "n_clear_days": 47,
+          "area_share_flagged": 0.2324229648459297,
+          "site_share_flagged": 0.046404895461499236,
+          "median_flag_share": 0.02127659574468085,
+          "passed": false
+        },
+        "potrero-hills": {
+          "n_clear_days": 44,
+          "area_share_flagged": 0.010106020212040424,
+          "site_share_flagged": 0.037169042769857434,
+          "median_flag_share": 0.0,
+          "passed": false
+        },
+        "shoreline": {
+          "n_clear_days": 44,
+          "area_share_flagged": 0.1454522909045818,
+          "site_share_flagged": 0.017320427916454408,
+          "median_flag_share": 0.022727272727272728,
+          "passed": false
+        },
+        "sonoma-central": {
+          "n_clear_days": 81,
+          "area_share_flagged": 0.008540517081034161,
+          "site_share_flagged": 0.10285132382892057,
+          "median_flag_share": 0.0,
+          "passed": false
+        }
+      },
+      "passed": false
+    },
+    "6_eye": {
+      "status": "scored",
+      "disagreements": 16,
+      "model_matches_eye": 12,
+      "sen2cor_matches_eye": 4,
+      "agreements": 8,
+      "agreements_against_eye": 0,
+      "passed": true,
+      "thumbnails": [
+        {
+          "thumb": 1,
+          "overpass_id": "newby-island:sentinel2:2025-03-29",
+          "group": "model_only",
+          "clear_model": 0.9519499039,
+          "clear_scl": 0.0076105152,
+          "note": "clear; light haze; ground fully visible",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 2,
+          "overpass_id": "potrero-hills:sentinel2:2025-08-21",
+          "group": "model_only",
+          "clear_model": 0.8904922810000001,
+          "clear_scl": 0.6667183334,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 3,
+          "overpass_id": "newby-island:sentinel2:2025-12-04",
+          "group": "model_only",
+          "clear_model": 0.7971665943,
+          "clear_scl": 0.5654566309,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 4,
+          "overpass_id": "sonoma-central:sentinel2:2025-06-20",
+          "group": "model_only",
+          "clear_model": 0.9962179924000001,
+          "clear_scl": 0.0003255007,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 5,
+          "overpass_id": "sonoma-central:sentinel2:2025-12-24",
+          "group": "scl_only",
+          "clear_model": 0.5927211854000001,
+          "clear_scl": 0.7908735817,
+          "note": "borderline: scattered cumulus and shadows; about 75% clear",
+          "eye_usable": true,
+          "model_right": false,
+          "scl_right": true
+        },
+        {
+          "thumb": 6,
+          "overpass_id": "sonoma-central:sentinel2:2025-03-09",
+          "group": "model_only",
+          "clear_model": 0.8603602207000001,
+          "clear_scl": 0.3360561721,
+          "note": "small cumulus and shadows; about 85% clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 7,
+          "overpass_id": "newby-island:sentinel2:2025-11-04",
+          "group": "scl_only",
+          "clear_model": 0.5659216318,
+          "clear_scl": 0.7357554715,
+          "note": "clear; light haze at left edge",
+          "eye_usable": true,
+          "model_right": false,
+          "scl_right": true
+        },
+        {
+          "thumb": 8,
+          "overpass_id": "shoreline:sentinel2:2025-05-18",
+          "group": "both_usable",
+          "clear_model": 0.9513764028,
+          "clear_scl": 0.9999844999999999,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 9,
+          "overpass_id": "newby-island:sentinel2:2025-09-30",
+          "group": "scl_only",
+          "clear_model": 0.6754758510000001,
+          "clear_scl": 0.8301351603,
+          "note": "cloud at top left and edges; about 80% clear",
+          "eye_usable": true,
+          "model_right": false,
+          "scl_right": true
+        },
+        {
+          "thumb": 10,
+          "overpass_id": "sonoma-central:sentinel2:2025-10-03",
+          "group": "scl_only",
+          "clear_model": 0.5646661293,
+          "clear_scl": 0.9143468287000001,
+          "note": "thin and thick cloud over most of the box",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 11,
+          "overpass_id": "newby-island:sentinel2:2025-01-03",
+          "group": "both_unusable",
+          "clear_model": 0.0032240064000000003,
+          "clear_scl": 0.0005580011000000001,
+          "note": "fully white",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 12,
+          "overpass_id": "sonoma-central:sentinel2:2025-04-23",
+          "group": "scl_only",
+          "clear_model": 0.6688573377,
+          "clear_scl": 0.8373426747,
+          "note": "borderline: many small clouds and shadows in the lower half; about 65% clear",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 13,
+          "overpass_id": "shoreline:sentinel2:2025-01-28",
+          "group": "both_usable",
+          "clear_model": 0.9472533945,
+          "clear_scl": 1.0,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 14,
+          "overpass_id": "sonoma-central:sentinel2:2025-05-13",
+          "group": "scl_only",
+          "clear_model": 0.6768708537,
+          "clear_scl": 0.7269514539,
+          "note": "borderline: cloud and shadows on the right; about 72% clear",
+          "eye_usable": true,
+          "model_right": false,
+          "scl_right": true
+        },
+        {
+          "thumb": 15,
+          "overpass_id": "sonoma-central:sentinel2:2025-02-20",
+          "group": "both_usable",
+          "clear_model": 0.9831979664,
+          "clear_scl": 1.0,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 16,
+          "overpass_id": "sonoma-central:sentinel2:2025-07-27",
+          "group": "scl_only",
+          "clear_model": 0.472487445,
+          "clear_scl": 0.7970115940000001,
+          "note": "cloud over the lower two thirds",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 17,
+          "overpass_id": "newby-island:sentinel2:2025-11-14",
+          "group": "both_unusable",
+          "clear_model": 0.0676266353,
+          "clear_scl": 0.0732841466,
+          "note": "cloud over most of the box",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 18,
+          "overpass_id": "potrero-hills:sentinel2:2025-10-30",
+          "group": "model_only",
+          "clear_model": 0.9910874822,
+          "clear_scl": 0.31999814,
+          "note": "clear; low winter sun",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 19,
+          "overpass_id": "potrero-hills:sentinel2:2025-09-10",
+          "group": "scl_only",
+          "clear_model": 0.6051987104000001,
+          "clear_scl": 0.7327639655,
+          "note": "borderline: several clouds and shadows; about 65% clear",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 20,
+          "overpass_id": "acme-fill:sentinel2:2025-12-29",
+          "group": "both_usable",
+          "clear_model": 0.953484407,
+          "clear_scl": 0.9998759998000001,
+          "note": "clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 21,
+          "overpass_id": "potrero-hills:sentinel2:2025-02-17",
+          "group": "both_unusable",
+          "clear_model": 0.0385330771,
+          "clear_scl": 0.0,
+          "note": "fog or haze over the whole box",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 22,
+          "overpass_id": "potrero-hills:sentinel2:2025-12-04",
+          "group": "both_unusable",
+          "clear_model": 0.0003100006,
+          "clear_scl": 0.1169322339,
+          "note": "almost all cloud",
+          "eye_usable": false,
+          "model_right": true,
+          "scl_right": true
+        },
+        {
+          "thumb": 23,
+          "overpass_id": "potrero-hills:sentinel2:2025-09-05",
+          "group": "model_only",
+          "clear_model": 0.849479199,
+          "clear_scl": 0.6855508711,
+          "note": "thin smoke or haze at bottom left; about 90% clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        },
+        {
+          "thumb": 24,
+          "overpass_id": "shoreline:sentinel2:2025-03-31",
+          "group": "model_only",
+          "clear_model": 0.7039804080000001,
+          "clear_scl": 0.6443207886,
+          "note": "cloud on the right edge; about 85% clear",
+          "eye_usable": true,
+          "model_right": true,
+          "scl_right": false
+        }
+      ]
+    }
+  },
+  "reference": {
+    "R1": 0.058,
+    "R2": 0.087,
+    "source": "s2-cloud-model held-out windows"
+  },
+  "per_site": {
+    "acme-fill": {
+      "site_days": 84,
+      "usable_tile_rule": 57,
+      "usable_sen2cor": 52,
+      "usable_model": 55,
+      "mean_clear_model": 0.6542863859537242,
+      "mean_clear_sen2cor": 0.7019280724418269
+    },
+    "newby-island": {
+      "site_days": 84,
+      "usable_tile_rule": 46,
+      "usable_sen2cor": 52,
+      "usable_model": 53,
+      "mean_clear_model": 0.5826004032960448,
+      "mean_clear_sen2cor": 0.6501207526224576
+    },
+    "potrero-hills": {
+      "site_days": 84,
+      "usable_tile_rule": 57,
+      "usable_sen2cor": 50,
+      "usable_model": 54,
+      "mean_clear_model": 0.6604417435025346,
+      "mean_clear_sen2cor": 0.6857398522489354
+    },
+    "shoreline": {
+      "site_days": 84,
+      "usable_tile_rule": 46,
+      "usable_sen2cor": 56,
+      "usable_model": 56,
+      "mean_clear_model": 0.643771829210325,
+      "mean_clear_sen2cor": 0.7044699506065678
+    },
+    "sonoma-central": {
+      "site_days": 157,
+      "usable_tile_rule": 103,
+      "usable_sen2cor": 94,
+      "usable_model": 94,
+      "mean_clear_model": 0.6254387890941387,
+      "mean_clear_sen2cor": 0.6444836929408958
+    }
+  },
+  "verdict": {
+    "holds": false,
+    "model_sites": [],
+    "sen2cor_sites": [
+      "acme-fill",
+      "newby-island",
+      "potrero-hills",
+      "shoreline",
+      "sonoma-central"
+    ]
+  }
+}
