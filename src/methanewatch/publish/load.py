@@ -13,6 +13,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import psycopg
 from psycopg.types.json import Jsonb
@@ -38,6 +39,20 @@ def dsn_from_env() -> str:
     return dsn
 
 
+def _plain(value: Any) -> Any:
+    """Turn the numpy arrays and scalars that parquet hands back inside nested columns
+    into plain lists and numbers, so they can be written as JSON."""
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, list | tuple | np.ndarray):
+        return [_plain(v) for v in value]
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value
+
+
 def _clean(value: Any) -> Any:
     if value is None:
         return None
@@ -45,8 +60,8 @@ def _clean(value: Any) -> Any:
         return None
     if isinstance(value, pd.Timestamp):
         return None if pd.isna(value) else value.to_pydatetime()
-    if isinstance(value, dict | list):
-        return Jsonb(value)
+    if isinstance(value, dict | list | np.ndarray):
+        return Jsonb(_plain(value))
     try:
         if pd.isna(value):
             return None
