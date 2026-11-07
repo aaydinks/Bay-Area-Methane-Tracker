@@ -44,7 +44,16 @@ const PUBS = [
 const RUNS = [
   { run_id: 'fixture-refresh-1', kind: 'refresh', created_at: '2026-10-01T17:00:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {}, manifest: { note: 'sample' } },
   { run_id: 'fixture-refresh-2', kind: 'refresh', created_at: '2026-10-20T17:00:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {}, manifest: { note: 'sample' } },
-  { run_id: 'fixture-model-1', kind: 'model', created_at: '2026-10-01T17:30:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {}, manifest: { note: 'sample' } },
+  {
+    run_id: 'fixture-model-1', kind: 'model', created_at: '2026-10-01T17:30:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {},
+    // Shaped like a real fit's manifest (decision record 0016): Sentinel-2 left out, its plume search not run.
+    manifest: {
+      note: 'sample',
+      instruments: ['aircraft', 'emit', 'tanager1'],
+      instruments_left_out: { sentinel2: { reason: 'plume search not run', plume_sources: ['s2-local'], n_passes: 40, n_detections: 0 } },
+      included_unsearched: [],
+    },
+  },
   { run_id: 'fixture-repairs-1', kind: 'repair', created_at: '2026-10-01T17:45:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {}, manifest: { note: 'sample' } },
 ];
 

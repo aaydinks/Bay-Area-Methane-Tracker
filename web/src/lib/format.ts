@@ -37,3 +37,7 @@ export function month(iso: string | null | undefined): string {
 export function shortSha(sha: string | null | undefined): string {
   return sha ? sha.slice(0, 7) : MISSING;
 }
+
+export function listText(items: string[]): string {
+  return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(items);
+}

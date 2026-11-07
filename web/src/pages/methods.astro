@@ -26,7 +26,7 @@ function metricText(m: unknown): string {
     <ol>
       <li><strong>Passes.</strong> Every time a satellite or aircraft looked at a landfill is a pass, whether or not it saw a plume. Passes with too little coverage or too many clouds are set aside.</li>
       <li><strong>Detections.</strong> Plumes inside the site outline or within 500 m are attributed to the site. Plumes near another methane source are marked ambiguous and never assigned.</li>
-      <li><strong>The model.</strong> For each site, a statistical model estimates how often it was emitting and how much, allowing for each instrument's chance of missing a plume of a given size. Every estimate comes with a 90% range.</li>
+      <li><strong>The model.</strong> For each site, a statistical model estimates how often it was emitting and how much, allowing for each instrument's chance of missing a plume of a given size. Every estimate comes with a 90% range. An instrument's passes enter the model only once a plume search has run on them, because a pass nobody searched is not a pass that saw nothing; each site page names any instrument left out.</li>
       <li><strong>Checks.</strong> For each dated inspection, notice or repair, the estimate after the date is compared with what control sites suggest would have happened anyway. A drop or rise is only called when the probability is at least 97.5%; otherwise the result is inconclusive. The smallest drop the test could have caught is reported with it.</li>
       <li><strong>Operator comparison.</strong> The satellite estimate is set beside the annual methane the operator reported to the EPA.</li>
     </ol>

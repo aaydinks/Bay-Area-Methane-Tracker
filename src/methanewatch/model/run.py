@@ -2,7 +2,8 @@
 
 A run writes, under ``data/processed``:
 - ``site_estimates/<run_id>.parquet``: one row per site (schemas.site_estimates)
-- ``runs/<run_id>.json``: run manifest (code, config, diagnostics, kind)
+- ``runs/<run_id>.json``: run manifest (code, config, diagnostics, kind, and for a real
+  fit the instruments left out because their plume search has not run)
 - ``runs/<run_id>-detections.parquet``: the detections the fit used
 - ``runs/<run_id>.zarr``: posterior draws
 
@@ -13,6 +14,7 @@ labelled demo used to preview the dashboard before real data exists.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -25,7 +27,7 @@ from methanewatch.config import (
     ProjectConfig,
     load_synthetic,
 )
-from methanewatch.model import persistence, simulate
+from methanewatch.model import persistence, searched, simulate
 from methanewatch.model.grid import LogRateGrid
 from methanewatch.model.summarize import summarize
 from methanewatch.provenance import new_id, run_manifest
@@ -74,15 +76,36 @@ def fit_real(
     instruments: InstrumentsConfig,
     *,
     allow_unconfirmed: bool = False,
+    include_unsearched: Iterable[str] = (),
 ) -> str:
-    """Fit ``interim/detections.parquet`` with the real instrument settings."""
-    path = project.resolve(project.paths.interim) / "detections.parquet"
+    """Fit ``interim/detections.parquet`` with the real instrument settings.
+
+    Instruments whose plume search has not run are left out (see ``model.searched``), unless
+    named in ``include_unsearched``. The manifest names what was left out and why.
+    """
+    interim = project.resolve(project.paths.interim)
+    path = interim / "detections.parquet"
     if not path.exists():
         raise FileNotFoundError(f"missing {path}; run `mw coverage build` first")
     det = pd.read_parquet(path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
-    used = sorted(det["instrument"].unique())
+    tables = searched.plume_tables(interim)
+    try:
+        sel = searched.select(det, instruments, tables, include_unsearched=include_unsearched)
+    except ValueError as exc:
+        raise ConfigNotReadyError(str(exc)) from exc
+    if not sel.used:
+        raise ConfigNotReadyError(
+            "no instrument's passes have been searched for plumes: "
+            + ", ".join(sorted(sel.left_out))
+        )
+    for name, why in sel.left_out.items():
+        print(f"left out {name}: {why['reason']} ({why['n_passes']} usable passes)")
+    for name in sel.included_unsearched:
+        print(f"included {name} although its plume search has not run (--include-unsearched)")
+    det = sel.detections
+    used = sel.used
     inst = {k: instruments.instruments[k] for k in used}
     unset = [k for k, v in inst.items() if not v.pod.is_set or v.meas_sigma_log.value is None]
     if unset:
@@ -123,6 +146,7 @@ def fit_real(
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
             "covariates": cov.manifest() if cov is not None else None,
+            **sel.manifest(),
         },
     )
     return run_id
