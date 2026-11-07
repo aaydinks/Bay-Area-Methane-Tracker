@@ -290,6 +290,23 @@ def s2_search(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@s2_app.command("site-clear")
+def s2_site_clear(
+    workers: Annotated[int, typer.Option(help="Parallel reads")] = 8,
+) -> None:
+    """Sen2Cor's clear share over each site on each Sentinel-2 pass (ADR 0014).
+
+    Reads Sen2Cor's scene classification for passes not yet cached and writes
+    data/interim/s2_site_clear.parquet; `mw coverage build` then uses it. `mw refresh` runs
+    this step itself.
+    """
+    from methanewatch.sentinel2 import siteclear
+
+    project = config.load_project()
+    counts = _run_or_exit(siteclear.pull, project, workers=workers)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+
+
 @model_app.command("fit")
 def model_fit(
     allow_unconfirmed: Annotated[

@@ -11,6 +11,9 @@ give the same tables whenever it runs on the same downloads:
   pulls of a source, so a failed or partial pull never removes earlier data.
 - A source that is down is recorded and skipped. The tables are then rebuilt
   from that source's earlier pulls, and the run exits non-zero.
+- Sentinel-2 passes take Sen2Cor's clear share over each site (ADR 0014). Its
+  scene classification is read for new passes only, before the coverage step;
+  a pass it could not read keeps the tile figure, and the run exits non-zero.
 - Each refresh writes a manifest (code version, config hashes, every step's
   result and row counts) to ``interim/refresh/``.
 
@@ -55,6 +58,12 @@ def _sites(project: ProjectConfig) -> dict[str, Any]:
         "missing_polygons": registry.missing_polygons(registry_dir),
         "provisional_outlines": sorted(sites.loc[sources.str.contains("provisional"), "site_id"]),
     }
+
+
+def _s2_site_clear(project: ProjectConfig) -> dict[str, Any]:
+    from methanewatch.sentinel2 import siteclear  # reads rasters; keep it out of the import
+
+    return siteclear.refresh_step(project)
 
 
 def _features(project: ProjectConfig) -> dict[str, Any]:
@@ -128,10 +137,12 @@ def run(
             step("carbonmapper_rebuild", pipeline.write_carbonmapper, project)
 
     interim = project.resolve(project.paths.interim)
+    built = step("sites", _sites, project)
+    if built and "sentinel2" not in skip:
+        # A failure here leaves the earlier table in place; coverage still builds from it
+        step("s2_site_clear", _s2_site_clear, project)
     built = (
-        step("sites", _sites, project)
-        and step("coverage", coverage.build, project)
-        and step("features", _features, project)
+        built and step("coverage", coverage.build, project) and step("features", _features, project)
     )
     if built and csv:
         step("csv", export_csv, interim)

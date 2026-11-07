@@ -51,7 +51,7 @@ docs/               plan, decision records, technical note, briefing
 | Site registry | `mw sites build` | — |
 | Ingest | `mw ingest carbonmapper / emit / ghgrp` | — |
 | Overpasses | `mw coverage build` | `mw validate gate1` |
-| Sentinel-2 | `mw s2 search …` | `mw validate gate2` |
+| Sentinel-2 | `mw s2 search …`, `mw s2 site-clear` | `mw validate gate2` |
 | Persistence model | `mw model fit` | `mw validate synthetic` (85–95% coverage), `mw validate holdout` |
 | Dashboard preview | `mw model demo`, then `mw report build --run-id demo-…` | — (SYNTHETIC, labelled) |
 | Repair verification | `mw repair count …` | `mw validate placebo` (false-positive rate ≤ 10%) |
@@ -64,7 +64,9 @@ Unbuilt steps exit with code 2 and say which week of the plan they belong to.
 `mw scheduled-run` chains one refresh, the EMIT, Sentinel-2 and Carbon Mapper folders in `datasets/`, a
 snapshot of that refresh, its load into the website's database (`SUPABASE_DB_URL` in `.env`) and the switch to
 review visibility, then calls `CF_DEPLOY_HOOK_REVIEW` if it is set. It never makes anything public. Nothing
-after a failed step runs; a refresh with a failed source stops the run before anything is published. It exits 0
+after a failed step runs; a refresh with a failed source stops the run before anything is published. That
+includes Sen2Cor's scene classification for new Sentinel-2 passes (ADR 0014): a pass it could not read keeps the
+tile cloud figure, and the run stops. It exits 0
 when every step ran and 2 when it stopped, and writes the step, the reason and each step's timing to
 `data/processed/scheduled/<run_id>.json`. `--no-push` builds the snapshot only. Changes to `datasets/` are left
 for review and commit.

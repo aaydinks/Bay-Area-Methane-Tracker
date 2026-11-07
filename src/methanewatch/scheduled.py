@@ -183,6 +183,8 @@ def run(
             "data_through": m["window"]["end"],
             "passes": coverage.get("overpasses"),
             "usable_passes": coverage.get("usable"),
+            "s2_site_share": coverage.get("s2_site_share"),
+            "s2_tile_fallback": coverage.get("s2_tile_fallback"),
         }
 
     def publish_build() -> dict[str, Any]:

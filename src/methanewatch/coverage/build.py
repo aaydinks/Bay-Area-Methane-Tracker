@@ -5,6 +5,11 @@ Ingest steps write scene footprints to ``data/interim/footprints/<source>.parque
 and normalized plumes to ``data/interim/plumes/<source>.parquet``. This step
 writes ``overpasses.parquet``, ``detections.parquet`` and
 ``unmatched_plumes.parquet`` to ``data/interim``.
+
+Sentinel-2 passes take Sen2Cor's clear share over each site from
+``data/interim/s2_site_clear.parquet`` (``mw s2 site-clear``, ADR 0014) before
+detections are joined, so both tables count the same passes. This step reads
+that table only; it never goes to the network.
 """
 
 from __future__ import annotations
@@ -14,12 +19,14 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from methanewatch import schemas
 from methanewatch.attribution import attribute_plumes
 from methanewatch.config import ProjectConfig
-from methanewatch.coverage.overpasses import build_detections, from_footprints
+from methanewatch.coverage.overpasses import apply_site_clear, build_detections, from_footprints
 
 # Footprint file stem -> coverage_source label
 SOURCES = {"emit": "cmr-granule", "sentinel2": "s2-scene", "carbonmapper": "stac-footprint"}
+SITE_CLEAR = "s2_site_clear.parquet"  # sentinel2/siteclear.TABLE, without its imports
 
 
 def build(project: ProjectConfig) -> dict[str, int]:
@@ -45,6 +52,9 @@ def build(project: ProjectConfig) -> dict[str, int]:
     if not frames:
         raise FileNotFoundError(f"no footprint files in {interim / 'footprints'}")
     overpasses = pd.concat(frames, ignore_index=True)
+    site_clear_path = interim / SITE_CLEAR
+    site_clear = pd.read_parquet(site_clear_path) if site_clear_path.exists() else None
+    overpasses = apply_site_clear(overpasses, site_clear, project.coverage)
 
     plume_files = sorted((interim / "plumes").glob("*.parquet"))
     plumes = (
@@ -81,9 +91,13 @@ def build(project: ProjectConfig) -> dict[str, int]:
     plumes.to_parquet(interim / "plumes_attributed.parquet")
     detections.to_parquet(interim / "detections.parquet")
     unmatched.to_parquet(interim / "unmatched_plumes.parquet")
+    s2 = overpasses["instrument"] == "sentinel2"
+    source = overpasses["valid_frac_source"]
     return {
         "overpasses": len(overpasses),
         "usable": int(overpasses["usable"].sum()),
+        "s2_site_share": int((source == schemas.VALID_FRAC_SITE).sum()),
+        "s2_tile_fallback": int((s2 & (source == schemas.VALID_FRAC_TILE)).sum()),
         "detections": int(detections["detected"].sum()),
         "unmatched_plumes": len(unmatched),
     }

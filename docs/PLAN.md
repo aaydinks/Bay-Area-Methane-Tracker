@@ -176,7 +176,9 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 | acquired_utc | timestamp | first acquisition that day |
 | scene_ids | list[str] | |
 | coverage_frac | float | fraction of site polygon inside the footprint |
-| valid_frac | float | fraction cloud-free / unmasked |
+| valid_frac | float | fraction cloud-free / unmasked. Sentinel-2: Sen2Cor's clear share over the central 5.08 km around the site (ADR 0014), else the tile figure |
+| valid_frac_tile | float | Sentinel-2 only: the tile-level figure (`1 − eo:cloud_cover/100`), kept for comparison |
+| valid_frac_source | enum | `site-sen2cor`, `tile` (Sentinel-2 pass with no Sen2Cor share), `scene` (other instruments) |
 | usable | bool | `coverage_frac ≥ 0.8 and valid_frac ≥ 0.7` (config) |
 | coverage_source | enum | `stac-footprint`, `cmr-granule`, `s2-scene`, `inferred` |
 
@@ -258,7 +260,7 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
   1. Ask Carbon Mapper for acquisition lists. This is outreach step 5 in the project plan.
   2. Use Tanager/aircraft detections for the rate distribution only (μ, σ). Estimate f from instruments with known coverage (EMIT, Sentinel-2).
   3. As a last resort, infer coverage from plumes at *other* sites on the same scene/day (`coverage_source=inferred`). Flag the result and run a sensitivity check.
-- Sentinel-2: every scene from search is an overpass. `valid_frac` comes from the cloud mask.
+- Sentinel-2: every scene from search is an overpass. `valid_frac` is Sen2Cor's clear share over the site (`mw s2 site-clear`, run by `mw refresh`; ADR 0014). The cloud model is not used: it failed its check on recent passes.
 
 **2d. Attribution (`attribution.py`)**
 - `inside`: origin within polygon. `buffer`: within polygon + 500 m and no other registry/neighbor polygon is closer. `ambiguous`: within the buffer of two candidates, or a known neighbor is closer. `nearby`: within 5 km but outside the buffer.

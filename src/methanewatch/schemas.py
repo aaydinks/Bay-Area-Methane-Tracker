@@ -15,6 +15,12 @@ PLUME_SOURCES = ["carbonmapper", "emit-v2", "s2-local"]
 ATTRIBUTION = ["inside", "buffer", "ambiguous", "nearby", "none"]
 COVERAGE_SOURCES = ["stac-footprint", "cmr-granule", "s2-scene", "inferred"]
 ESTIMATE_STATUS = ["estimate", "insufficient_data", "provisional"]
+# Where an overpass's valid_frac comes from (ADR 0014). Sentinel-2 uses Sen2Cor's clear share
+# over the site, or the tile figure when there is none; other instruments keep the scene figure.
+VALID_FRAC_SITE = "site-sen2cor"
+VALID_FRAC_TILE = "tile"
+VALID_FRAC_SCENE = "scene"
+VALID_FRAC_SOURCES = [VALID_FRAC_SITE, VALID_FRAC_TILE, VALID_FRAC_SCENE]
 
 _nonneg = pa.Check.ge(0)
 _frac = pa.Check.in_range(0, 1)
@@ -28,6 +34,9 @@ overpasses = pa.DataFrameSchema(
         "acquired_utc": pa.Column(UTC_TS),
         "coverage_frac": pa.Column(float, _frac),
         "valid_frac": pa.Column(float, _frac),
+        # Added by the coverage step after the footprints are intersected (ADR 0014)
+        "valid_frac_tile": pa.Column(float, _frac, nullable=True, required=False),
+        "valid_frac_source": pa.Column(str, pa.Check.isin(VALID_FRAC_SOURCES), required=False),
         "usable": pa.Column(bool),
         "coverage_source": pa.Column(str, pa.Check.isin(COVERAGE_SOURCES)),
     },
