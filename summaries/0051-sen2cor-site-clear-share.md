@@ -35,6 +35,8 @@ enough.
 - **Every refresh** runs the step before the overpass table is built, and the twice-weekly
   scheduled run does too. If Sen2Cor's data can't be read for a pass, that pass keeps the tile
   figure, and the run stops before anything is published.
+- **The cloud model page** says the switch is made. For the update it shows, it says whether
+  that update was built with the new rule, and for how many Sentinel-2 passes.
 
 ## What we learned
 
@@ -68,8 +70,10 @@ enough.
 
 ## Still to do
 
-- **Rebuild the draft snapshot.** `pub-20261107T011826Z` was built before this change, so its
-  Sentinel-2 passes still use the tile figure. Rebuild it before it is loaded for reviewers.
+- **Rebuild the review snapshot.** `pub-20261107T011826Z`, now loaded for reviewers, was built
+  a few hours before this change, so its Sentinel-2 passes still use the tile figure. The cloud
+  model page reads each update's refresh record and says so for any update built before the
+  change. A rebuild after this merges brings the reviewers' copy onto the new rule.
 - **Publish the tile figure too, if wanted.** The website database holds one `valid_frac` per
   pass, now the per-site share. Showing the tile figure beside it needs a new database
   migration, which only the owner can apply.
