@@ -52,6 +52,8 @@ const RUNS = [
       instruments: ['aircraft', 'emit', 'tanager1'],
       instruments_left_out: { sentinel2: { reason: 'plume search not run', plume_sources: ['s2-local'], n_passes: 40, n_detections: 0 } },
       included_unsearched: [],
+      sites_left_out: [],
+      plume_tables: { carbonmapper: 614 },
     },
   },
   { run_id: 'fixture-repairs-1', kind: 'repair', created_at: '2026-10-01T17:45:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {}, manifest: { note: 'sample' } },
