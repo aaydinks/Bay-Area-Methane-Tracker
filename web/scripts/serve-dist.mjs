@@ -17,6 +17,7 @@ const TYPES = {
   '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.geojson': 'application/geo+json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
   '.xml': 'application/xml', '.csv': 'text/csv; charset=utf-8', '.woff2': 'font/woff2',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif',
 };
 
 function resolveFile(urlPath) {

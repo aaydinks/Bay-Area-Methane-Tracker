@@ -43,3 +43,34 @@ test('the site stays light when the system asks for dark', async ({ page }) => {
   const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(background).toBe('rgb(255, 255, 255)');
 });
+
+test('a carousel shows two slides, moves on its own, and answers its arrows and pause button', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  const carousel = page.getByRole('region', { name: 'How it works, step by step' });
+  await carousel.scrollIntoViewIfNeeded();
+  const active = () => carousel.locator('.carousel-dots button[aria-current="true"]').getAttribute('aria-label');
+  const inView = () =>
+    carousel.evaluate((root) => {
+      const box = root.querySelector('.carousel-viewport')!.getBoundingClientRect();
+      return [...root.querySelectorAll('.carousel-slide')].filter((s) => {
+        const r = s.getBoundingClientRect();
+        return r.left >= box.left - 1 && r.right <= box.right + 1;
+      }).length;
+    });
+
+  await expect.poll(inView).toBe(2);
+  const first = await active();
+  await expect.poll(active, { timeout: 8000 }).not.toBe(first);
+
+  const before = await active();
+  await carousel.getByRole('button', { name: 'Next slide' }).click();
+  await expect.poll(active).not.toBe(before);
+
+  await carousel.getByRole('button', { name: /^Pause/ }).click();
+  await page.mouse.move(0, 0);
+  await page.locator('h1').click();
+  const paused = await active();
+  await page.waitForTimeout(6500);
+  expect(await active()).toBe(paused);
+});
