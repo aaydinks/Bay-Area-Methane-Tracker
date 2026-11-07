@@ -30,6 +30,27 @@ const latest = (gate: string): (ValidationResult & { m: ClaimMetrics }) | undefi
 const usable = latest('s2_cloud_usable');
 const detections = latest('s2_cloud_detections');
 
+// The check on 2025 landfill passes (ADR 0014): one row, written after the blind look by eye.
+interface Crit { value?: number | null; interval?: [number | null, number | null]; limit?: number; passed: boolean; n_windows?: number }
+interface RecentMetrics {
+  windows: { site_days: number; acquisition_days: number; scored: number };
+  criteria: {
+    '1_scale': { water_b12_median: number; limits: [number, number]; passed: boolean };
+    '2_clear_kept': Crit; '3_cloudy_rejected': Crit; '4_platform': Crit;
+    '5_false_clouds': { passed: boolean; sites: Record<string, { n_clear_days: number; area_share_flagged: number; site_share_flagged: number; passed: boolean }> };
+    '6_eye': { passed: boolean; disagreements: number; model_matches_eye: number; sen2cor_matches_eye: number; agreements: number; agreements_against_eye: number };
+  };
+}
+const recentRow = snapshot.validation_results
+  .filter((r) => r.gate === 's2_cloud_recent' && !r.superseded)
+  .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))[0];
+const recent = recentRow ? { ...recentRow, m: recentRow.metrics as unknown as RecentMetrics } : undefined;
+const recentFailed = recent?.result === 'fail';
+const SITE_NAMES: Record<string, string> = {
+  'acme-fill': 'Acme Fill', 'newby-island': 'Newby Island', 'potrero-hills': 'Potrero Hills', shoreline: 'Shoreline', 'sonoma-central': 'Sonoma Central',
+};
+const yesNo = (b: boolean | undefined) => (b === undefined ? '–' : b ? 'Yes' : 'No');
+
 const NAMES: Record<string, string> = {
   tile_rule: 'Whole-tile cloud figure (used now)',
   threshold: 'Brightness rule (used now in the retrieval)',
@@ -194,16 +215,62 @@ const ref1 = usable?.m.reference?.rates;
     )}
   </section>
 
+  <section aria-labelledby="recent">
+    <h2 id="recent">Checked on recent landfill passes</h2>
+    {recent ? (
+      <>
+        <p><span class="tag">{recent.result === 'pass' ? 'Passed' : 'Did not pass'}</span> Check run <span class="mono">{recent.run_id}</span>, {date(recent.created_at)}. Every Sentinel-2 pass over the five landfills in 2025: {recent.m.windows.site_days} site-days on {recent.m.windows.acquisition_days} days, {recent.m.windows.scored} of them scored over the 5 km around each site. The test images were all from 2017 to 2020, so this asks whether the model behaves the same on newer images, including the Sentinel-2C satellite. There are no expert labels for these passes, so Sen2Cor and a blind look by eye are the yardsticks. The six rules were written down before the run (decision record 0014).</p>
+        <TableWrap label="Recent-pass check">
+          <table>
+            <caption>The six rules of the recent-pass check. All six had to hold.</caption>
+            <thead><tr><th scope="col">Rule</th><th scope="col">Result</th><th scope="col">Limit</th><th scope="col">Held</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Brightness scale matches the training images (band 12 over water on clear days)</th><td>{num(recent.m.criteria['1_scale'].water_b12_median, 3)}</td><td>{recent.m.criteria['1_scale'].limits[0]} to {recent.m.criteria['1_scale'].limits[1]}</td><td>{yesNo(recent.m.criteria['1_scale'].passed)}</td></tr>
+              <tr><th scope="row">Clear views (Sen2Cor at least 99% clear) the model threw away</th><td>{pct(recent.m.criteria['2_clear_kept'].value)} of {recent.m.criteria['2_clear_kept'].n_windows} (90% range {pct(recent.m.criteria['2_clear_kept'].interval?.[0])} to {pct(recent.m.criteria['2_clear_kept'].interval?.[1])})</td><td>at most {pct(recent.m.criteria['2_clear_kept'].limit)}</td><td>{yesNo(recent.m.criteria['2_clear_kept'].passed)}</td></tr>
+              <tr><th scope="row">Cloudy views (Sen2Cor under 30% clear) the model kept</th><td>{pct(recent.m.criteria['3_cloudy_rejected'].value)} of {recent.m.criteria['3_cloudy_rejected'].n_windows} (90% range {pct(recent.m.criteria['3_cloudy_rejected'].interval?.[0])} to {pct(recent.m.criteria['3_cloudy_rejected'].interval?.[1])})</td><td>at most {pct(recent.m.criteria['3_cloudy_rejected'].limit)}</td><td>{yesNo(recent.m.criteria['3_cloudy_rejected'].passed)}</td></tr>
+              <tr><th scope="row">Sentinel-2C treated like 2A and 2B (difference in clear share against Sen2Cor)</th><td>{pts(recent.m.criteria['4_platform'].value)} points (90% range {pts(recent.m.criteria['4_platform'].interval?.[0])} to {pts(recent.m.criteria['4_platform'].interval?.[1])})</td><td>within ±{Math.round((recent.m.criteria['4_platform'].limit ?? 0) * 100)} points</td><td>{yesNo(recent.m.criteria['4_platform'].passed)}</td></tr>
+              <tr><th scope="row">No fixed false clouds: the same pixels called cloud or shadow on more than 20% of clear days</th><td>see below</td><td>at most 1% of the 5 km area and 5% of the site circle, at every site</td><td>{yesNo(recent.m.criteria['5_false_clouds'].passed)}</td></tr>
+              <tr><th scope="row">Blind look by eye at {recent.m.criteria['6_eye'].disagreements + recent.m.criteria['6_eye'].agreements} views</th><td>where the model and Sen2Cor disagreed, the eye sided with the model {recent.m.criteria['6_eye'].model_matches_eye} times and with Sen2Cor {recent.m.criteria['6_eye'].sen2cor_matches_eye} times; {recent.m.criteria['6_eye'].agreements_against_eye} of {recent.m.criteria['6_eye'].agreements} agreements went against the eye</td><td>model at least as often as Sen2Cor; at most 1 agreement against the eye</td><td>{yesNo(recent.m.criteria['6_eye'].passed)}</td></tr>
+            </tbody>
+          </table>
+        </TableWrap>
+        <TableWrap label="Fixed false clouds by site">
+          <table>
+            <caption>Share of pixels the model called cloud or shadow on more than 20% of the days Sen2Cor saw as clear. The site circle is the provisional 500 m circle around each landfill.</caption>
+            <thead><tr><th scope="col">Site</th><th scope="col">Clear days</th><th scope="col">Share of the 5 km area</th><th scope="col">Share of the site circle</th><th scope="col">Held</th></tr></thead>
+            <tbody>
+              {Object.entries(recent.m.criteria['5_false_clouds'].sites).map(([site, v]) => (
+                <tr><th scope="row">{SITE_NAMES[site] ?? site}</th><td>{v.n_clear_days}</td><td>{pct(v.area_share_flagged, 2)}</td><td>{pct(v.site_share_flagged, 2)}</td><td>{yesNo(v.passed)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+        {recentFailed && (
+          <ul>
+            <li><strong>What held.</strong> The newer images and Sentinel-2C caused no problem. The model sorted clear and cloudy views as well as on the test images, and where it and Sen2Cor disagreed, the eye mostly sided with the model.</li>
+            <li><strong>What failed.</strong> On clear days the model kept flagging the same places: bright rooftops and parts of the landfills as cloud, and dark ponds as shadow. This seldom changes whether a whole view counts, but the rule written in advance does not allow it, and at Sonoma Central it covers a tenth of the circle around the site.</li>
+          </ul>
+        )}
+      </>
+    ) : (
+      <EmptyState title="Not yet checked" expected="The check on recent landfill passes appears here once it has run." />
+    )}
+  </section>
+
   <section aria-labelledby="means">
     <h2 id="means">What this means for the site estimates</h2>
     {usable || detections ? (
       <ul>
-        <li><strong>Usable passes:</strong> {usable?.result === 'pass'
-          ? 'the model passed, so its judgement over each site may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count. That change has not been made yet; until it is, the site pages still use the whole-tile figure. Before it is made, the model needs a check on recent passes over the landfills, because every test image dates from 2017 to 2020.'
-          : 'the model did not pass, so it is not used to decide which passes count. A per-site cloud product is used instead of the whole-tile figure once that change is made.'}</li>
-        <li><strong>Detections:</strong> {detections?.result === 'pass'
-          ? 'the model passed, so it may mask clouds before Sentinel-2 detection. That change has not been made yet either.'
-          : 'the model did not pass, so it is not used to mask clouds before Sentinel-2 detection.'}</li>
+        <li><strong>Usable passes:</strong> {recentFailed
+          ? 'the model passed the held-out test but not the check on recent landfill passes, so it does not decide which Sentinel-2 passes count. Sen2Cor\'s judgement over each site replaces the whole-tile cloud figure instead, as written down before the check. That change has not been made yet; until it is, the site pages still use the whole-tile figure.'
+          : usable?.result === 'pass'
+            ? 'the model passed, so its judgement over each site may replace the whole-tile cloud figure when deciding which Sentinel-2 passes count. That change has not been made yet; until it is, the site pages still use the whole-tile figure. Before it is made, the model needs a check on recent passes over the landfills, because every test image dates from 2017 to 2020.'
+            : 'the model did not pass, so it is not used to decide which passes count. A per-site cloud product is used instead of the whole-tile figure once that change is made.'}</li>
+        <li><strong>Detections:</strong> {recentFailed
+          ? 'the model is not used to mask clouds before Sentinel-2 detection: on clear days it would mask parts of the landfills, which is where a plume starts.'
+          : detections?.result === 'pass'
+            ? 'the model passed, so it may mask clouds before Sentinel-2 detection. That change has not been made yet either.'
+            : 'the model did not pass, so it is not used to mask clouds before Sentinel-2 detection.'}</li>
         <li>Sentinel-2 sees only plumes of about 2 tonnes per hour or more, so it is a check on large events, and any Sentinel-2 detection needs an EMIT or Carbon Mapper plume to back it.</li>
       </ul>
     ) : (
@@ -224,7 +291,8 @@ const ref1 = usable?.m.reference?.rates;
     <h2 id="limits">Limits</h2>
     <ul>
       <li>The test images are from many places, not from Bay Area landfills. Only three test sites are in the Bay Area, too few to test on their own.</li>
-      <li>Every training and test image dates from 2017 to 2020 and comes from Sentinel-2A or 2B. The landfill passes since 2022 use newer processing and include Sentinel-2C, so the model needs checking on recent passes before it decides which ones count.</li>
+      <li>Every training and test image dates from 2017 to 2020 and comes from Sentinel-2A or 2B. The landfill passes since 2022 use newer processing and include Sentinel-2C. {recent ? 'The check on 2025 passes above found no problem from that, but found fixed false clouds over roofs, ponds and parts of the landfills.' : 'The model needs checking on recent passes before it decides which ones count.'}</li>
+      <li>The look by eye is one person’s reading of 24 small images; four were close to the 70% line, and reading all four the other way would not change that rule’s result.</li>
       <li>The simulated plumes are simple shapes. Real plumes are patchier, and no real Sentinel-2 plume at a Bay Area landfill has yet been confirmed.</li>
       <li>Thin cloud is counted as unusable, which is cautious; some passes under thin cloud might still be usable for large plumes.</li>
       <li>A narrower range for each site's estimate, or a smaller detectable drop in the before/after test, can only be shown in simulation until the first real model fit.</li>
@@ -237,7 +305,7 @@ const ref1 = usable?.m.reference?.rates;
       <li>CloudSEN12+ (Aybar et al. 2024, <i>Data in Brief</i>), public domain (CC0), including its Sen2Cor, s2cloudless and UNetMobV2-V2 masks.</li>
       <li>s2cloudless by Sentinel Hub, CC BY-SA 4.0, used only as a comparison.</li>
       <li>Contains modified Copernicus Sentinel data.</li>
-      <li>Decision records 0012 (what was feasible) and 0013 (the test, written before it ran) are in the project repository.</li>
+      <li>Decision records 0012 (what was feasible), 0013 (the test, written before it ran) and 0014 (the check on recent passes, also written before it ran) are in the project repository.</li>
     </ul>
   </section>
 </Base>

@@ -827,9 +827,161 @@ const CLOUD_MODEL_CHECKS = [
   }
 ];
 
+// The cloud model's check on 2025 landfill passes (ADR 0014), copied from what `mw publish`
+// reads in reports/validation/s2-cloud-recent/ (values rounded to 4 decimals).
+const CLOUD_RECENT_CHECKS = [
+  {
+    "run_id": "s2-cloud-recent-20261107T010417Z",
+    "report_id": "s2-cloud-recent-20261107T010417Z",
+    "gate": "s2_cloud_recent",
+    "result": "fail",
+    "metrics": {
+      "windows": {
+        "site_days": 501,
+        "acquisition_days": 157,
+        "scored": 493,
+        "read_errors": 2,
+        "partial": 6,
+        "no_scl": 20,
+        "scl_collections": {
+          "sentinel-2-c1-l2a": 499
+        },
+        "platforms": {
+          "sentinel-2c": 203,
+          "sentinel-2b": 202,
+          "sentinel-2a": 96
+        },
+        "baselines": {
+          "N0511": 501
+        }
+      },
+      "reference": {
+        "R1": 0.058,
+        "R2": 0.087,
+        "source": "s2-cloud-model held-out windows"
+      },
+      "criteria": {
+        "1_scale": {
+          "water_b12_median": 0.0144,
+          "water_b12_p05_p95": [
+            0.0022,
+            0.0895
+          ],
+          "water_pixels": 1769618,
+          "limits": [
+            -0.02,
+            0.03
+          ],
+          "passed": true,
+          "land_pixels": 14819096
+        },
+        "2_clear_kept": {
+          "value": 0.0,
+          "interval": [
+            0.0,
+            0.0
+          ],
+          "n_windows": 261,
+          "n_days": 102,
+          "limit": 0.158,
+          "passed": true
+        },
+        "3_cloudy_rejected": {
+          "value": 0.0286,
+          "interval": [
+            0.0062,
+            0.0614
+          ],
+          "n_windows": 140,
+          "n_days": 66,
+          "limit": 0.187,
+          "passed": true
+        },
+        "4_platform": {
+          "value": 0.0153,
+          "interval": [
+            -0.0121,
+            0.042
+          ],
+          "mean_diff_s2c": -0.0191,
+          "mean_diff_s2ab": -0.0344,
+          "n_s2c": 186,
+          "n_s2ab": 291,
+          "limit": 0.05,
+          "passed": true
+        },
+        "5_false_clouds": {
+          "sites": {
+            "acme-fill": {
+              "n_clear_days": 45,
+              "area_share_flagged": 0.0658,
+              "site_share_flagged": 0.0224,
+              "median_flag_share": 0.0,
+              "passed": false
+            },
+            "newby-island": {
+              "n_clear_days": 47,
+              "area_share_flagged": 0.2324,
+              "site_share_flagged": 0.0464,
+              "median_flag_share": 0.0213,
+              "passed": false
+            },
+            "potrero-hills": {
+              "n_clear_days": 44,
+              "area_share_flagged": 0.0101,
+              "site_share_flagged": 0.0372,
+              "median_flag_share": 0.0,
+              "passed": false
+            },
+            "shoreline": {
+              "n_clear_days": 44,
+              "area_share_flagged": 0.1455,
+              "site_share_flagged": 0.0173,
+              "median_flag_share": 0.0227,
+              "passed": false
+            },
+            "sonoma-central": {
+              "n_clear_days": 81,
+              "area_share_flagged": 0.0085,
+              "site_share_flagged": 0.1029,
+              "median_flag_share": 0.0,
+              "passed": false
+            }
+          },
+          "passed": false
+        },
+        "6_eye": {
+          "status": "scored",
+          "disagreements": 16,
+          "model_matches_eye": 12,
+          "sen2cor_matches_eye": 4,
+          "agreements": 8,
+          "agreements_against_eye": 0,
+          "passed": true
+        }
+      },
+      "verdict": {
+        "holds": false,
+        "model_sites": [],
+        "sen2cor_sites": [
+          "acme-fill",
+          "newby-island",
+          "potrero-hills",
+          "shoreline",
+          "sonoma-central"
+        ]
+      }
+    },
+    "superseded": false,
+    "note": "Sentinel-2 cloud model on 2025 pilot passes (ADR 0014): a transfer check against Sen2Cor and a blind look by eye, not a second held-out test.",
+    "created_at": "2026-11-07T01:04:18.118655+00:00"
+  }
+];
+
 // The method checks are the project's real ones; their numbers come from reports/validation.
 const validation_results = PUBS.flatMap((pub) => [
   ...CLOUD_MODEL_CHECKS.map((r) => ({ publish_id: pub.publish_id, ...r })),
+  ...CLOUD_RECENT_CHECKS.map((r) => ({ publish_id: pub.publish_id, ...r })),
   { publish_id: pub.publish_id, report_id: 'synthetic-20261003T223204Z', gate: 'gate3', run_id: 'synthetic-20261003T223204Z', result: 'pass', metrics: { coverage_f: 0.91, coverage_qbar: 0.9, coverage_e: 0.895, diag_fail_frac: 0.07, replicates: 200, sites: 10, target: [0.85, 0.95] }, superseded: false, note: 'Gate 3: 90% ranges contain the simulated truth 85 to 95% of the time.', created_at: '2026-10-03T22:32:04Z' },
   { publish_id: pub.publish_id, report_id: 'synthetic-20261024T013708Z', gate: 'gate3', run_id: 'synthetic-20261024T013708Z', result: 'pass', metrics: { coverage_f: 0.898, coverage_qbar: 0.888, coverage_e: 0.889, diag_fail_frac: 0.045, replicates: 200, sites: 10, target: [0.85, 0.95], covariates: ['closed', 'log_area'] }, superseded: false, note: 'Gate 3 with site covariates.', created_at: '2026-10-24T01:37:08Z' },
   { publish_id: pub.publish_id, report_id: 'holdout-synthetic-20261004T001513Z', gate: 'holdout', run_id: 'holdout-synthetic-20261004T001513Z', result: 'pass', metrics: { share_inside: 0.98, folds: 50, target: 0.8 }, superseded: false, note: 'Dry run on simulated data, not Gate 4.', created_at: '2026-10-04T00:15:13Z' },
