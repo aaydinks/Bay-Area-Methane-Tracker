@@ -11,6 +11,7 @@ Every report goes to ``reports/validation/<name>/<run_id>.md`` with a run manife
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
 
@@ -119,18 +120,31 @@ def holdout_synthetic(out_root: Path, n_folds: int = 5, seed: int = 21) -> holdo
 
 
 def holdout_real(
-    project: ProjectConfig, out_root: Path, n_folds: int = 5, *, allow_unconfirmed: bool = False
+    project: ProjectConfig,
+    out_root: Path,
+    n_folds: int = 5,
+    *,
+    allow_unconfirmed: bool = False,
+    include_unsearched: Iterable[str] = (),
 ) -> holdout.HoldoutResult:
-    from methanewatch.model.run import ConfigNotReadyError
+    """Hold-out prediction on real detections.
+
+    Like ``mw model fit``, it leaves out instruments whose plume search has not run, unless
+    named in ``include_unsearched``, and the report says so (ADR 0016).
+    """
+    from methanewatch.model.run import ConfigNotReadyError, select_searched
 
     cfg, instruments = load_model(), load_instruments()
-    path = project.resolve(project.paths.interim) / "detections.parquet"
+    interim = project.resolve(project.paths.interim)
+    path = interim / "detections.parquet"
     if not path.exists():
         raise FileNotFoundError(f"missing {path}; run `mw coverage build` first")
     det = pd.read_parquet(path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
-    inst = {k: instruments.instruments[k] for k in sorted(det["instrument"].unique())}
+    sel = select_searched(interim, det, instruments, include_unsearched)
+    det = sel.detections
+    inst = {k: instruments.instruments[k] for k in sel.used}
     results = holdout.run(
         det,
         grid=LogRateGrid.build(cfg.grid.q_min_kg_hr, cfg.grid.q_max_kg_hr, cfg.grid.n_points),
@@ -148,8 +162,26 @@ def holdout_real(
     note = "Real detections." + (
         " Unconfirmed detection curves: PROVISIONAL." if allow_unconfirmed else ""
     )
+    if sel.left_out:
+        note += (
+            " Left out because no plume search has run on their passes: "
+            + ", ".join(f"{k} ({v['n_passes']} usable passes)" for k, v in sel.left_out.items())
+            + "."
+        )
+    if sel.included_unsearched:
+        note += (
+            " Kept on purpose although no plume search has run on their passes: "
+            + ", ".join(sel.included_unsearched)
+            + "."
+        )
     path = _holdout_report(
-        results, res, "Hold-out prediction", note, out_root, run_id, {"kind": "real"}
+        results,
+        res,
+        "Hold-out prediction",
+        note,
+        out_root,
+        run_id,
+        {"kind": "real", "instruments": sel.used, **sel.manifest()},
     )
     print(f"wrote {path}")
     return res

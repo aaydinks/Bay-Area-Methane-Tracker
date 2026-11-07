@@ -368,8 +368,20 @@ def repair_run(
         bool, typer.Option(help="Use unconfirmed POD curves; stamps outputs provisional.")
     ] = False,
     power_fits: Annotated[int, typer.Option(help="Simulated fits per tested drop.")] = 15,
+    include_unsearched: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Keep this instrument's passes although its plume search has not run, so "
+            "each one counts as a pass that saw nothing. Repeat for several. Recorded in the "
+            "run manifest."
+        ),
+    ] = None,
 ) -> None:
-    """Outcome of every dated check in the registry, with its minimum detectable drop."""
+    """Outcome of every dated check in the registry, with its minimum detectable drop.
+
+    Like `mw model fit`, it leaves out an instrument whose plume search has not run (decision
+    record 0016).
+    """
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.repair import run
 
@@ -390,6 +402,7 @@ def repair_run(
             config.load_model(),
             instruments,
             allow_unconfirmed=allow_unconfirmed,
+            include_unsearched=tuple(include_unsearched or ()),
             n_power_fits=power_fits,
         )
     except ConfigNotReadyError as exc:
@@ -492,14 +505,30 @@ def validate_holdout(
     folds: Annotated[int, typer.Option()] = 5,
     synthetic: Annotated[bool, typer.Option(help="Dry run on SYNTHETIC sites.")] = False,
     allow_unconfirmed: Annotated[bool, typer.Option()] = False,
+    include_unsearched: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Keep this instrument's passes although its plume search has not run, so "
+            "each one counts as a pass that saw nothing. Repeat for several. Recorded in the "
+            "run manifest."
+        ),
+    ] = None,
 ) -> None:
-    """Fit on 80% of overpasses, predict detections in the held-out 20%."""
+    """Fit on 80% of overpasses, predict detections in the held-out 20%.
+
+    On real data, an instrument whose plume search has not run is left out, as in
+    `mw model fit` (decision record 0016).
+    """
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.validate import gates
 
     try:
         passed = _run_or_exit(
-            gates.holdout, folds, synthetic=synthetic, allow_unconfirmed=allow_unconfirmed
+            gates.holdout,
+            folds,
+            synthetic=synthetic,
+            allow_unconfirmed=allow_unconfirmed,
+            include_unsearched=tuple(include_unsearched or ()),
         )
     except ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)

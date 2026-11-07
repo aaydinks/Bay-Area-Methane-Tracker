@@ -24,7 +24,7 @@ by itself; the same test simply reports what followed it.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -275,27 +275,35 @@ def run_real(
     instruments: InstrumentsConfig,
     *,
     allow_unconfirmed: bool = False,
+    include_unsearched: Iterable[str] = (),
     n_power_fits: int = 15,
     seed: int = 0,
 ) -> str:
-    """Outcomes for ``data/registry/checks.csv`` on ``interim/detections.parquet``."""
+    """Outcomes for ``data/registry/checks.csv`` on ``interim/detections.parquet``.
+
+    Like ``mw model fit``, it leaves out instruments whose plume search has not run, unless
+    named in ``include_unsearched``, and the manifest says so (ADR 0016).
+    """
     import json
 
-    from methanewatch.model.run import ConfigNotReadyError
+    from methanewatch.model.run import ConfigNotReadyError, select_searched
     from methanewatch.provenance import new_id, run_manifest
 
     registry = project.resolve(project.paths.registry)
     repairs = load_checks(pd.read_csv(registry / "checks.csv"))
     if not repairs:
         raise FileNotFoundError(f"no checks in {registry / 'checks.csv'}; every row needs a source")
-    det_path = project.resolve(project.paths.interim) / "detections.parquet"
+    interim = project.resolve(project.paths.interim)
+    det_path = interim / "detections.parquet"
     if not det_path.exists():
         raise FileNotFoundError(f"missing {det_path}; run `mw coverage build` first")
     det = pd.read_parquet(det_path)
-    cov = site_covariates(project, cfg, sorted(det["site_id"].unique()))
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
-    used = sorted(det["instrument"].unique())
+    sel = select_searched(interim, det, instruments, include_unsearched)
+    det = sel.detections
+    used = sel.used
+    cov = site_covariates(project, cfg, sorted(det["site_id"].unique()))
     inst = {k: instruments.instruments[k] for k in used}
     unset = [k for k, v in inst.items() if not v.pod.is_set or v.meas_sigma_log.value is None]
     if unset:
@@ -333,6 +341,8 @@ def run_real(
             "power_factors": list(POWER_FACTORS),
             "power_target": POWER_TARGET,
             "covariates": cov.manifest() if cov is not None else None,
+            "instruments": used,
+            **sel.manifest(),
         },
     )
     (out / f"{run_id}.json").write_text(json.dumps(manifest, indent=2, default=str))

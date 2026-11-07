@@ -68,14 +68,24 @@ def matched_pairs(max_days: float = 1.0) -> bool:
     return True
 
 
-def holdout(n_folds: int = 5, *, synthetic: bool = False, allow_unconfirmed: bool = False) -> bool:
+def holdout(
+    n_folds: int = 5,
+    *,
+    synthetic: bool = False,
+    allow_unconfirmed: bool = False,
+    include_unsearched: tuple[str, ...] = (),
+) -> bool:
     from methanewatch.validate import gate4
 
     project, out_root = _out_root()
     if synthetic:
         return gate4.holdout_synthetic(out_root, n_folds).passed
     return gate4.holdout_real(
-        project, out_root, n_folds, allow_unconfirmed=allow_unconfirmed
+        project,
+        out_root,
+        n_folds,
+        allow_unconfirmed=allow_unconfirmed,
+        include_unsearched=include_unsearched,
     ).passed
 
 

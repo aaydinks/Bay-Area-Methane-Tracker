@@ -52,7 +52,7 @@ function metricText(m: unknown): string {
     {results.length ? (
       <TableWrap label="Method checks">
         <table>
-          <caption>Each row is one run of a check on simulated data, named by its run id.</caption>
+          <caption>Each row is one run of a check, named by its run id. The note says whether it used simulated or real data.</caption>
           <thead><tr><th scope="col">Check</th><th scope="col">Run</th><th scope="col">Result</th><th scope="col">Figures</th><th scope="col">Note</th></tr></thead>
           <tbody>
             {results.map((r) => (

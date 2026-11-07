@@ -77,7 +77,8 @@ Where each instrument's plumes come from today:
   EMIT granule, some EMIT passes count as searched when they were not. This has not been
   checked.
 - `mw repair run` and the real hold-out check (`mw validate holdout`) read the same detections
-  table and still take every instrument. They should use the same selection before their next
-  real run.
+  table, so they take the same selection (`model.run.select_searched`), the same
+  `--include-unsearched` flag and record the same fields. The published note of a real hold-out
+  run says it used real detections and names what was left out.
 - The official run `fit-20261107T010105Z` predates this record. Its manifest has no
   `instruments_left_out`, so its pages say only that Sentinel-2's passes are not part of the run.

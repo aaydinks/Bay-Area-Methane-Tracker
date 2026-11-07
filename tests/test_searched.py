@@ -6,10 +6,16 @@ import typing
 import numpy as np
 import pandas as pd
 import pytest
+from typer.testing import CliRunner
 
 from methanewatch import config, schemas
+from methanewatch.cli import app
 from methanewatch.config import load_instruments, load_model, load_project
 from methanewatch.model import persistence, run, searched
+from methanewatch.publish.validation import validation_rows
+from methanewatch.repair import run as repair_run
+from methanewatch.validate import gate4, holdout
+from tests.test_repair_outcomes import _check_table
 
 
 def _detections() -> pd.DataFrame:
@@ -91,7 +97,11 @@ def _project(tmp_path):
     return base.model_copy(
         update={
             "paths": base.paths.model_copy(
-                update={"processed": tmp_path / "processed", "interim": tmp_path / "interim"}
+                update={
+                    "processed": tmp_path / "processed",
+                    "interim": tmp_path / "interim",
+                    "registry": tmp_path / "registry",
+                }
             )
         }
     )
@@ -179,3 +189,93 @@ def test_a_fit_with_nothing_searched_stops(tmp_path, monkeypatch):
     _stub_sampling(monkeypatch, {})
     with pytest.raises(run.ConfigNotReadyError, match="searched for plumes"):
         run.fit_real(_project(tmp_path), load_model(), load_instruments(), allow_unconfirmed=True)
+
+
+# --- the repair checks and the hold-out check take the same selection ----------------------
+
+
+def test_repair_run_leaves_out_sentinel2_and_records_it(tmp_path, monkeypatch):
+    _inputs(tmp_path)
+    (tmp_path / "registry").mkdir()
+    _check_table().to_csv(tmp_path / "registry" / "checks.csv", index=False)
+    seen = {}
+
+    def run_all(repairs, det, settings, **kwargs):
+        seen["instruments"] = sorted(det["instrument"].unique())
+        seen["curves"] = sorted(settings.curves)
+        return pd.DataFrame({"repair_id": [r.repair_id for r in repairs]}), pd.DataFrame()
+
+    monkeypatch.setattr(repair_run, "run_all", run_all)
+    run_id = repair_run.run_real(
+        _project(tmp_path), load_model(), load_instruments(), allow_unconfirmed=True
+    )
+    assert seen == {"instruments": ["aircraft", "emit"], "curves": ["aircraft", "emit"]}
+    out = tmp_path / "processed" / "repair_outcomes"
+    manifest = json.loads((out / f"{run_id}.json").read_text())
+    assert manifest["instruments"] == ["aircraft", "emit"]
+    assert manifest["instruments_left_out"]["sentinel2"]["reason"] == searched.NOT_SEARCHED
+    assert manifest["unconfirmed_pod"] == ["aircraft", "emit"]
+
+    run_id = repair_run.run_real(
+        _project(tmp_path),
+        load_model(),
+        load_instruments(),
+        allow_unconfirmed=True,
+        include_unsearched=("sentinel2",),
+    )
+    manifest = json.loads((out / f"{run_id}.json").read_text())
+    assert seen["instruments"] == ["aircraft", "emit", "sentinel2"]
+    assert manifest["included_unsearched"] == ["sentinel2"]
+
+
+def test_holdout_leaves_out_sentinel2_and_its_report_says_so(tmp_path, monkeypatch):
+    _inputs(tmp_path)
+    seen = {}
+
+    def fake_run(det, **kwargs):
+        seen["instruments"] = sorted(det["instrument"].unique())
+        seen["curves"] = sorted(kwargs["curves"])
+        sites = sorted(det["site_id"].unique())
+        return pd.DataFrame(
+            {"site_id": sites, "fold": 0, "pred_mean": 1.0, "observed": 1, "diag_ok": True}
+        )
+
+    monkeypatch.setattr(holdout, "run", fake_run)
+    monkeypatch.setattr(holdout, "evaluate", lambda r: holdout.HoldoutResult(True, 1.0, len(r)))
+    reports = tmp_path / "reports"
+    gate4.holdout_real(_project(tmp_path), reports / "validation", allow_unconfirmed=True)
+    assert seen == {"instruments": ["aircraft", "emit"], "curves": ["aircraft", "emit"]}
+    (report,) = (reports / "validation" / "holdout").glob("*.md")
+    text = report.read_text()
+    assert "Left out because no plume search has run on their passes: sentinel2" in text
+    assert '"instruments_left_out"' in text
+    # The published row says it ran on real data and names what was left out
+    (row,) = validation_rows(reports)
+    assert row["gate"] == "holdout"
+    assert row["note"] == (
+        "Hold-out prediction on real detections. Left out because no plume search has run on "
+        "their passes: Sentinel-2."
+    )
+
+
+def test_repair_and_holdout_commands_pass_include_unsearched_through(monkeypatch):
+    from methanewatch.repair import run as repair_module
+    from methanewatch.validate import gates
+
+    seen = {}
+
+    def fake_run_real(project, cfg, instruments, **kwargs):
+        seen["repair"] = kwargs["include_unsearched"]
+        return "repairs-test"
+
+    def fake_holdout(n_folds, **kwargs):
+        seen["holdout"] = kwargs["include_unsearched"]
+        return True
+
+    monkeypatch.setattr(repair_module, "run_real", fake_run_real)
+    monkeypatch.setattr(gates, "holdout", fake_holdout)
+    runner = CliRunner()
+    flags = ["--allow-unconfirmed", "--include-unsearched", "sentinel2"]
+    assert runner.invoke(app, ["repair", "run", *flags]).exit_code == 0
+    assert runner.invoke(app, ["validate", "holdout", *flags]).exit_code == 0
+    assert seen == {"repair": ("sentinel2",), "holdout": ("sentinel2",)}
