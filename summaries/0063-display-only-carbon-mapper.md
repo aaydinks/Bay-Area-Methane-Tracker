@@ -1,6 +1,6 @@
 # PR #63: Show Carbon Mapper figures on the public site without republishing its data
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/63)
+**Status:** merged 2026-11-08 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/63)
 
 ## In one sentence
 
