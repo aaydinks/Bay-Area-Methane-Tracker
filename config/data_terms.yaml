@@ -1,14 +1,22 @@
 # What each data source allows, mirrored from DATA_TERMS.md. `mw publish` marks rows from any
 # source that is not (confirmed and derived_publishable) as restricted; row-level security then
-# keeps them off the public website. Record the date each row was checked.
+# keeps them off the public website. A confirmed source with display_publishable is the level
+# between (ADR 0017): its rows stay restricted, are marked display_only, and the public site
+# shows figures built from them but never downloads or individual values. Record the date each
+# row was checked.
 sources:
   carbonmapper:
     display_name: "Carbon Mapper (Tanager-1, aircraft)"
     instruments: [tanager1, aircraft]
     raw_publishable: false
     derived_publishable: false
-    confirmed: false
-    checked_on: 2026-10-30
+    # Display only (ADR 0017): figures built from the data may be shown on the website; the data,
+    # downloads, data tables and individual values (such as each plume's rate) may not be
+    # republished. Confirmed verbally to the project owner, who reported it on 2026-11-08.
+    # Written terms: check.
+    display_publishable: true
+    confirmed: true
+    checked_on: 2026-11-08
     terms_url: null
     credit_line: "Carbon Mapper (non-commercial use)"
   emit-v2:

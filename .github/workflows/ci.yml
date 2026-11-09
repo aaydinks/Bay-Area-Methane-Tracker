@@ -101,6 +101,13 @@ jobs:
           DATA_SOURCE: fixture
           SITE_MODE: public
           ALLOW_FIXTURE_PUBLIC: "1"
+      - name: Public build with Carbon Mapper display-only
+        run: npm run build
+        env:
+          DATA_SOURCE: fixture
+          SITE_MODE: public
+          ALLOW_FIXTURE_PUBLIC: "1"
+          FIXTURE_DISPLAY_ONLY: "1"
 
   summary:
     # Every pull request adds summaries/NNNN-*.md, NNNN = its number (see summaries/README.md).

@@ -1,6 +1,11 @@
 # Launch checklist (Jan 6 to 8, 2027)
 
-Nothing is public before Jan 6. Items marked **owner** can only be done by the project owner.
+Items marked **owner** can only be done by the project owner.
+
+**Change of plan (Nov 8, 2026):** the owner chose to open the public site early, before the Dec 9
+to 23 review, with every figure marked provisional. Carbon Mapper's verbal answer is recorded as
+display-only (ADR 0017). The items below still apply to each later public publication, and the
+review comments are handled as an update.
 
 ## Before Jan 6
 

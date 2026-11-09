@@ -267,12 +267,24 @@ def test_build_marks_restricted_rows_and_labels_results(tmp_path):
     }
     assert t["plumes"].set_index("plume_id")["overpass_id"]["e1"] == "newby-island:emit:2025-06-01"
     assert t["site_estimates"]["restricted"].all()  # a restricted instrument fed the fit
+    # Carbon Mapper is display-only (ADR 0017): its rows stay restricted, marked for display.
+    assert t["passes"].set_index("instrument")["display_only"].to_dict() == {
+        "emit": False,
+        "tanager1": True,
+        "sentinel2": False,
+    }
+    assert t["plumes"].set_index("source")["display_only"].to_dict() == {
+        "emit-v2": False,
+        "carbonmapper": True,
+    }
+    assert t["site_estimates"]["display_only"].all()
+    assert {d["source"]: d["display_publishable"] for d in s.data_terms}["carbonmapper"]
     reasons = t["site_estimates"].set_index("site_id")["insufficient_reason"]
     assert pd.isna(reasons["newby-island"]) and "too few" in reasons["sonoma-central"]
     r = t["check_results"].iloc[0]
     assert (r["evidence"], r["size"], r["colour"]) == ("weak", "slight", "yellow")
     assert r["plain_reading"].startswith("Methane rose about 13%")
-    assert r["restricted"] and r["check_id"] == "c1"
+    assert r["restricted"] and r["display_only"] and r["check_id"] == "c1"
     assert t["checks"].iloc[0]["source_doc_title"] == "Notice of Violation A12345"
     assert t["operator_reports"].iloc[0]["gwp_confirmed"] == load_impact().ghgrp_gwp_ch4.confirmed
     assert t["validation_results"].iloc[0]["metrics"]["share_inside"] == 0.98
@@ -495,3 +507,30 @@ def test_cli_build_says_which_instruments_the_model_run_used(tmp_path, monkeypat
         "model run instruments: emit, tanager1; left out: sentinel2 (plume search not run)"
         in result.output
     )
+
+
+def test_a_source_without_display_terms_keeps_every_figure_hidden(tmp_path):
+    _write_inputs(tmp_path)
+    terms = load_data_terms()
+    hidden = terms.model_copy(
+        update={
+            "sources": {
+                **terms.sources,
+                "carbonmapper": terms.sources["carbonmapper"].model_copy(
+                    update={"display_publishable": False}
+                ),
+            }
+        }
+    )
+    s = snap.build(
+        _project(tmp_path),
+        hidden,
+        load_impact(),
+        model_run_id="model-1",
+        check_run_id="repairs-1",
+        publish_id="pub-test",
+    )
+    t = s.tables
+    for name in ("passes", "plumes", "site_estimates", "check_results"):
+        assert not t[name]["display_only"].any(), name
+    assert t["site_estimates"]["restricted"].all()

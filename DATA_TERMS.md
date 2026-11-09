@@ -7,7 +7,7 @@ Before publishing any derived table, confirm below that the source's terms allow
 
 | Source | Use | Terms (to confirm) | Derived tables publishable? | Credit line |
 |---|---|---|---|---|
-| Carbon Mapper (Tanager-1, EMIT, aircraft plumes) | Plume locations and rates | Free for non-commercial use; API key required | _to confirm_ | _to fill from the product guide_ |
+| Carbon Mapper (Tanager-1, EMIT, aircraft plumes) | Plume locations and rates | Free for non-commercial use; API key required. Confirmed verbally to the project owner (reported 2026-11-08): figures may be shown on the website, but the data, downloads, data tables and individual values may not be republished. Written terms: check | no; display only (ADR 0017): shown on the website, never in downloads, and plume rates never shown | _to fill from the product guide_ |
 | NASA EMIT L2B CH4 enhancement and plume complexes (v002) | Scene footprints (overpasses), plume outlines | NASA open data; metadata public, files need Earthdata login | _to confirm_ | _to fill from LP DAAC citation (DOIs 10.5067/EMIT/EMITL2BCH4ENH.002, 10.5067/EMIT/EMITL2BCH4PLM.002)_ |
 | ESA Copernicus Sentinel-2 (L1C; metadata via Earth Search STAC; pixels from Google Cloud's public mirror `gcp-public-data-sentinel-2`) | Scene footprints, large-plume check | Copernicus open data licence; AWS L1C bands are requester-pays | _to confirm_ | "Contains modified Copernicus Sentinel data [year]" |
 | Wind reanalysis (HRRR or ERA5) | Plume quantification | NOAA open data / Copernicus licence | _to confirm_ | _to fill_ |

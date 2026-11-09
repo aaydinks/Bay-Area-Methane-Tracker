@@ -167,4 +167,7 @@ export const currentUpdates = publication
   ? snapshot.update_log.filter((u) => u.publish_id === publication.publish_id).sort((a, b) => a.item_order - b.item_order)
   : [];
 
-export const carbonMapperHeld = isPublic && !snapshot.data_terms.some((t) => t.source === 'carbonmapper' && t.confirmed && t.derived_publishable);
+const carbonMapperTerms = snapshot.data_terms.find((t) => t.source === 'carbonmapper');
+// Display only (ADR 0017): figures built from Carbon Mapper data are shown, never downloaded.
+export const carbonMapperDisplayOnly = isPublic && !!carbonMapperTerms?.confirmed && !!carbonMapperTerms?.display_publishable && !carbonMapperTerms?.derived_publishable;
+export const carbonMapperHeld = isPublic && !carbonMapperDisplayOnly && !(carbonMapperTerms?.confirmed && carbonMapperTerms?.derived_publishable);

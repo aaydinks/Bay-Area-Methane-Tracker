@@ -261,6 +261,8 @@ def build(
     reports_root = reports_root or project.resolve(project.paths.reports)
     restricted_instruments = set(terms.restricted_instruments())
     restricted_sources = set(terms.restricted_sources())
+    display_instruments = set(terms.display_only_instruments())
+    display_sources = set(terms.display_only_sources())
 
     # --- runs and flags -------------------------------------------------------------------
     runs: list[dict] = []
@@ -398,6 +400,7 @@ def build(
             "q_obs_kg_hr": seen["q_obs_kg_hr"],
             "n_plumes": seen["n_plumes"],
             "restricted": pass_restricted,
+            "display_only": ov["instrument"].isin(display_instruments),
         }
     )
 
@@ -424,6 +427,7 @@ def build(
                 "data_version": pl.get("data_version"),
                 "overpass_id": key.where(key.isin(known)),
                 "restricted": pl["source"].isin(restricted_sources),
+                "display_only": pl["source"].isin(display_sources),
                 "new_in_update": False,
             }
         )
@@ -431,8 +435,11 @@ def build(
         tables["plumes"] = pd.DataFrame(columns=list(pub.plumes.columns))
 
     # Estimates and check results use every pass, so they are restricted whenever a restricted
-    # instrument contributed, until that source's terms are confirmed.
-    derived_restricted = bool(set(ov["instrument"]) & restricted_instruments)
+    # instrument contributed, until that source's terms are confirmed. They are display-only when
+    # every restricted instrument behind them comes from a source that allows display (ADR 0017).
+    behind = set(ov["instrument"]) & restricted_instruments
+    derived_restricted = bool(behind)
+    derived_display_only = derived_restricted and behind <= display_instruments
 
     # --- estimates -----------------------------------------------------------------------
     if model_run_id:
@@ -446,6 +453,7 @@ def build(
             insufficient_reason=insufficient_reasons(est, model or load_model()),
             provisional=bool(model_manifest and model_manifest.get("provisional")),
             restricted=derived_restricted,
+            display_only=derived_display_only,
         )[list(pub.site_estimates.columns)]
     else:
         tables["site_estimates"] = pd.DataFrame(columns=list(pub.site_estimates.columns))
@@ -479,6 +487,7 @@ def build(
                 check_run_id=check_run_id,
                 provisional=bool(check_manifest and check_manifest.get("provisional")),
                 restricted=derived_restricted,
+                display_only=derived_display_only,
             )[list(pub.check_results.columns)]
         )
     else:
@@ -545,6 +554,7 @@ def build(
             "display_name": t.display_name,
             "raw_publishable": t.raw_publishable,
             "derived_publishable": t.derived_publishable,
+            "display_publishable": t.display_publishable,
             "confirmed": t.confirmed,
             "checked_on": str(t.checked_on) if t.checked_on else None,
             "terms_url": t.terms_url,

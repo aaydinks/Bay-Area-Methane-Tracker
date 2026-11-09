@@ -97,7 +97,8 @@ def _insert(
         expr = geometry.get(c, "%s")
         placeholders.append(expr)
     sql = f"insert into public.{table} ({', '.join(cols)}) values ({', '.join(placeholders)})"
-    cur.executemany(sql, _rows(df, cols, {"publish_id": publish_id}))
+    # display_only defaults to false for snapshots written before ADR 0017.
+    cur.executemany(sql, _rows(df, cols, {"publish_id": publish_id, "display_only": False}))
     return len(df)
 
 
@@ -203,10 +204,12 @@ def push(snapshot: Snapshot, dsn: str, *, compare_with: str = "review") -> dict[
         for t in snapshot.data_terms:
             cur.execute(
                 "insert into public.data_terms (source, display_name, raw_publishable, "
-                "derived_publishable, confirmed, checked_on, terms_url, credit_line) "
-                "values (%s, %s, %s, %s, %s, %s, %s, %s) on conflict (source) do update set "
+                "derived_publishable, display_publishable, confirmed, checked_on, terms_url, "
+                "credit_line) values (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                "on conflict (source) do update set "
                 "display_name = excluded.display_name, raw_publishable = excluded.raw_publishable, "
                 "derived_publishable = excluded.derived_publishable, "
+                "display_publishable = excluded.display_publishable, "
                 "confirmed = excluded.confirmed, checked_on = excluded.checked_on, "
                 "terms_url = excluded.terms_url, credit_line = excluded.credit_line",
                 (
@@ -214,6 +217,7 @@ def push(snapshot: Snapshot, dsn: str, *, compare_with: str = "review") -> dict[
                     t["display_name"],
                     t["raw_publishable"],
                     t["derived_publishable"],
+                    t.get("display_publishable", False),
                     t["confirmed"],
                     t["checked_on"],
                     t["terms_url"],

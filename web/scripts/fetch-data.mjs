@@ -3,7 +3,9 @@
 // Two settings decide what happens:
 //   SITE_MODE    "review" shows review-and-public publications and restricted rows (needs the
 //                secret key); "public" shows the newest public publication and no restricted
-//                row, and refuses to run if a secret key is present.
+//                row, and refuses to run if a secret key is present. A restricted row marked
+//                display_only (ADR 0017) is shown in public in the reduced form the v_public_*
+//                views give it, and never written to a download.
 //   DATA_SOURCE  "fixture" reads web/fixtures/snapshot.json (no keys, used in CI and for local
 //                work); "supabase" reads the live database through its read views.
 //
@@ -61,9 +63,31 @@ const SOURCES = {
   validation_results: { view: 'validation_results', order: ['gate', 'report_id'] },
 };
 
+// A public build reads these views in place of the ones above. They return rows of public
+// publications only, with display-only rows reduced to what the pages show (ADR 0017).
+const PUBLIC_VIEWS = {
+  plumes: 'v_public_plumes',
+  pass_months: 'v_public_pass_months',
+  plume_days: 'v_public_plume_days',
+  site_estimates: 'v_public_site_estimates',
+  checks: 'v_public_checks_with_results',
+};
+
 // Tables where a row can be restricted. In public mode these rows are dropped here as well as
-// by the database, so a fixture build behaves like the live one.
+// by the database, so a fixture build behaves like the live one; a display-only row is kept in
+// the reduced form the public views give it.
 const RESTRICTABLE = new Set(['plumes', 'pass_months', 'site_estimates']);
+
+const isShown = (r) => r.restricted !== true || r.display_only === true;
+
+// What v_public_plumes returns for a display-only plume: a dot, without its rate, id or version.
+function asDot(p, i) {
+  if (!p.restricted) return p;
+  return {
+    ...p, plume_id: `point-${String(i + 1).padStart(5, '0')}`, acquired_utc: `${String(p.acquired_utc).slice(0, 10)}T00:00:00+00:00`,
+    q_kg_hr: null, q_sigma_kg_hr: null, data_version: null, overpass_id: null,
+  };
+}
 
 function newestVisible(publications) {
   return (
@@ -74,7 +98,7 @@ function newestVisible(publications) {
 }
 
 function blankRestrictedResult(check) {
-  if (!PUBLIC || !check.restricted) return check;
+  if (!PUBLIC || !check.restricted || check.display_only) return check;
   // The check itself is a public record; only its measured result is held back.
   const kept = {};
   for (const key of [
@@ -86,7 +110,13 @@ function blankRestrictedResult(check) {
 
 function applyPublicRules(name, rows) {
   if (!PUBLIC) return rows;
-  if (RESTRICTABLE.has(name)) return rows.filter((r) => r.restricted !== true);
+  if (name === 'plumes') {
+    const shown = rows.filter(isShown);
+    const dots = shown.filter((r) => r.restricted).sort((a, b) => String(a.acquired_utc).localeCompare(String(b.acquired_utc)));
+    const order = new Map(dots.map((r, i) => [r, i]));
+    return shown.map((r) => (r.restricted ? asDot(r, order.get(r)) : r));
+  }
+  if (RESTRICTABLE.has(name)) return rows.filter(isShown);
   if (name === 'checks') return rows.map(blankRestrictedResult);
   return rows;
 }
@@ -100,9 +130,9 @@ function monthOf(iso) {
 function passMonths(passes) {
   const groups = new Map();
   for (const p of passes) {
-    const key = [p.publish_id, p.site_id, p.instrument, p.restricted, monthOf(p.acquired_utc)].join('|');
+    const key = [p.publish_id, p.site_id, p.instrument, p.restricted, p.display_only === true, monthOf(p.acquired_utc)].join('|');
     const g = groups.get(key) ?? {
-      publish_id: p.publish_id, site_id: p.site_id, instrument: p.instrument, restricted: p.restricted,
+      publish_id: p.publish_id, site_id: p.site_id, instrument: p.instrument, restricted: p.restricted, display_only: p.display_only === true,
       month: monthOf(p.acquired_utc), n_passes: 0, n_usable: 0, n_detected: 0,
     };
     g.n_passes += 1;
@@ -117,15 +147,17 @@ function plumeDays(passes) {
   const groups = new Map();
   for (const p of passes) {
     const key = `${p.publish_id}|${p.site_id}`;
-    const g = groups.get(key) ?? { publish_id: p.publish_id, site_id: p.site_id, usable: 0, days: new Set(), restricted: false };
+    const g = groups.get(key) ?? { publish_id: p.publish_id, site_id: p.site_id, usable: 0, days: new Set(), restricted: false, display: false };
     if (p.usable) g.usable += 1;
     if (p.usable && p.detected) g.days.add(p.acquired_utc.slice(0, 10));
-    if (p.restricted) g.restricted = true;
+    if (p.restricted && !p.display_only) g.restricted = true;
+    if (p.display_only) g.display = true;
     groups.set(key, g);
   }
   return [...groups.values()].map((g) => ({
     publish_id: g.publish_id, site_id: g.site_id, usable_passes: g.usable, plume_days: g.days.size,
     plume_days_per_usable_pass: g.usable ? g.days.size / g.usable : null, includes_restricted: g.restricted,
+    includes_display_only: g.display,
   }));
 }
 
@@ -133,11 +165,19 @@ async function fromFixture() {
   const fixturePath = path.join(root, 'fixtures', 'snapshot.json');
   if (!existsSync(fixturePath)) fail('fixtures/snapshot.json is missing; run `npm run fixture` first');
   const fx = JSON.parse(await readFile(fixturePath, 'utf8'));
+  // FIXTURE_DISPLAY_ONLY=1 treats the sample's Carbon Mapper rows as display-only (ADR 0017), so
+  // CI can build the public site both ways.
+  if (process.env.FIXTURE_DISPLAY_ONLY === '1') {
+    fx.data_terms = fx.data_terms.map((t) => (t.source === 'carbonmapper' ? { ...t, confirmed: true, display_publishable: true, derived_publishable: false } : t));
+    for (const name of ['plumes', 'passes', 'site_estimates', 'check_results']) {
+      fx[name] = fx[name].map((r) => (r.restricted ? { ...r, display_only: true } : r));
+    }
+  }
   const publication = newestVisible(fx.publications);
   const inPub = (rows) => (publication ? rows.filter((r) => r.publish_id === publication.publish_id) : []);
   // The database hides restricted passes from the publishable key before it aggregates them;
   // do the same here so counts in a public fixture build are the public counts.
-  const passes = PUBLIC ? fx.passes.filter((p) => !p.restricted) : fx.passes;
+  const passes = PUBLIC ? fx.passes.filter(isShown) : fx.passes;
   const checks = inPub(fx.checks).map((c) => {
     const r = fx.check_results.find((x) => x.publish_id === c.publish_id && x.check_id === c.check_id);
     return { ...c, ...(r ?? { call: null, evidence: null, size: null, colour: null, plain_reading: null, restricted: false }) };
@@ -200,7 +240,8 @@ async function fromSupabase() {
   const publications = await all('publications', ['created_at'], (q) => q.in('visibility', VISIBLE));
   const tables = {};
   for (const [name, { view, order }] of Object.entries(SOURCES)) {
-    tables[name] = publication ? await all(view, order, (q) => q.eq('publish_id', publication.publish_id)) : [];
+    const source = PUBLIC ? (PUBLIC_VIEWS[name] ?? view) : view;
+    tables[name] = publication ? await all(source, order, (q) => q.eq('publish_id', publication.publish_id)) : [];
   }
   const runIds = publication ? [publication.refresh_id, publication.model_run_id, publication.check_run_id].filter(Boolean) : [];
   return {
@@ -290,8 +331,9 @@ await writeFile(
 
 // ---- CSV downloads ----------------------------------------------------------------------
 // The publishable tables as plain CSV, plus a README naming the publication, the runs, the
-// data-through date and the credits. Only what is in the snapshot gets written, so a public
-// build never writes a restricted row.
+// data-through date and the credits. Only what is in the snapshot gets written, and a public
+// build leaves out every restricted row, display-only ones included (ADR 0017): those figures
+// are shown on the pages but never handed out as data.
 
 function csv(rows, columns) {
   const esc = (v) => {
@@ -311,11 +353,22 @@ const DOWNLOADS = {
   'operator_reports.csv': { rows: tables.operator_reports, columns: ['site_id', 'year', 'source', 'reported_ch4_t', 'reported_co2e_t', 'gwp_used', 'gwp_confirmed', 'facility_id', 'url'] },
   'validation_results.csv': { rows: tables.validation_results, columns: ['report_id', 'gate', 'run_id', 'result', 'metrics', 'superseded', 'note', 'created_at'] },
 };
+function downloadable(name, rows) {
+  if (!PUBLIC) return rows;
+  if (name === 'checks.csv') {
+    // The check is a public record; a display-only result stays on the pages only.
+    return rows.map((r) => (r.restricted ? { ...blankRestrictedResult({ ...r, display_only: false }), restricted: false } : r));
+  }
+  return rows.filter((r) => r.restricted !== true);
+}
 const downloads = [];
-for (const [name, { rows, columns }] of Object.entries(DOWNLOADS)) {
+for (const [name, spec] of Object.entries(DOWNLOADS)) {
+  const { columns } = spec;
+  const rows = downloadable(name, spec.rows);
   await writeFile(path.join(publicDir, name), csv(rows, columns));
   downloads.push({ file: `/data/${name}`, name, rows: rows.length, columns });
 }
+const cmDisplayOnly = raw.data_terms.some((t) => t.source === 'carbonmapper' && t.confirmed && t.display_publishable && !t.derived_publishable);
 const credits = raw.data_terms.filter((t) => t.credit_line).map((t) => `- ${t.display_name}: ${t.credit_line}`);
 const p = raw.publication;
 // The model run's manifest names its instruments and, since decision record 0016, those it left out.
@@ -344,6 +397,11 @@ await writeFile(
     'Units: rates in kg/hr, annual totals in t/yr (methane above the detection floor in daytime,',
     'clear-sky conditions), times in UTC. Columns ending in _lo and _hi are the 90% range.',
     'Rows from sources whose publication terms are unconfirmed are not included in a public build.',
+    ...(PUBLIC && cmDisplayOnly ? [
+      'Figures that use Carbon Mapper data (Tanager-1 and aircraft passes, and the estimates and check',
+      'results built from them) are shown on the website but left out of these files: Carbon Mapper',
+      'allows its data to be displayed, not republished.',
+    ] : []),
     '',
     'Credits:',
     ...credits,
