@@ -3,7 +3,7 @@ import '../styles/global.css';
 import Banner from '../components/Banner.astro';
 import DataThrough from '../components/DataThrough.astro';
 import { EXPECTED, FRAMING, NAV, SITE_NAME, TAGLINE } from '../config';
-import { carbonMapperHeld, isFixture, meta, publication, snapshot } from '../lib/data';
+import { carbonMapperDisplayOnly, carbonMapperHeld, isFixture, meta, publication, snapshot } from '../lib/data';
 import { date, shortSha } from '../lib/format';
 
 interface Props {
@@ -69,6 +69,9 @@ const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWi
     )}
     {carbonMapperHeld && (
       <Banner>Carbon Mapper data is held back until its publication terms are confirmed. Pass and plume counts on this site cover NASA EMIT and Sentinel-2.</Banner>
+    )}
+    {carbonMapperDisplayOnly && (
+      <Banner>Figures that use Carbon Mapper data are shown here with its permission, but are not available to download, and Carbon Mapper plumes appear on the map without their rates.</Banner>
     )}
 
     <main id="main" class="wrap">

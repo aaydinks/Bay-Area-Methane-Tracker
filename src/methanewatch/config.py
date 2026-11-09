@@ -312,12 +312,18 @@ class Sentinel2Config(_Strict):
 
 
 class DataTerm(_Strict):
-    """What one source allows (DATA_TERMS.md). Restricted unless confirmed and publishable."""
+    """What one source allows (DATA_TERMS.md). Restricted unless confirmed and publishable.
+
+    ``display_publishable`` is the level between (ADR 0017): figures built from the source may be
+    shown on the website, but its data may not be downloaded or republished. Its rows stay
+    restricted and are marked display-only.
+    """
 
     display_name: str
     instruments: tuple[str, ...] = ()
     raw_publishable: bool = False
     derived_publishable: bool = False
+    display_publishable: bool = False
     confirmed: bool = False
     checked_on: date | None = None
     terms_url: str | None = None
@@ -326,6 +332,10 @@ class DataTerm(_Strict):
     @property
     def restricted(self) -> bool:
         return not (self.confirmed and self.derived_publishable)
+
+    @property
+    def display_only(self) -> bool:
+        return self.restricted and self.confirmed and self.display_publishable
 
 
 class DataTermsConfig(_Strict):
@@ -342,6 +352,12 @@ class DataTermsConfig(_Strict):
 
     def restricted_instruments(self) -> list[str]:
         return [i for n, t in self.sources.items() if t.restricted for i in t.instruments]
+
+    def display_only_sources(self) -> list[str]:
+        return [n for n, t in self.sources.items() if t.display_only]
+
+    def display_only_instruments(self) -> list[str]:
+        return [i for n, t in self.sources.items() if t.display_only for i in t.instruments]
 
 
 # --- loaders ----------------------------------------------------------------

@@ -42,7 +42,7 @@ import imagery from '../assets/imagery/imagery.json';
             <tr>
               <th scope="row">{t.terms_url ? <a href={t.terms_url}>{t.display_name}</a> : t.display_name}</th>
               <td>{t.credit_line ?? '–'}</td>
-              <td>{t.confirmed ? (t.derived_publishable ? 'yes' : 'no') : 'to confirm'}</td>
+              <td>{t.confirmed ? (t.derived_publishable ? 'yes' : t.display_publishable ? 'no; shown on this site only' : 'no') : 'to confirm'}</td>
               <td>{date(t.checked_on)}</td>
             </tr>
           ))}

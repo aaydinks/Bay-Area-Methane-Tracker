@@ -232,6 +232,7 @@ export type Database = {
           confirmed: boolean
           credit_line: string | null
           derived_publishable: boolean
+          display_publishable: boolean
           display_name: string
           raw_publishable: boolean
           source: string
@@ -242,6 +243,7 @@ export type Database = {
           confirmed?: boolean
           credit_line?: string | null
           derived_publishable?: boolean
+          display_publishable?: boolean
           display_name: string
           raw_publishable?: boolean
           source: string
@@ -252,6 +254,7 @@ export type Database = {
           confirmed?: boolean
           credit_line?: string | null
           derived_publishable?: boolean
+          display_publishable?: boolean
           display_name?: string
           raw_publishable?: boolean
           source?: string

@@ -260,3 +260,75 @@ def test_restricted_defaults_to_true_on_source_tables(db):
     )
     assert [t for t, _ in defaults] == ["check_results", "passes", "plumes", "site_estimates"]
     assert all(d == "true" for _, d in defaults)
+
+
+def test_public_views_show_display_only_rows_reduced(db):
+    # Migration 0007 (ADR 0017): display-only rows stay hidden in the base tables but reach the
+    # public build through the v_public_* views: plumes as dots without rate, passes as counts.
+    with db.transaction(force_rollback=True):
+        db.execute("update public.plumes set display_only = true where plume_id = 'cm-1'")
+        db.execute("update public.passes set display_only = true where instrument = 'tanager1'")
+        db.execute(
+            "update public.site_estimates set display_only = true where site_id = 'newby-island'"
+        )
+        with as_role(db, "anon"):
+            base = rows(db, "select plume_id from public.plumes order by 1")
+            dots = rows(
+                db,
+                "select plume_id, source, q_kg_hr, q_sigma_kg_hr, data_version, overpass_id, "
+                "acquired_utc = '2025-06-01T00:00:00Z'::timestamptz "
+                "from public.v_public_plumes where restricted",
+            )
+            open_plumes = rows(
+                db, "select plume_id from public.v_public_plumes where not restricted"
+            )
+            months = rows(
+                db,
+                "select instrument, n_passes, n_detected, display_only "
+                "from public.v_public_pass_months order by instrument, month",
+            )
+            days = rows(
+                db,
+                "select usable_passes, plume_days, includes_restricted, includes_display_only "
+                "from public.v_public_plume_days",
+            )
+            estimates = rows(db, "select site_id from public.v_public_site_estimates order by 1")
+    assert base == [("emit-1",)]
+    assert dots == [("point-00001", "carbonmapper", None, None, None, None, True)]
+    assert open_plumes == [("emit-1",)]
+    assert months == [
+        ("emit", 1, 1, False),
+        ("emit", 1, 0, False),
+        ("tanager1", 1, 1, True),
+    ]
+    assert days == [(3, 2, False, True)]
+    assert estimates == [("newby-island",), ("shoreline",)]
+
+
+def test_public_views_hide_restricted_rows_that_are_not_display_only(db):
+    with as_role(db, "anon"):
+        plumes = rows(db, "select plume_id from public.v_public_plumes order by 1")
+        months = rows(db, "select distinct instrument from public.v_public_pass_months")
+        estimates = rows(db, "select site_id from public.v_public_site_estimates")
+        checks = rows(db, "select check_id, colour from public.v_public_checks_with_results")
+    assert plumes == [("emit-1",)]  # never the draft publication's emit-2
+    assert months == [("emit",)]
+    assert estimates == [("shoreline",)]
+    assert checks == [("chk-1", "yellow")]
+
+
+def test_public_view_functions_run_as_owner_with_a_fixed_search_path(db):
+    bad = rows(
+        db,
+        """
+        select p.proname from pg_proc p
+        where p.pronamespace = 'public'::regnamespace and p.proname like 'public\\_%'
+          and (not p.prosecdef or p.proconfig is null)
+        """,
+    )
+    names = rows(
+        db,
+        "select count(*) from pg_proc where pronamespace = 'public'::regnamespace "
+        "and proname like 'public\\_%'",
+    )
+    assert bad == [] and names == [(5,)]
