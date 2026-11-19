@@ -1,6 +1,6 @@
 # PR #64: Keep the database awake when a scheduled run stops early
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/64)
+**Status:** merged 2026-11-18 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/64)
 
 ## In one sentence
 
