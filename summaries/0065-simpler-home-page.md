@@ -1,6 +1,6 @@
 # PR #65: A simpler home page for first-time visitors
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/65)
+**Status:** merged 2026-11-18 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/65)
 
 ## In one sentence
 
