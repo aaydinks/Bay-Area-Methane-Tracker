@@ -39,6 +39,15 @@ def dsn_from_env() -> str:
     return dsn
 
 
+def touch(dsn: str, *, timeout: int = 10) -> None:
+    """Run ``select 1``: a read that changes nothing, so the free plan counts the project active.
+
+    Raises psycopg's errors as they are; the caller decides how to word them.
+    """
+    with psycopg.connect(dsn, connect_timeout=timeout, autocommit=True) as conn:
+        conn.execute("select 1").fetchone()
+
+
 def _plain(value: Any) -> Any:
     """Turn the numpy arrays and scalars that parquet hands back inside nested columns
     into plain lists and numbers, so they can be written as JSON."""

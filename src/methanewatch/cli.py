@@ -886,11 +886,20 @@ def scheduled_run(
             )
         else:
             typer.secho(f"{name}: FAILED {result['error']}", fg=typer.colors.RED, err=True)
+    touched = m["database_touch"]
+    if touched.get("skipped"):
+        typer.echo(f"database: not touched separately ({touched['reason']})")
+    elif touched["ok"]:
+        typer.echo(f"database: reachable (select 1, {touched['seconds']} s)")
+    else:
+        hint = f" ({touched['hint']})" if touched.get("hint") else ""
+        typer.secho(f"database: {touched['error']}{hint}", fg=typer.colors.RED, err=True)
     typer.echo(f"manifest: data/processed/scheduled/{m['run_id']}.json")
     if not m["ok"]:
         typer.secho(f"stopped at {m['stopped_at']}: {m['reason']}", fg=typer.colors.RED, err=True)
         if notify:
-            scheduled.notify(f"Stopped at {m['stopped_at']}: {m['reason']}")
+            db = "" if touched["ok"] else f"{touched['error'].capitalize()}. "
+            scheduled.notify(f"{db}Stopped at {m['stopped_at']}: {m['reason']}")
         raise typer.Exit(code=2)
     if m["visibility"] == "review":
         typer.echo(f"publication {m['publish_id']} is visible to the review build")
