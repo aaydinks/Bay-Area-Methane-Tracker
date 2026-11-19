@@ -27,6 +27,14 @@ The steps, in order. Nothing after a failed step runs:
    (``mw publish set-visibility``).
 7. ``deploy_hook``: if ``CF_DEPLOY_HOOK_REVIEW`` is set, ask the host to rebuild the review site.
 
+The push alone does not keep the database awake: a run that stops before it (a source that cannot
+be read, the wrong branch, another run holding the lock) never reaches the database. So whenever
+the push did not succeed, the run ends with ``database_touch``: a ``select 1`` over
+``SUPABASE_DB_URL`` that reads nothing and changes nothing, never a draft or a visibility change.
+Its result is kept in the manifest and printed with the steps. When the database cannot be
+reached, it says "database paused or unreachable" rather than the driver's message, which names
+the pooler address and the project. It never changes whether the run counts as ok.
+
 Each run writes a manifest to ``processed/scheduled/`` (and ``latest.json``) with every step's
 result, its duration and, if the run stopped, the step and the reason. The connection string and
 the hook URL never appear in it: error text is scrubbed of both first. A lock file keeps two runs
@@ -191,6 +199,39 @@ def official_fit(project: ProjectConfig) -> dict[str, Any]:
             ),
         }
     return out | {"model_run_id": run_id}
+
+
+PAUSED = "database paused or unreachable"
+PAUSED_HINT = (
+    "if the network is up, the free plan has probably paused the project after seven quiet "
+    "days; the owner resumes it from the Supabase dashboard"
+)
+
+
+def touch_database(secrets: Sequence[str] = ()) -> dict[str, Any]:
+    """Run ``select 1`` over ``SUPABASE_DB_URL`` and say plainly how it went. Never raises."""
+    import psycopg
+
+    from methanewatch.publish import load
+
+    t0 = time.perf_counter()
+    out: dict[str, Any] = {"query": "select 1"}
+    try:
+        load.touch(load.dsn_from_env())
+    except load.NoDatabaseError as exc:
+        out |= {"ok": False, "error": str(exc)}
+    except psycopg.OperationalError as exc:
+        # The driver's text names the pooler address and the project, so only its type is kept
+        if "password authentication failed" in str(exc):
+            out |= {"ok": False, "error": "database refused the login; check SUPABASE_DB_URL"}
+        else:
+            out |= {"ok": False, "error": PAUSED, "hint": PAUSED_HINT}
+        out["error_type"] = type(exc).__name__
+    except Exception as exc:
+        out |= {"ok": False, "error": scrub(f"{type(exc).__name__}: {exc}", secrets)}
+    else:
+        out["ok"] = True
+    return out | {"seconds": round(time.perf_counter() - t0, 2)}
 
 
 class Stop(Exception):
@@ -407,6 +448,12 @@ def run(
         stopped_at, reason = next(k for k, v in steps.items() if not v["ok"]), str(exc)
     for name in STEPS:
         steps.setdefault(name, {"ok": False, "not_run": True})
+    if not push:
+        touched: dict[str, Any] = {"ok": True, "skipped": True, "reason": "--no-push"}
+    elif steps["push"]["ok"]:
+        touched = {"ok": True, "skipped": True, "reason": "the push reached the database"}
+    else:
+        touched = touch_database(secrets)
 
     manifest = run_manifest(
         run_id,
@@ -425,6 +472,7 @@ def run(
             "publish_id": state["snapshot"].publish_id if "snapshot" in state else None,
             "visibility": steps["review"].get("to") if steps["review"]["ok"] else None,
             "steps": {name: steps[name] for name in STEPS},
+            "database_touch": touched,
             "ok": stopped_at is None,
             "stopped_at": stopped_at,
             "reason": reason,

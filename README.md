@@ -82,9 +82,11 @@ stops at `review`, says which passes changed, and shows the notification. To bri
 run `mw model fit`, check the fit, name it in `publish.official_model_run` on `main`, and run the job again.
 
 On the owner's Mac a launchd job runs it on Mondays and Thursdays at 08:00 (a Mac that is asleep runs it on
-waking), so the free database plan never sees seven quiet days. The job uses the checkout it was written from
-and runs only while that checkout is on `main`; otherwise it stops and says so. A stopped run shows a macOS
-notification; output goes to `~/Library/Logs/methanewatch-scheduled-run.log`. To install, from the checkout:
+waking), so the free database plan never sees seven quiet days. A run that stops before the push still ends
+with a read-only `select 1`, so a source outage does not let the project pause; the log line starting
+`database:` and `database_touch` in the manifest say whether it got through ("database paused or unreachable"
+when not). The job uses the checkout it was written from and runs only while that checkout is on `main`;
+otherwise it stops and says so. A stopped run shows a macOS notification; output goes to `~/Library/Logs/methanewatch-scheduled-run.log`. To install, from the checkout:
 
 ```bash
 git switch main && git pull --ff-only && uv sync --all-extras

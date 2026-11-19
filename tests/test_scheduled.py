@@ -8,6 +8,7 @@ import plistlib
 import geopandas as gpd
 import httpx
 import pandas as pd
+import psycopg
 import pytest
 from typer.testing import CliRunner
 
@@ -94,7 +95,7 @@ def world(tmp_path, monkeypatch):
     """Fixture project with fake pulls, dataset writers, database and deploy hook."""
     project = make_project(tmp_path)
     interim = tmp_path / "interim"
-    calls = {"push": [], "visibility": [], "hook": [], "datasets": []}
+    calls = {"push": [], "visibility": [], "hook": [], "datasets": [], "touch": []}
 
     def fake_emit(project, bbox, start, end):
         gpd.GeoDataFrame(
@@ -133,6 +134,7 @@ def world(tmp_path, monkeypatch):
         return {"publish_id": publish_id, "from": "draft", "to": visibility}
 
     monkeypatch.setattr(load, "set_visibility", fake_visibility)
+    monkeypatch.setattr(load, "touch", lambda dsn: calls["touch"].append(dsn))
 
     def fake_post(url, timeout):
         calls["hook"].append(url)
@@ -436,3 +438,150 @@ def test_cli_reports_a_copy_without_estimates(world):
     assert "stays a draft" in stopped.output and "no longer matches" in stopped.output
     assert built.exit_code == 0 and "model_run: ok" in built.output
     assert "no estimates: official fit" in built.output and "not loaded" in built.output
+
+
+# The Nov 16, 2026 failure, with the test's connection string in place of the real one
+PAUSED_ERROR = (
+    'connection to server at "52.45.94.125", port 5432 failed: FATAL:  (ENOTFOUND) '
+    f"tenant/user postgres.abcdefghijklmnop not found ({DSN})"
+)
+
+
+def test_a_run_that_stops_at_the_refresh_still_touches_the_database(world, monkeypatch):
+    project, root, calls = world
+
+    def unreadable(*args):
+        raise httpx.ConnectError("10 Sentinel-2 passes could not be read")
+
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", unreadable)
+    m = scheduled.run(project)
+
+    assert m["stopped_at"] == "refresh"
+    assert calls["touch"] == [DSN]  # a read only: nothing pushed, no visibility changed
+    assert calls["push"] == [] and calls["visibility"] == [] and calls["hook"] == []
+    assert m["database_touch"]["ok"] and m["database_touch"]["query"] == "select 1"
+    saved = json.loads((root / "processed" / "scheduled" / "latest.json").read_text())
+    assert saved["database_touch"]["ok"]
+
+
+@pytest.mark.parametrize("stop", ["checkout", "lock", "push"])
+def test_every_early_stop_touches_the_database(world, monkeypatch, stop):
+    project, root, calls = world
+    if stop == "checkout":
+        monkeypatch.setattr(scheduled, "current_branch", lambda repo=None: "feat/experiment")
+        m = scheduled.run(project, branch="main")
+    elif stop == "lock":
+        out = root / "processed" / "scheduled"
+        out.mkdir(parents=True)
+        with scheduled._lock(out / ".lock"):
+            m = scheduled.run(project)
+    else:
+        monkeypatch.setattr(load, "push", lambda s, d: (_ for _ in ()).throw(RuntimeError("x")))
+        m = scheduled.run(project)
+
+    assert m["stopped_at"] == stop and calls["touch"] == [DSN]
+    assert m["database_touch"]["ok"] and calls["visibility"] == []
+
+
+def test_a_paused_database_is_named_plainly(world, monkeypatch):
+    project, _, calls = world
+
+    def paused(dsn):
+        raise psycopg.OperationalError(PAUSED_ERROR)
+
+    monkeypatch.setattr(load, "touch", paused)
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", lambda *a: 1 / 0)
+    m = scheduled.run(project)
+
+    touched = m["database_touch"]
+    assert not touched["ok"] and touched["error"] == "database paused or unreachable"
+    assert touched["error_type"] == "OperationalError" and "Supabase dashboard" in touched["hint"]
+    text = json.dumps(touched)
+    assert "s3cret-pw" not in text and "tenant" not in text and "52.45.94.125" not in text
+    assert m["stopped_at"] == "refresh" and calls["push"] == []
+
+
+def test_a_refused_login_is_not_called_a_pause(world, monkeypatch):
+    project, _, _ = world
+
+    def refused(dsn):
+        raise psycopg.OperationalError('FATAL:  password authentication failed for user "x"')
+
+    monkeypatch.setattr(load, "touch", refused)
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", lambda *a: 1 / 0)
+    touched = scheduled.run(project)["database_touch"]
+    assert touched["error"] == "database refused the login; check SUPABASE_DB_URL"
+    assert "hint" not in touched
+
+
+def test_the_touch_reports_a_missing_connection_string_and_scrubs_other_errors(world, monkeypatch):
+    project, _, _ = world
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", lambda *a: 1 / 0)
+
+    def odd(dsn):
+        raise RuntimeError(f"bad conninfo {dsn}")
+
+    monkeypatch.setattr(load, "touch", odd)
+    touched = scheduled.run(project)["database_touch"]
+    assert touched["error"].startswith("RuntimeError: bad conninfo <hidden>")
+
+    monkeypatch.delenv("SUPABASE_DB_URL")
+    touched = scheduled.run(project)["database_touch"]
+    assert not touched["ok"] and "SUPABASE_DB_URL is not set" in touched["error"]
+
+
+def test_a_run_that_pushed_or_was_told_not_to_does_not_touch_again(world):
+    project, _, calls = world
+    m = scheduled.run(project)
+    assert m["ok"] and m["database_touch"]["skipped"] and calls["touch"] == []
+    assert "push reached the database" in m["database_touch"]["reason"]
+
+    m = scheduled.run(project, push=False)
+    assert m["database_touch"] == {"ok": True, "skipped": True, "reason": "--no-push"}
+    assert calls["touch"] == []
+
+
+def test_cli_logs_the_touch_and_notifies_a_paused_database(world, monkeypatch):
+    project, _, _ = world
+    monkeypatch.setattr("methanewatch.config.load_project", lambda: project)
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", lambda *a: 1 / 0)
+    reached = CliRunner().invoke(app, ["scheduled-run"])
+    assert reached.exit_code == 2 and "database: reachable (select 1" in reached.output
+
+    def paused(dsn):
+        raise psycopg.OperationalError(PAUSED_ERROR)
+
+    monkeypatch.setattr(load, "touch", paused)
+    seen = []
+    monkeypatch.setattr(scheduled, "notify", seen.append)
+    out = CliRunner().invoke(app, ["scheduled-run", "--notify"])
+    assert out.exit_code == 2
+    assert "database: database paused or unreachable (if the network is up" in out.output
+    assert "tenant" not in out.output and "s3cret-pw" not in out.output
+    assert seen and seen[0].startswith("Database paused or unreachable. Stopped at refresh")
+
+
+def test_touch_runs_a_read_only_select(monkeypatch):
+    seen = {}
+
+    class Conn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, sql):
+            seen["sql"] = sql
+            return self
+
+        def fetchone(self):
+            return (1,)
+
+    def connect(dsn, **kw):
+        seen["kw"] = kw
+        return Conn()
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+    load.touch(DSN)
+    assert seen == {"sql": "select 1", "kw": {"connect_timeout": 10, "autocommit": True}}
