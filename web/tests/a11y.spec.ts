@@ -47,8 +47,9 @@ test('a site marked insufficient data is listed apart, never ranked, even with a
   await expect(thin).toContainText('Acme Fill');
   await expect(thin).toContainText('too wide');
   await page.goto('/');
-  const slide = page.locator('.carousel-slide', { hasText: 'Acme Fill' });
-  await expect(slide).toContainText('Not enough data for an estimate');
+  const card = page.locator('.site-card', { hasText: 'Acme Fill' });
+  await expect(card).toContainText('Not enough data yet');
+  await expect(card).not.toContainText(/t\/yr|tonnes/);
 });
 
 test('the site stays light when the system asks for dark', async ({ page }) => {
@@ -58,33 +59,9 @@ test('the site stays light when the system asks for dark', async ({ page }) => {
   expect(background).toBe('rgb(255, 255, 255)');
 });
 
-test('a carousel shows two slides, moves on its own, and answers its arrows and pause button', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+test('the home page has one main next step and no moving carousels', async ({ page }) => {
   await page.goto('/');
-  const carousel = page.getByRole('region', { name: 'How it works, step by step' });
-  await carousel.scrollIntoViewIfNeeded();
-  const active = () => carousel.locator('.carousel-dots button[aria-current="true"]').getAttribute('aria-label');
-  const inView = () =>
-    carousel.evaluate((root) => {
-      const box = root.querySelector('.carousel-viewport')!.getBoundingClientRect();
-      return [...root.querySelectorAll('.carousel-slide')].filter((s) => {
-        const r = s.getBoundingClientRect();
-        return r.left >= box.left - 1 && r.right <= box.right + 1;
-      }).length;
-    });
-
-  await expect.poll(inView).toBe(2);
-  const first = await active();
-  await expect.poll(active, { timeout: 8000 }).not.toBe(first);
-
-  const before = await active();
-  await carousel.getByRole('button', { name: 'Next slide' }).click();
-  await expect.poll(active).not.toBe(before);
-
-  await carousel.getByRole('button', { name: /^Pause/ }).click();
-  await page.mouse.move(0, 0);
-  await page.locator('h1').click();
-  const paused = await active();
-  await page.waitForTimeout(6500);
-  expect(await active()).toBe(paused);
+  await expect(page.locator('main .button.primary')).toHaveCount(1);
+  await expect(page.locator('.steps > li')).toHaveCount(3);
+  await expect(page.locator('.carousel')).toHaveCount(0);
 });

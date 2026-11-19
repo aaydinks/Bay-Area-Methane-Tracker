@@ -206,97 +206,39 @@ dl.facts dd { margin: 0; }
 @keyframes swath { to { transform: skewX(-12deg) translateX(560%); } }
 .credit { font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0; }
 
-/* Numbers */
-.stats { display: grid; gap: 1rem; grid-template-columns: repeat(2, 1fr); margin: 0; }
-@media (min-width: 48rem) { .stats { grid-template-columns: repeat(4, 1fr); } }
-.counter { display: flex; flex-direction: column; gap: 0.2rem; padding: 1rem 1.1rem; border-radius: var(--radius); background: var(--green-soft); border-top: 4px solid var(--red); }
-.counter .big { font-size: clamp(2rem, 1.5rem + 2vw, 2.8rem); line-height: 1.05; color: var(--black); }
-.counter .what { color: var(--muted); font-size: 0.95rem; }
-.stats-note { margin: 0.75rem 0 0; font-size: 0.95rem; }
-section.stats + .stats-note + section { margin-top: 2.5rem; }
+.quiet-link { align-self: center; }
 
-/* Scroll reveals: hidden until seen, instant under reduced motion or without JS. */
-.reveal { opacity: 1; transform: none; }
-.js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms ease, transform 500ms ease; }
-.js .reveal.is-visible { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) {
-  .js .reveal { opacity: 1; transform: none; transition: none; }
+/* How it works: three numbered steps, side by side on wide screens. */
+.steps { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 48rem) { .steps { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; } }
+.step { padding: 1rem 1.1rem; border-radius: var(--radius); background: var(--green-soft); }
+.step svg { display: block; width: 100%; max-width: 9rem; height: auto; margin: 0 0 0.5rem; }
+.step h3 { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.35rem; font-size: 1.1rem; }
+.step p { margin: 0; color: var(--muted); }
+/* On narrow screens each drawing sits beside its words, so the three steps stay short. */
+@media (max-width: 47.99rem) {
+  .step { display: grid; grid-template-columns: 4.5rem 1fr; column-gap: 0.9rem; align-items: start; }
+  .step svg { grid-row: 1 / span 2; margin: 0.2rem 0 0; }
 }
-
-/* Carousels: two slides in view, arrows on the left and right of the strip. */
-.carousel { margin: 1rem 0 0.5rem; }
-.carousel-stage { position: relative; }
-.carousel-viewport { overflow: hidden; border-radius: var(--radius); }
-.carousel-viewport:focus-visible { outline-offset: 4px; }
-.carousel-track { display: flex; gap: 0.75rem; list-style: none; margin: 0; padding: 0; touch-action: pan-y pinch-zoom; }
-.carousel-slide { flex: 0 0 calc((100% - 0.75rem) / 2); min-width: 0; display: flex; }
-@media (min-width: 48rem) {
-  .carousel-track { gap: 1.25rem; }
-  .carousel-slide { flex-basis: calc((100% - 1.25rem) / 2); }
-}
-.slide-card {
-  width: 100%; display: flex; flex-direction: column; overflow: hidden;
-  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
-}
-.slide-image { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--green-soft); }
-.slide-art { position: relative; background: var(--green-soft); padding: 0.75rem 0.75rem 0.25rem; }
-.slide-art svg { display: block; width: 100%; max-width: 16rem; height: auto; margin: 0 auto; }
-.slide-body { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.75rem 0.9rem 0.95rem; flex: 1; }
-.slide-body h3 { margin: 0; font-size: clamp(0.98rem, 0.9rem + 0.4vw, 1.2rem); }
-.slide-body p { margin: 0; }
-.slide-figure { font-size: clamp(1rem, 0.92rem + 0.5vw, 1.35rem); color: var(--black); }
-.slide-figure small { font-size: 0.7em; color: var(--muted); }
-.slide-text { color: var(--muted); font-size: clamp(0.88rem, 0.84rem + 0.2vw, 1rem); }
-.slide-body .badge { align-self: flex-start; margin-top: auto; white-space: normal; font-size: 0.85rem; }
-.card-link { margin-top: auto !important; }
 .step-number {
-  position: absolute; left: 0.6rem; top: 0.6rem; display: inline-grid; place-items: center;
-  width: 1.9rem; height: 1.9rem; border-radius: 999px; background: var(--red); color: var(--white); font-size: 0.95rem;
+  display: inline-grid; place-items: center; flex: none; width: 1.7rem; height: 1.7rem;
+  border-radius: 999px; background: var(--red); color: var(--white); font-size: 0.9rem; font-weight: 400;
 }
+.more { margin-top: 1rem; }
 
-/* The arrows sit on the left and right edges, level with the picture, never over text. */
-.carousel-arrow {
-  position: absolute; z-index: 2; top: var(--arrow-top, 40%); transform: translateY(-50%);
-  display: grid; place-items: center; width: 2.6rem; height: 2.6rem; padding: 0; cursor: pointer;
-  border-radius: 999px; border: 1.5px solid var(--black); background: var(--white); color: var(--black);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+/* The five landfills: a plain grid of cards, each a link to its site page. */
+.site-cards { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+@media (min-width: 48rem) { .site-cards { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); } }
+.site-card {
+  position: relative; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+  transition: border-color 120ms ease, transform 120ms ease;
 }
-.carousel-arrow svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.carousel-arrow:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
-.carousel-arrow:disabled { opacity: 0.35; cursor: default; }
-.carousel-arrow.prev { left: -0.6rem; }
-.carousel-arrow.next { right: -0.6rem; }
-@media (min-width: 76rem) {
-  .carousel-arrow.prev { left: -1.4rem; }
-  .carousel-arrow.next { right: -1.4rem; }
-}
-/* Half the height of a 3:2 picture in a half-width slide, or of the step drawing. */
-.carousel-photos .carousel-stage { container-type: inline-size; }
-.carousel-photos .carousel-arrow { --arrow-top: calc((100cqw - 0.75rem) / 2 / 3); }
-@media (min-width: 48rem) { .carousel-photos .carousel-arrow { --arrow-top: calc((100cqw - 1.25rem) / 2 / 3); } }
-.carousel-steps .carousel-arrow { --arrow-top: 3.6rem; }
-
-.carousel-foot { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 0.85rem; }
-.carousel-pause {
-  font: inherit; font-size: 0.85rem; padding: 0.25rem 0.75rem; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--border); background: var(--white); color: var(--black);
-}
-.carousel-pause:hover { border-color: var(--red); }
-.carousel-dots { display: flex; gap: 0.15rem; }
-.carousel-dots button {
-  width: 1.5rem; height: 1.5rem; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center;
-}
-.carousel-dots button::before {
-  content: ""; width: 0.6rem; height: 0.6rem; border-radius: 999px; border: 1.5px solid var(--black); background: var(--white);
-}
-.carousel-dots button.is-active::before { background: var(--red); border-color: var(--red); width: 1.4rem; }
-.more { margin-top: 0.75rem; }
-
-/* What satellites can't see */
-.limits { list-style: none; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(2, 1fr); }
-@media (min-width: 56rem) { .limits { grid-template-columns: repeat(4, 1fr); } }
-.limits li {
-  display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem; border-radius: var(--radius);
-  background: var(--white); border: 1px solid var(--border); font-size: 0.95rem;
-}
-.limits svg { width: 3rem; height: 3rem; }
+.site-card:hover { border-color: var(--red); transform: translateY(-2px); }
+.site-card-photo { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--green-soft); }
+.site-card-body { padding: 0.7rem 0.85rem 0.85rem; }
+.site-card-body h3 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+/* The whole card follows its name's link. */
+.site-card-body h3 a::after { content: ""; position: absolute; inset: 0; }
+.site-card-body p { margin: 0; font-size: 0.92rem; }
+.site-card-status { margin-top: 0.35rem !important; }
