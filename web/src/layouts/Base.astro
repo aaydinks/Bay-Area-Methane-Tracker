@@ -19,7 +19,10 @@ const path = Astro.url.pathname.replace(/\/?$/, '/');
 const pageTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
 const credits = snapshot.data_terms.filter((t) => t.credit_line).map((t) => t.credit_line);
-const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+// The home page folds the provisional and Carbon Mapper notices into one short line for newcomers;
+// every other page keeps them in full.
+const isHome = kind === 'home';
+const isCurrent =(href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 ---
 <!doctype html>
 <html lang="en">
@@ -64,14 +67,27 @@ const isCurrent = (href: string) => (href === '/' ? path === '/' : path.startsWi
     {isFixture && <Banner tone="warn" marker="fixture">Sample data for development. Nothing on this build is a real result.</Banner>}
     {publication?.simulated && <Banner tone="warn" marker="simulated">Simulated data: these sites and figures come from a simulation with known true values, used to test the method. They are not real landfills.</Banner>}
     {!publication && <Banner>{EXPECTED.publication}</Banner>}
-    {publication?.provisional && (
-      <Banner>Provisional: site outlines are placeholders and some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
-    )}
-    {carbonMapperHeld && (
-      <Banner>Carbon Mapper data is held back until its publication terms are confirmed. Pass and plume counts on this site cover NASA EMIT and Sentinel-2.</Banner>
-    )}
-    {carbonMapperDisplayOnly && (
-      <Banner>Figures that use Carbon Mapper data are shown here with its permission, but are not available to download, and Carbon Mapper plumes appear on the map without their rates.</Banner>
+    {isHome ? (
+      (publication?.provisional || carbonMapperHeld || carbonMapperDisplayOnly) && (
+        <Banner>
+          {publication?.provisional && 'Early results: every figure is provisional and may change. '}
+          {carbonMapperHeld && 'Carbon Mapper data is held back until its terms are confirmed. '}
+          {carbonMapperDisplayOnly && 'Carbon Mapper figures are shown with its permission and are not available to download. '}
+          <a href="/how-to-read/">What this means</a>
+        </Banner>
+      )
+    ) : (
+      <>
+        {publication?.provisional && (
+          <Banner>Provisional: site outlines are placeholders and some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
+        )}
+        {carbonMapperHeld && (
+          <Banner>Carbon Mapper data is held back until its publication terms are confirmed. Pass and plume counts on this site cover NASA EMIT and Sentinel-2.</Banner>
+        )}
+        {carbonMapperDisplayOnly && (
+          <Banner>Figures that use Carbon Mapper data are shown here with its permission, but are not available to download, and Carbon Mapper plumes appear on the map without their rates.</Banner>
+        )}
+      </>
     )}
 
     <main id="main" class="wrap">
