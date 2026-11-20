@@ -51,6 +51,7 @@ interface Props {
 }
 
 type FC = FeatureCollection;
+const ATTRIBUTED = new Set(['inside', 'buffer']);
 const EMPTY: FC = { type: 'FeatureCollection', features: [] };
 
 function fmt(x: number | null | undefined) {
@@ -265,7 +266,8 @@ export default function MethaneMap({ sites, availableSources }: Props) {
     const counts = new Map<string, number>();
     for (const f of filtered.features) {
       const id = String(f.properties?.site_id ?? '');
-      if (id && f.properties?.attribution !== 'ambiguous') counts.set(id, (counts.get(id) ?? 0) + 1);
+      // Only plumes inside a site's outline or within its 500 m buffer are traced to it.
+      if (id && ATTRIBUTED.has(String(f.properties?.attribution))) counts.set(id, (counts.get(id) ?? 0) + 1);
     }
     return counts;
   }, [filtered]);
@@ -295,7 +297,7 @@ export default function MethaneMap({ sites, availableSources }: Props) {
   }, [ready, sites, selected, countsBySite]);
 
   const site = sites.find((s) => s.site_id === selected) ?? null;
-  const plumesAtSite = site ? filtered.features.filter((f) => f.properties?.site_id === site.site_id).length : 0;
+  const plumesAtSite = site ? (countsBySite.get(site.site_id) ?? 0) : 0;
   const toggleIn = (set: Set<string>, id: string) => {
     const next = new Set(set);
     if (next.has(id)) next.delete(id);
@@ -303,7 +305,9 @@ export default function MethaneMap({ sites, availableSources }: Props) {
     return next;
   };
   const count = filtered.features.length;
-  const countText = `${count.toLocaleString('en-US')} ${count === 1 ? 'plume' : 'plumes'} seen`;
+  let traced = 0;
+  for (const n of countsBySite.values()) traced += n;
+  const countText = `${count.toLocaleString('en-US')} ${count === 1 ? 'plume' : 'plumes'} seen, ${traced.toLocaleString('en-US')} traced to the landfills`;
   const when = stepKind === 'all' || !current
     ? span.length ? `All dates, ${shortMonth(span[0])} to ${shortMonth(span[span.length - 1])}` : 'All dates'
     : stepLabel(current, stepKind);
@@ -324,7 +328,7 @@ export default function MethaneMap({ sites, availableSources }: Props) {
               <dd>{site.estimate ? `${fmt(site.estimate.med)} t/yr (90% range ${fmt(site.estimate.lo)} to ${fmt(site.estimate.hi)})` : site.estimate_status === 'insufficient_data' ? 'Insufficient data' : 'None yet'}</dd>
               <dt>Latest check</dt>
               <dd>{site.latest ? (site.latest.held ? `${site.latest.type_label}: result held back` : `${site.latest.type_label}: ${site.latest.label}`) : 'No check on record'}</dd>
-              <dt>Plumes shown</dt>
+              <dt>Plumes traced to it</dt>
               <dd>{plumesAtSite} for {stepKind === 'all' ? 'all dates' : when}</dd>
               <dt>Passes</dt>
               <dd>{site.usable_passes} usable; {site.plume_days} plume days ({site.plume_days_per_usable_pass == null ? '–' : site.plume_days_per_usable_pass.toFixed(3)} per usable pass)</dd>
@@ -393,7 +397,7 @@ export default function MethaneMap({ sites, availableSources }: Props) {
       <ul className="map-legend" aria-label="Key">
         <li><span className="swatch plume" /> Plume</li>
         <li><span className="swatch heat" /> Many plumes close together</li>
-        <li><span className="swatch marker" /><span className="swatch badge" aria-hidden="true">3</span> Landfill and its number of plumes for the dates shown; select it for a summary</li>
+        <li><span className="swatch marker" /><span className="swatch badge" aria-hidden="true">3</span> Landfill and the plumes traced to it for the dates shown; select it for a summary</li>
         <li><span className="swatch pass" /> Clear looks at the site (bigger ring, more looks)</li>
       </ul>
 

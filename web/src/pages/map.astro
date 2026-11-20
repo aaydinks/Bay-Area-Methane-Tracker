@@ -47,7 +47,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
 ---
 <Base title="Map" description="Where satellites and aircraft saw methane plumes near Bay Area landfills, month by month." kind="map">
   <h1>Map</h1>
-  <p class="lede">Each red dot is a methane plume that a satellite or aircraft saw near a landfill. Press play to step through them month by month.</p>
+  <p class="lede">Each red dot is a methane plume a satellite or aircraft saw over the Bay Area, and the number on each landfill counts the plumes traced to it. Press play to step through them month by month.</p>
   {hasPublication ? (
     <MapLoader client:only="react" sites={summaries} availableSources={availableSources} />
   ) : (
@@ -56,7 +56,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
   <details class="more" id="about-map">
     <summary>About this map</summary>
     <p>Plumes are shown where they started, as dots and as a heat map. The grey ring at each landfill grows with the number of usable passes: times a satellite or aircraft had a clear look at the site. Read the dots against those passes, since a site that was observed more often has more chances to show a plume.</p>
-    <p>The marker at each landfill shows the latest dated record there. Its shape gives the type of record and its colour only the statistical result; grey means no check on record. Plumes near another methane source are drawn as open circles and never assigned to the landfill.</p>
+    <p>The marker at each landfill shows the latest dated record there. Its shape gives the type of record and its colour only the statistical result; grey means no check on record. A plume counts for a landfill only when it starts inside the site's outline or within 500 m of it. Plumes that start near another methane source are drawn as open circles and never assigned to the landfill. Many other dots start away from these landfills.</p>
     <p>This map is a screening indication of where to look, not a finding about any site. Basemap: OpenFreeMap, data from OpenStreetMap contributors.</p>
   </details>
   <details class="more" id="table-view">

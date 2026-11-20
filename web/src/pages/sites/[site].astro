@@ -10,7 +10,7 @@ import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
 import {
   checksFor, estimateFor, featuresFor, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
-  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, sites, type Site,
+  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, sites, type Site, usableEstimate,
 } from '../../lib/data';
 import { date, listText, num, pct } from '../../lib/format';
 
@@ -37,12 +37,13 @@ const leftHere = model.leftOut
   .filter((l) => l.usable > 0);
 const showModel = Boolean(estimate) && model.used.length > 0;
 const leftNames = new Set(showModel ? leftHere.map((l) => l.instrument) : []);
-const hasEstimate = Boolean(estimate) && estimate?.status !== 'insufficient_data';
+// The same rule as the home page and the landfills list: no figure without a usable estimate.
+const hasEstimate = Boolean(usableEstimate(id));
 // One plain sentence under the title, built from what this update holds for the site.
 const plain = hasEstimate && estimate
   ? `A plume was seen in ${num(estimate.n_detections)} of the ${num(estimate.n_usable_overpasses)} clear looks used for the estimate below.`
   : estimate
-    ? `There is not enough data for an estimate yet${estimate.insufficient_reason ? `: ${estimate.insufficient_reason}` : ''}.`
+    ? 'There is not enough data for an estimate yet; the reason is below.'
     : 'There is no estimate for this landfill in this update.';
 ---
 <Base title={site.name ?? id} description={`What satellites and aircraft have seen of methane at ${site.name}, with an estimate and its range.`} kind="site" image={`/og/${id}.png`}>

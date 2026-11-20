@@ -72,16 +72,16 @@ test('the map steps through plumes month by month', async ({ page }) => {
   // The map may start loading on its own as it scrolls into view, so the button can vanish.
   if (await load.isVisible()) await load.click({ timeout: 3000 }).catch(() => undefined);
   const label = page.locator('.timeline-label');
-  await expect(label).toContainText(/All dates, \w{3} \d{4} to \w{3} \d{4} · \d+ plumes? seen/);
+  await expect(label).toContainText(/All dates, \w{3} \d{4} to \w{3} \d{4} · \d+ plumes? seen, \d+ traced to the landfills/);
   await page.getByLabel('By month').check();
   const slider = page.locator('.timeline-slider');
   await expect(slider).toBeVisible();
-  await expect(label).toContainText(/^[A-Z][a-z]+ \d{4} · \d+ plumes? seen/);
+  await expect(label).toContainText(/^[A-Z][a-z]+ \d{4} · \d+ plumes? seen, \d+ traced to the landfills/);
   const first = await label.textContent();
   await slider.fill(await slider.getAttribute('max') ?? '1');
   await expect(label).not.toHaveText(first ?? '');
   await page.getByLabel('By quarter').check();
-  await expect(label).toContainText(/^[A-Z][a-z]{2} to [A-Z][a-z]{2} \d{4} · \d+ plumes? seen/);
+  await expect(label).toContainText(/^[A-Z][a-z]{2} to [A-Z][a-z]{2} \d{4} · \d+ plumes? seen, \d+ traced to the landfills/);
   const play = page.locator('.timeline .play');
   await play.click();
   await expect(play).toHaveAttribute('aria-pressed', 'true');
