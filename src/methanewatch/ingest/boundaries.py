@@ -16,6 +16,7 @@ The air district is descriptive only; it is never a model covariate.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -31,28 +32,37 @@ CARB_LAYER = (
     "https://gis.carb.arb.ca.gov/hosting/rest/services/"
     "California_Air_Resources_Board_Air_Districts_MIL1/MapServer/0"
 )
-CARB_QUERY = {"where": "DIS='BA'", "outFields": "NAME,DIS", "outSR": "4326", "f": "geojson"}
 DISTRICT_AS_OF = "2004-03"
 DISTRICT_CAVEAT = "check against current BAAQMD"
 
-COUNTY_FIPS = ("001", "013", "041", "055", "075", "081", "085", "095", "097")
 COUNTY_FILE = f"cb_{VINTAGE}_us_county_500k.zip"
 DISTRICT_FILE = "carb_air_district_ba.geojson"
 # Simplification tolerance for the committed county outlines, in metres.
 COUNTY_SIMPLIFY_M = 100.0
 
 
-def sources() -> dict[str, str]:
-    """File name in the pull directory -> URL. The CARB query comes first: it is small and
-    is checked before the large Census files are fetched."""
+def carb_query(districts: Sequence[str]) -> dict[str, str]:
+    """CARB layer query for the districts with these codes (its ``DIS`` field)."""
+    if not districts:
+        raise ValueError("no CARB district codes configured for the project's regions")
+    codes = [f"'{d}'" for d in districts]
+    where = f"DIS={codes[0]}" if len(codes) == 1 else f"DIS IN ({','.join(codes)})"
+    return {"where": where, "outFields": "NAME,DIS", "outSR": "4326", "f": "geojson"}
+
+
+def sources(county_fips: Sequence[str], districts: Sequence[str]) -> dict[str, str]:
+    """File name in the pull directory -> URL, for the project's counties (FIPS county parts)
+    and CARB district codes. The CARB query comes first: it is small and is checked before
+    the large Census files are fetched."""
     gen, tiger = f"{CENSUS}/GENZ{VINTAGE}/shp", f"{CENSUS}/TIGER{VINTAGE}"
-    files = {DISTRICT_FILE: f"{CARB_LAYER}/query?{urlencode(CARB_QUERY, safe=',')}"}
+    query = urlencode(carb_query(districts), safe=",")
+    files = {DISTRICT_FILE: f"{CARB_LAYER}/query?{query}"}
     files[COUNTY_FILE] = f"{gen}/{COUNTY_FILE}"
     files[f"cb_{VINTAGE}_06_place_500k.zip"] = f"{gen}/cb_{VINTAGE}_06_place_500k.zip"
     files[f"tl_{VINTAGE}_06_tract.zip"] = f"{tiger}/TRACT/tl_{VINTAGE}_06_tract.zip"
     roads = f"tl_{VINTAGE}_06_prisecroads.zip"
     files[roads] = f"{tiger}/PRISECROADS/{roads}"
-    for fips in COUNTY_FIPS:
+    for fips in county_fips:
         water = f"tl_{VINTAGE}_06{fips}_areawater.zip"
         files[water] = f"{tiger}/AREAWATER/{water}"
     return files
@@ -67,9 +77,15 @@ def _download(client: httpx.Client, url: str, path: Path) -> None:
                 fh.write(block)
 
 
-def pull(raw_root: Path, client: httpx.Client | None = None) -> Path:
-    """Download every boundary file into ``raw_root/boundaries/<pull_id>/`` (about 60 MB)."""
-    urls = sources()
+def pull(
+    raw_root: Path,
+    county_fips: Sequence[str],
+    districts: Sequence[str],
+    client: httpx.Client | None = None,
+) -> Path:
+    """Download every boundary file into ``raw_root/boundaries/<pull_id>/`` (about 60 MB for
+    nine counties)."""
+    urls = sources(county_fips, districts)
     manifest = PullManifest.start(
         "boundaries",
         f"{CENSUS}/GENZ{VINTAGE}; {CENSUS}/TIGER{VINTAGE}; {CARB_LAYER}/query",
@@ -83,28 +99,30 @@ def pull(raw_root: Path, client: httpx.Client | None = None) -> Path:
             path = pull_dir / name
             _download(c, url, path)
             if name == DISTRICT_FILE:
-                district(path)  # fail before the large files if the service sent an error
+                # fail before the large files if the service sent an error
+                district(path, districts)
             files.append(path)
     manifest.finish(pull_dir, files, n_records=len(files))
     return pull_dir
 
 
-def district(path: Path) -> gpd.GeoDataFrame:
-    """The Bay Area air district outline from a saved CARB query, with its date and caveat."""
+def district(path: Path, districts: Sequence[str]) -> gpd.GeoDataFrame:
+    """The air district outlines from a saved CARB query, with their date and caveat. The
+    answer must hold exactly the districts asked for."""
     fc = json.loads(path.read_text())
     if fc.get("error") or not fc.get("features"):
         raise ValueError(f"CARB query returned no district: {fc.get('error') or 'no features'}")
     gdf = gpd.GeoDataFrame.from_features(fc["features"], crs="EPSG:4326")
-    if set(gdf["DIS"]) != {"BA"}:
-        raise ValueError(f"expected only DIS='BA', got {sorted(set(gdf['DIS']))}")
+    if set(gdf["DIS"]) != set(districts):
+        raise ValueError(f"expected DIS {sorted(districts)}, got {sorted(set(gdf['DIS']))}")
     gdf["boundary_as_of"] = DISTRICT_AS_OF
     gdf["caveat"] = DISTRICT_CAVEAT
     return gdf[["NAME", "DIS", "boundary_as_of", "caveat", "geometry"]]
 
 
-def counties(zip_path: Path, metric_crs: str) -> gpd.GeoDataFrame:
-    """The nine Bay Area counties, simplified so shared edges stay shared."""
-    fips = ",".join(f"'{c}'" for c in COUNTY_FIPS)
+def counties(zip_path: Path, metric_crs: str, county_fips: Sequence[str]) -> gpd.GeoDataFrame:
+    """The project's counties, simplified so shared edges stay shared."""
+    fips = ",".join(f"'{c}'" for c in county_fips)
     gdf = gpd.read_file(f"zip://{zip_path}", where=f"STATEFP = '06' AND COUNTYFP IN ({fips})")
     gdf = gdf.to_crs(metric_crs)
     gdf["geometry"] = gdf.geometry.simplify_coverage(COUNTY_SIMPLIFY_M)

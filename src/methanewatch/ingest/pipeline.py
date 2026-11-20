@@ -129,14 +129,14 @@ def ingest_ghgrp(project: ProjectConfig, year: int) -> dict[str, int]:
     registry = project.resolve(project.paths.registry)
     interim.mkdir(parents=True, exist_ok=True)
 
-    facilities = ghgrp.bay_area_facilities(year)
+    facilities = ghgrp.facilities_in([c.name for c in project.counties], year)
     facilities.to_csv(interim / f"ghgrp_facilities_{year}.csv", index=False)
 
     crosswalk = pd.read_csv(registry / "operator_crosswalk.csv", dtype=str)
     ids = crosswalk["ghgrp_facility_id"].dropna().tolist()
     if not ids:
-        return {"bay_area_facilities": len(facilities), "operator_rows": 0}
+        return {"facilities_in_regions": len(facilities), "operator_rows": 0}
     pull_dir = ghgrp.pull_reports(ids, raw)
     reports = ghgrp.normalize(pull_dir, crosswalk, load_impact().ghgrp_gwp_ch4.by_year())
     reports.to_parquet(interim / "operator_reports.parquet")
-    return {"bay_area_facilities": len(facilities), "operator_rows": len(reports)}
+    return {"facilities_in_regions": len(facilities), "operator_rows": len(reports)}

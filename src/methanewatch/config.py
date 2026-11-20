@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = REPO_ROOT / "config"
@@ -67,11 +67,31 @@ class RepairWindows(_Strict):
 BBox = tuple[float, float, float, float]  # min lon, min lat, max lon, max lat
 
 
+# East edge of UTM zone 10N. Distances (EPSG:32610) and the Sentinel-2 pixel code assume it.
+UTM10_EAST_LON = -120.0
+
+
+class County(_Strict):
+    name: str
+    fips: str = Field(pattern=r"^\d{3}$")  # county part of the FIPS code, California implied
+
+
+class Region(_Strict):
+    """One area the project covers (ADR 0018)."""
+
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    label: str
+    bbox: BBox
+    counties: tuple[County, ...] = Field(min_length=1)
+    # CARB's air-district codes (its DIS field) whose outlines `mw ingest boundaries` pulls
+    carb_districts: tuple[str, ...] = ()
+
+
 class Ingest(_Strict):
-    """What every scheduled refresh asks the sources, so repeated pulls stay comparable."""
+    """What every scheduled refresh asks the sources, so repeated pulls stay comparable.
+    The box for EMIT and Carbon Mapper is ``ProjectConfig.bbox``."""
 
     start: date
-    bbox: BBox
     sentinel2_bbox: BBox
 
 
@@ -98,6 +118,7 @@ class PublishSettings(_Strict):
 class ProjectConfig(_Strict):
     crs_geographic: str
     crs_metric: str
+    regions: tuple[Region, ...] = Field(min_length=1)
     paths: Paths
     attribution: Attribution
     coverage: Coverage
@@ -108,6 +129,48 @@ class ProjectConfig(_Strict):
 
     def resolve(self, p: Path) -> Path:
         return p if p.is_absolute() else REPO_ROOT / p
+
+    @model_validator(mode="after")
+    def _regions_are_distinct_and_in_zone(self) -> ProjectConfig:
+        ids = [r.id for r in self.regions]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"duplicate region id in {ids}")
+        fips = [c.fips for c in self.counties]
+        if len(set(fips)) != len(fips):
+            raise ValueError("a county is listed in more than one region")
+        for r in self.regions:
+            west, south, east, north = r.bbox
+            if not (west < east and south < north):
+                raise ValueError(f"region {r.id}: bbox is (min lon, min lat, max lon, max lat)")
+            if self.crs_metric == "EPSG:32610" and east > UTM10_EAST_LON:
+                raise ValueError(
+                    f"region {r.id} reaches east of {abs(UTM10_EAST_LON):g}°W, outside UTM zone 10N"
+                )
+        return self
+
+    @property
+    def bbox(self) -> BBox:
+        """The box that covers every region: what EMIT and Carbon Mapper are asked for."""
+        boxes = [r.bbox for r in self.regions]
+        return (
+            min(b[0] for b in boxes),
+            min(b[1] for b in boxes),
+            max(b[2] for b in boxes),
+            max(b[3] for b in boxes),
+        )
+
+    @property
+    def counties(self) -> tuple[County, ...]:
+        return tuple(c for r in self.regions for c in r.counties)
+
+    @property
+    def county_fips(self) -> dict[str, str]:
+        """County FIPS part -> name, in FIPS order."""
+        return {c.fips: c.name for c in sorted(self.counties, key=lambda c: c.fips)}
+
+    @property
+    def carb_districts(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(d for r in self.regions for d in r.carb_districts))
 
 
 # --- instruments.yaml -------------------------------------------------------

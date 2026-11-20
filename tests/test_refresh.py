@@ -188,7 +188,7 @@ def test_refresh_survives_a_failed_source_and_repeats_identically(tmp_path, monk
 
     # The configured window and area are used every time
     ing = project.ingest
-    assert calls[0][1:3] == (ing.bbox, ing.start)
+    assert calls[0][1:3] == (project.bbox, ing.start)
     assert not first["ok"]
     steps = first["steps"]
     assert not steps["sentinel2"]["ok"] and "source is down" in steps["sentinel2"]["error"]

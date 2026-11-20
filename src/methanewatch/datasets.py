@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
@@ -23,18 +24,6 @@ from methanewatch.sentinel2 import search as s2
 # EMIT was paused by a power issue outside the instrument. These days are "no data",
 # not "no leak"; the coverage build must not create overpasses inside the gap.
 EMIT_OUTAGE = (date(2022, 9, 13), date(2023, 1, 6))
-
-BAY_AREA_COUNTY_FIPS = {
-    "001": "Alameda",
-    "013": "Contra Costa",
-    "041": "Marin",
-    "055": "Napa",
-    "075": "San Francisco",
-    "081": "San Mateo",
-    "085": "Santa Clara",
-    "095": "Solano",
-    "097": "Sonoma",
-}
 
 
 def _copy_manifests(pulls: list[Path], out: Path) -> None:
@@ -123,17 +112,24 @@ def build_ghgrp(raw: Path, interim: Path, out: Path) -> dict[str, int]:
     return {"ghgrp_rows": len(rows), "ghgrp_facility_lists": len(facilities)}
 
 
-def build_census(raw: Path, out: Path, sites: gpd.GeoDataFrame, radius_km: float) -> dict[str, int]:
-    """2020 block population for the nine counties, and block outlines near the pilot sites."""
+def build_census(
+    raw: Path,
+    out: Path,
+    sites: gpd.GeoDataFrame,
+    radius_km: float,
+    county_fips: dict[str, str],
+) -> dict[str, int]:
+    """2020 block population for the project's counties (FIPS county part -> name), and block
+    outlines near the pilot sites."""
     zip_path = raw / "census" / "tiger2020-tabblock20" / "tl_2020_06_tabblock20.zip"
     if not zip_path.exists():
         raise FileNotFoundError(f"missing {zip_path}; see datasets/census/README.md")
     out.mkdir(parents=True, exist_ok=True)
-    fips = ",".join(f"'{c}'" for c in BAY_AREA_COUNTY_FIPS)
+    fips = ",".join(f"'{c}'" for c in county_fips)
     blocks = gpd.read_file(f"zip://{zip_path}", where=f"COUNTYFP20 IN ({fips})")
     cols = ["GEOID20", "COUNTYFP20", "TRACTCE20", "BLOCKCE20", "POP20", "HOUSING20"]
     cols += ["ALAND20", "AWATER20", "INTPTLAT20", "INTPTLON20", "UR20"]
-    table = blocks[cols].assign(county=blocks["COUNTYFP20"].map(BAY_AREA_COUNTY_FIPS))
+    table = blocks[cols].assign(county=blocks["COUNTYFP20"].map(county_fips))
     table.sort_values("GEOID20").to_csv(out / "blocks_2020_population.csv", index=False)
     near = sites.to_crs("EPSG:32610").buffer(radius_km * 1000).to_crs(blocks.crs).union_all()
     nearby = blocks[blocks.intersects(near)][["GEOID20", "POP20", "HOUSING20", "geometry"]]
@@ -305,17 +301,21 @@ def build_calrecycle(raw: Path, out: Path) -> dict[str, int]:
     return {"calrecycle_landfills": len(df)}
 
 
-def build_boundaries(raw: Path, out: Path) -> dict[str, int]:
-    """Nine-county outlines and the Bay Area air district; tracts, roads and water stay raw."""
+def build_boundaries(
+    raw: Path, out: Path, county_fips: Sequence[str], districts: Sequence[str]
+) -> dict[str, int]:
+    """County outlines and the air district outlines; tracts, roads and water stay raw."""
     from methanewatch.ingest import boundaries
 
     pulls = sorted((raw / "boundaries").glob("boundaries-*"))
     if not pulls:
         raise FileNotFoundError("no boundaries pull yet; run `mw ingest boundaries`")
     out.mkdir(parents=True, exist_ok=True)
-    counties = boundaries.counties(pulls[-1] / boundaries.COUNTY_FILE, "EPSG:32610")
+    counties = boundaries.counties(
+        pulls[-1] / boundaries.COUNTY_FILE, "EPSG:32610", sorted(county_fips)
+    )
     _geojson(counties, out / f"counties_{boundaries.VINTAGE}.geojson")
-    district = boundaries.district(pulls[-1] / boundaries.DISTRICT_FILE)
+    district = boundaries.district(pulls[-1] / boundaries.DISTRICT_FILE, districts)
     _geojson(district, out / "air_district_bay_area.geojson")
     _copy_manifests([pulls[-1]], out)
     return {"boundaries_counties": len(counties), "boundaries_air_district": len(district)}

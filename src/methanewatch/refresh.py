@@ -48,7 +48,10 @@ CSV_TABLES = ("overpasses", "detections", "plumes_attributed", "unmatched_plumes
 def _sites(project: ProjectConfig) -> dict[str, Any]:
     registry_dir = project.resolve(project.paths.registry)
     sites = registry.build_registry(
-        registry_dir, project.resolve(project.paths.interim), metric_crs=project.crs_metric
+        registry_dir,
+        project.resolve(project.paths.interim),
+        region_bbox=project.bbox,
+        metric_crs=project.crs_metric,
     )
     if sites.empty:
         raise FileNotFoundError("no site boundary polygons in data/registry/sites.geojson")
@@ -124,9 +127,9 @@ def run(
         return steps[name]["ok"]
 
     pulls = {
-        "emit": (pipeline.ingest_emit, ing.bbox),
+        "emit": (pipeline.ingest_emit, project.bbox),
         "sentinel2": (pipeline.ingest_sentinel2, ing.sentinel2_bbox),
-        "carbonmapper": (pipeline.ingest_carbonmapper, ing.bbox),
+        "carbonmapper": (pipeline.ingest_carbonmapper, project.bbox),
     }
     for name, (fn, bbox) in pulls.items():
         if name in skip:
@@ -153,7 +156,7 @@ def run(
             "kind": "refresh",
             "started_at": started.isoformat(),
             "window": {"start": ing.start.isoformat(), "end": end.isoformat()},
-            "ingest": ing.model_dump(mode="json"),
+            "ingest": {**ing.model_dump(mode="json"), "bbox": list(project.bbox)},
             "skipped": sorted(skip),
             "steps": steps,
             "ok": all(s["ok"] for s in steps.values()) and built,

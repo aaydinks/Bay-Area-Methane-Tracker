@@ -10,6 +10,7 @@ checked against EPA's documentation). See docs/decisions/0007-public-sources.md.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 import httpx
@@ -22,17 +23,6 @@ from methanewatch.provenance import PullManifest
 BASE = "https://data.epa.gov/efservice"
 SUBPART_HH = 31
 GAS_CH4 = 2
-BAY_AREA_COUNTIES = {
-    "ALAMEDA",
-    "CONTRA COSTA",
-    "MARIN",
-    "NAPA",
-    "SAN FRANCISCO",
-    "SAN MATEO",
-    "SANTA CLARA",
-    "SOLANO",
-    "SONOMA",
-}
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=2, max=30))
@@ -42,13 +32,17 @@ def _get(client: httpx.Client, path: str) -> list[dict]:
     return r.json()
 
 
-def bay_area_facilities(year: int, client: httpx.Client | None = None) -> pd.DataFrame:
-    """Facilities in the nine Bay Area counties that reported subpart HH in ``year``."""
+def facilities_in(
+    counties: Iterable[str], year: int, client: httpx.Client | None = None
+) -> pd.DataFrame:
+    """Facilities in the named counties that reported subpart HH in ``year``. EPA writes a
+    county with or without the word "County", so names are compared without it."""
+    wanted = {c.upper().replace(" COUNTY", "").strip() for c in counties}
     with client or httpx.Client() as c:
         rows = _get(c, f"pub_dim_facility/state/=/CA/reported_subparts/CONTAINING/HH/year/=/{year}")
     df = pd.DataFrame(rows)
     county = df["county"].fillna("").str.upper().str.replace(" COUNTY", "", regex=False)
-    keep = df[county.isin(BAY_AREA_COUNTIES)]
+    keep = df[county.str.strip().isin(wanted)]
     return keep[["facility_id", "facility_name", "city", "county", "latitude", "longitude", "year"]]
 
 
