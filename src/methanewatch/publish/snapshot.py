@@ -25,7 +25,9 @@ from methanewatch.config import (
     ImpactConfig,
     ModelConfig,
     ProjectConfig,
+    PublicScope,
     load_model,
+    load_public_scope,
 )
 from methanewatch.provenance import git_dirty, git_sha, new_id, utcnow
 from methanewatch.publish import schemas as pub
@@ -195,6 +197,69 @@ def _emit_complexes(project: ProjectConfig, interim: Path, sites) -> pd.DataFram
     )
 
 
+# Tables whose rows belong to one site, and the column that names it
+SITE_KEYED = {
+    "neighbours": "nearest_site_id",
+    "passes": "site_id",
+    "site_estimates": "site_id",
+    "checks": "site_id",
+    "operator_reports": "site_id",
+    "population": "site_id",
+    "site_features": "site_id",
+}
+
+
+def open_sites(sites: pd.DataFrame) -> set[str]:
+    """Sites the public website may show. A table without the stamp predates the scope."""
+    if "public_scope" not in sites:
+        return set(sites["site_id"])
+    return set(sites.loc[sites["public_scope"].astype(bool), "site_id"])
+
+
+def stamp_public_scope(
+    tables: dict[str, pd.DataFrame], project: ProjectConfig, scope: PublicScope
+) -> None:
+    """Mark every row the public website may show (ADR 0021), in place.
+
+    A site is in scope when its county's region and its tier are both on the allowlist, and
+    every row that belongs to a site follows the site. A plume is in scope when it lies in an
+    allowed region; ``site_public`` then says whether its tie to a site may be shown, so a
+    plume near a site that is still under review stays a plain dot. Method checks belong to
+    no site and are not stamped.
+    """
+    sites = tables["sites"]
+    region = (
+        sites["county"].map(project.region_of_county) if len(sites) else pd.Series(dtype=object)
+    )
+    tables["sites"] = sites.assign(
+        region=region.astype(object).where(region.notna(), None),
+        public_scope=pd.Series(
+            [scope.allows(r, t) for r, t in zip(region, sites["tier"], strict=True)],
+            index=sites.index,
+            dtype=bool,
+        ),
+    )
+    allowed = open_sites(tables["sites"])
+    for name, key in SITE_KEYED.items():
+        tables[name] = tables[name].assign(
+            public_scope=tables[name][key].isin(allowed).astype(bool)
+        )
+    check_site = dict(zip(tables["checks"]["check_id"], tables["checks"]["site_id"], strict=True))
+    results = tables["check_results"]
+    tables["check_results"] = results.assign(
+        public_scope=results["check_id"].map(check_site).isin(allowed).astype(bool)
+    )
+    plumes = tables["plumes"]
+    where = [
+        project.region_at(lon, lat) for lon, lat in zip(plumes["lon"], plumes["lat"], strict=True)
+    ]
+    tables["plumes"] = plumes.assign(
+        region=pd.Series(where, index=plumes.index, dtype=object),
+        public_scope=pd.Series([w in scope.regions for w in where], index=plumes.index, dtype=bool),
+        site_public=(plumes["site_id"].isna() | plumes["site_id"].isin(allowed)).astype(bool),
+    )
+
+
 def latest_refresh(interim: Path) -> dict | None:
     path = interim / "refresh" / "latest.json"
     return _read_json(path) if path.exists() else None
@@ -282,6 +347,7 @@ def build(
     publish_id: str | None = None,
     notes: str | None = None,
     model: ModelConfig | None = None,
+    scope: PublicScope | None = None,
 ) -> Snapshot:
     """The snapshot for one run. Raises on a simulated run or a wording hit.
 
@@ -578,9 +644,10 @@ def build(
     )
     tables["update_log"] = pd.DataFrame(columns=list(pub.update_log.columns))
 
-    # --- validate, check wording ---------------------------------------------------------
+    # --- validate, mark what the public site may show, check wording ---------------------
     for name, schema in pub.TABLES.items():
         tables[name] = schema.validate(tables[name]) if len(tables[name]) else tables[name]
+    stamp_public_scope(tables, project, scope or load_public_scope())
     problems = check_wording(tables)
     if problems:
         raise WordingError("wording check failed: " + "; ".join(problems))

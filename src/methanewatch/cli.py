@@ -147,6 +147,19 @@ def config_check() -> None:
     typer.echo(f"instruments: ok ({', '.join(instruments.instruments)})")
     typer.echo(f"model:       ok (grid {model.grid.n_points} points)")
     typer.echo("impact:      ok")
+    scope = config.load_public_scope()
+    unknown = scope.unknown_regions(project)
+    if unknown:
+        typer.secho(
+            f"public scope names regions that project.yaml does not have: {unknown}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    typer.echo(
+        f"public scope: ok (regions {', '.join(scope.regions) or 'none'}; "
+        f"tiers {', '.join(scope.tiers) or 'none'})"
+    )
 
     pending = [f"instruments.{n}.pod" for n in instruments.unconfirmed()]
     pending += [

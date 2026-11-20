@@ -19,6 +19,13 @@ browser never talks to the database.
     Sentinel-2 passes beside `valid_frac` (now Sen2Cor's clear share over the site), and
     `valid_frac_source` says which figure `valid_frac` holds (`site-sen2cor`, `tile` or `scene`).
     Both are null in publications built before the change.
+  - `0007` display-only data (ADR 0017): `display_only` on four tables and five `v_public_*` views
+    over functions that run with their owner's rights, so the public build can show figures built
+    from a display-only source without its rows being readable or downloadable.
+  - `0008` the public scope (ADR 0021): `public_scope` on every table whose rows belong to a site,
+    `site_public` and `region` on plumes, `region` on sites. The row-level rules and the five
+    functions honour them, so a public publication can also hold sites that stay on the review
+    copy. Everything defaults to in scope.
 
 ## Rules
 
@@ -44,6 +51,12 @@ text field. `mw publish push <publish_id>` loads it in one transaction as a draf
 update log by comparing it with the previous publication. `mw publish set-visibility <id> review`
 or `public` promotes it; public asks for confirmation and refuses a simulated run. The connection
 string comes from `SUPABASE_DB_URL` in `.env`.
+
+`mw publish build` also stamps every row with whether the public website may show it, from the
+allowlist of regions and site tiers in `config/public_scope.json`. The database enforces the stamp
+for the publishable key, the web build repeats it, and `check-public-output` reads the allowlist
+itself and fails a public build that shows anything outside it. Widening the allowlist is the
+project owner's decision; it takes effect in the next publication built.
 
 Every push stores a full copy and nothing removes old ones by itself. `mw publish prune` lists the
 draft and review publications older than the newest few (8 review copies and 2 drafts unless told

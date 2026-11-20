@@ -6,6 +6,9 @@
 //                row, and refuses to run if a secret key is present. A restricted row marked
 //                display_only (ADR 0017) is shown in public in the reduced form the v_public_*
 //                views give it, and never written to a download.
+//                A public build also leaves out every row outside the public scope (ADR 0021):
+//                rows stamped public_scope = false, and anything about a site that is not in
+//                the build's own list of sites. A plume near such a site stays as a plain dot.
 //   DATA_SOURCE  "fixture" reads web/fixtures/snapshot.json (no keys, used in CI and for local
 //                work); "supabase" reads the live database through its read views.
 //
@@ -80,6 +83,34 @@ const RESTRICTABLE = new Set(['plumes', 'pass_months', 'site_estimates']);
 
 const isShown = (r) => r.restricted !== true || r.display_only === true;
 
+// Public scope (ADR 0021). The database applies the same rules to the publishable key; they are
+// repeated here so a fixture build behaves like the live one and a slip in one place is caught
+// in the other.
+const inScope = (r) => r.public_scope !== false;
+const SITE_KEY = { neighbours: 'nearest_site_id' };
+
+// What v_public_plumes returns for a plume whose site is still under review: the plume, without
+// its tie to the site.
+function withoutSiteTie(p) {
+  return { ...p, site_id: null, attribution: 'none', distance_m: null, overpass_id: null, site_public: true };
+}
+
+// Drops every row about a site the build does not list, and blanks the tie of a plume to one.
+function keepOpenSites(tables, updateLog) {
+  const open = new Set(tables.sites.map((s) => s.site_id));
+  const about = (name, r) => r[SITE_KEY[name] ?? 'site_id'];
+  const kept = {};
+  for (const [name, rows] of Object.entries(tables)) {
+    if (name === 'sites') kept[name] = rows;
+    else if (name === 'plumes') kept[name] = rows.map((p) => (p.site_id == null || open.has(p.site_id) ? p : withoutSiteTie(p)));
+    else kept[name] = rows.filter((r) => about(name, r) == null || open.has(about(name, r)));
+  }
+  return {
+    tables: kept,
+    updateLog: updateLog.filter((u) => inScope(u) && (u.site_id == null || open.has(u.site_id))),
+  };
+}
+
 // What v_public_plumes returns for a display-only plume: a dot, without its rate, id or version.
 function asDot(p, i) {
   if (!p.restricted) return p;
@@ -108,10 +139,11 @@ function blankRestrictedResult(check) {
   return { ...kept, call: null, evidence: null, size: null, colour: null, plain_reading: null, restricted: true, result_held: true };
 }
 
-function applyPublicRules(name, rows) {
-  if (!PUBLIC) return rows;
+function applyPublicRules(name, allRows) {
+  if (!PUBLIC) return allRows;
+  const rows = allRows.filter(inScope);
   if (name === 'plumes') {
-    const shown = rows.filter(isShown);
+    const shown = rows.filter(isShown).map((p) => (p.site_public === false ? withoutSiteTie(p) : p));
     const dots = shown.filter((r) => r.restricted).sort((a, b) => String(a.acquired_utc).localeCompare(String(b.acquired_utc)));
     const order = new Map(dots.map((r, i) => [r, i]));
     return shown.map((r) => (r.restricted ? asDot(r, order.get(r)) : r));
@@ -173,13 +205,26 @@ async function fromFixture() {
       fx[name] = fx[name].map((r) => (r.restricted ? { ...r, display_only: true } : r));
     }
   }
+  // FIXTURE_HELD_SITE=<site_id> treats that site as still under review (ADR 0021): it becomes a
+  // screening site outside the public scope, with every row about it, and its plumes lose their
+  // tie to it. CI uses it to build the public site with a held site in the data.
+  const held = process.env.FIXTURE_HELD_SITE;
+  if (held) {
+    if (!fx.sites.some((s) => s.site_id === held)) fail(`FIXTURE_HELD_SITE: no site "${held}" in the fixture`);
+    fx.sites = fx.sites.map((s) => (s.site_id === held ? { ...s, tier: 'screen', public_scope: false } : s));
+    for (const name of ['passes', 'site_estimates', 'checks', 'check_results', 'operator_reports', 'population', 'site_features', 'update_log']) {
+      fx[name] = fx[name].map((r) => (r.site_id === held ? { ...r, public_scope: false } : r));
+    }
+    fx.neighbours = fx.neighbours.map((n) => (n.nearest_site_id === held ? { ...n, public_scope: false } : n));
+    fx.plumes = fx.plumes.map((p) => (p.site_id === held ? { ...p, site_public: false } : p));
+  }
   const publication = newestVisible(fx.publications);
   const inPub = (rows) => (publication ? rows.filter((r) => r.publish_id === publication.publish_id) : []);
   // The database hides restricted passes from the publishable key before it aggregates them;
   // do the same here so counts in a public fixture build are the public counts.
-  const passes = PUBLIC ? fx.passes.filter(isShown) : fx.passes;
+  const passes = PUBLIC ? fx.passes.filter(isShown).filter(inScope) : fx.passes;
   const checks = inPub(fx.checks).map((c) => {
-    const r = fx.check_results.find((x) => x.publish_id === c.publish_id && x.check_id === c.check_id);
+    const r = fx.check_results.find((x) => x.publish_id === c.publish_id && x.check_id === c.check_id && (!PUBLIC || inScope(x)));
     return { ...c, ...(r ?? { call: null, evidence: null, size: null, colour: null, plain_reading: null, restricted: false }) };
   });
   const tables = {
@@ -262,7 +307,8 @@ function featureCollection(features) {
 }
 
 const raw = DATA_SOURCE === 'fixture' ? await fromFixture() : await fromSupabase();
-const tables = Object.fromEntries(Object.entries(raw.tables).map(([name, rows]) => [name, applyPublicRules(name, rows)]));
+const ruled = Object.fromEntries(Object.entries(raw.tables).map(([name, rows]) => [name, applyPublicRules(name, rows)]));
+const { tables, updateLog } = PUBLIC ? keepOpenSites(ruled, raw.update_log) : { tables: ruled, updateLog: raw.update_log };
 
 const counts = Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length]));
 const snapshot = {
@@ -278,7 +324,7 @@ const snapshot = {
   runs: raw.runs,
   data_terms: raw.data_terms,
   boundaries: raw.boundaries,
-  update_log: raw.update_log,
+  update_log: updateLog,
   ...tables,
 };
 
