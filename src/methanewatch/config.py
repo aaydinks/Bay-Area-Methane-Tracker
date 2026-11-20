@@ -6,6 +6,7 @@ Disputed or derived constants (GWP factors, $/t, detection curves) carry a
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -176,6 +177,24 @@ class ProjectConfig(_Strict):
     @property
     def carb_districts(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(d for r in self.regions for d in r.carb_districts))
+
+    def region_of_county(self, county: str | None) -> str | None:
+        """The region a county belongs to, by name; ``None`` for a county in no region."""
+        if not isinstance(county, str):
+            return None
+        wanted = county.strip().lower()
+        for r in self.regions:
+            if any(c.name.lower() == wanted for c in r.counties):
+                return r.id
+        return None
+
+    def region_at(self, lon: float, lat: float) -> str | None:
+        """The first region whose box holds the point; ``None`` outside every region."""
+        for r in self.regions:
+            west, south, east, north = r.bbox
+            if west <= lon <= east and south <= lat <= north:
+                return r.id
+        return None
 
 
 # --- instruments.yaml -------------------------------------------------------
@@ -469,6 +488,27 @@ def load_sentinel2(config_dir: Path = CONFIG_DIR) -> Sentinel2Config:
 @lru_cache
 def load_impact(config_dir: Path = CONFIG_DIR) -> ImpactConfig:
     return ImpactConfig.model_validate(_read("impact.yaml", config_dir))
+
+
+class PublicScope(_Strict):
+    """Which regions and site tiers the public website may show (ADR 0021,
+    ``config/public_scope.json``). JSON, because the web build reads the same file."""
+
+    about: str | None = None
+    version: int = 1
+    regions: tuple[str, ...]
+    tiers: tuple[Literal["pilot", "screen"], ...]
+
+    def allows(self, region: str | None, tier: str | None) -> bool:
+        return region in self.regions and tier in self.tiers
+
+    def unknown_regions(self, project: ProjectConfig) -> list[str]:
+        return sorted(set(self.regions) - {r.id for r in project.regions})
+
+
+@lru_cache
+def load_public_scope(config_dir: Path = CONFIG_DIR) -> PublicScope:
+    return PublicScope.model_validate(json.loads((config_dir / "public_scope.json").read_text()))
 
 
 @lru_cache

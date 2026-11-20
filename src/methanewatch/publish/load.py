@@ -20,7 +20,7 @@ from psycopg.types.json import Jsonb
 
 from methanewatch.publish import schemas as pub
 from methanewatch.publish.feed import update_items
-from methanewatch.publish.snapshot import Snapshot
+from methanewatch.publish.snapshot import Snapshot, open_sites
 
 ENV_DSN = "SUPABASE_DB_URL"
 VISIBILITY_RANK = {"draft": 0, "review": 1, "public": 2}
@@ -100,14 +100,16 @@ def _insert(
     if not len(df):
         return 0
     geometry = geometry or {}
-    cols = ["publish_id", *columns]
+    cols = ["publish_id", *columns, *pub.SCOPE_COLUMNS.get(table, [])]
     placeholders = []
     for c in cols:
         expr = geometry.get(c, "%s")
         placeholders.append(expr)
     sql = f"insert into public.{table} ({', '.join(cols)}) values ({', '.join(placeholders)})"
-    # display_only defaults to false for snapshots written before ADR 0017.
-    cur.executemany(sql, _rows(df, cols, {"publish_id": publish_id, "display_only": False}))
+    # display_only defaults to false for snapshots written before ADR 0017, and the scope
+    # columns to "in scope" for snapshots written before ADR 0021.
+    defaults = {"publish_id": publish_id, "display_only": False, **pub.SCOPE_DEFAULTS}
+    cur.executemany(sql, _rows(df, cols, defaults))
     return len(df)
 
 
@@ -172,6 +174,11 @@ def push(snapshot: Snapshot, dsn: str, *, compare_with: str = "review") -> dict[
             )
             plumes = plumes.assign(new_in_update=[k in new_plumes for k in key])
         update_log = pd.DataFrame(items, columns=list(pub.update_log.columns))
+        # An item about a site follows that site's scope; an item about no site is open
+        allowed = open_sites(snapshot.tables["sites"])
+        update_log["public_scope"] = (
+            update_log["site_id"].isna() | update_log["site_id"].isin(allowed)
+        ).astype(bool)
 
         cur.execute(
             "insert into public.publications (publish_id, created_at, visibility, simulated, "

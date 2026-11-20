@@ -108,6 +108,35 @@ jobs:
           SITE_MODE: public
           ALLOW_FIXTURE_PUBLIC: "1"
           FIXTURE_DISPLAY_ONLY: "1"
+      - name: Public build with a site still under review
+        # One fixture site is treated as outside the public scope (ADR 0021). The build runs
+        # its own output check, which fails on any row about that site; the site must also have
+        # no page, while the other sites keep theirs.
+        run: |
+          npm run build
+          test -e dist/sites/newby-island/index.html
+          if test -e dist/sites/potrero-hills; then
+            echo "a site outside the public scope got a page in the public build"; exit 1
+          fi
+        env:
+          DATA_SOURCE: fixture
+          SITE_MODE: public
+          ALLOW_FIXTURE_PUBLIC: "1"
+          FIXTURE_DISPLAY_ONLY: "1"
+          FIXTURE_HELD_SITE: potrero-hills
+      - name: Output check catches a site outside the public scope
+        # Put the held site back into the snapshot by hand; the check must now fail.
+        run: |
+          node -e "
+            const fs = require('fs');
+            const f = 'src/data/snapshot.json';
+            const s = JSON.parse(fs.readFileSync(f, 'utf8'));
+            s.sites.push({ ...s.sites[0], site_id: 'held-site', name: 'Held Landfill', tier: 'screen' });
+            fs.writeFileSync(f, JSON.stringify(s));
+          "
+          if npm run check:public; then
+            echo "the output check missed a site outside the public scope"; exit 1
+          fi
 
   summary:
     # Every pull request adds summaries/NNNN-*.md, NNNN = its number (see summaries/README.md).

@@ -6,6 +6,12 @@
 // instrument in data files, the simulated-data banner, or a secret key. A public build from fixture data
 // is allowed only when ALLOW_FIXTURE_PUBLIC=1 (set in CI, never on a host).
 //
+// Public scope (ADR 0021): the build may show only the regions and site tiers that
+// config/public_scope.json allows. This script reads that file itself, so it does not depend on
+// the stamp the pipeline put on the rows. It fails if a listed site is outside the allowlist, if
+// any row is about a site the build does not list, if a plume lies outside the allowed regions
+// or is tied to a site under review, or if a row stamped out of scope got through.
+//
 // Display-only data (ADR 0017): when the terms record Carbon Mapper as display-only, its rows may
 // reach the pages and the map, marked display_only, but a display-only plume must carry no rate,
 // uncertainty or data version, and no download (CSV) may hold a restricted row, a Carbon Mapper
@@ -54,6 +60,27 @@ for (const [name, rows] of Object.entries(snapshot)) {
           if (row[key] !== null && row[key] !== undefined) problems.push(`plumes: a display-only plume carries ${key}`);
         }
       }
+    }
+  }
+}
+
+// ---- public scope --------------------------------------------------------------------------
+const scope = JSON.parse(await readFile(path.resolve(root, '..', 'config', 'public_scope.json'), 'utf8'));
+const openSites = new Set();
+for (const s of snapshot.sites ?? []) {
+  if (scope.regions.includes(s.region) && scope.tiers.includes(s.tier)) openSites.add(s.site_id);
+  else problems.push(`sites: ${s.site_id} (region ${s.region ?? 'none'}, tier ${s.tier ?? 'none'}) is outside the public scope`);
+}
+for (const [name, rows] of Object.entries(snapshot)) {
+  if (!Array.isArray(rows) || name === 'sites') continue;
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.public_scope === false) problems.push(`${name}: a row stamped outside the public scope reached the snapshot`);
+    const site = name === 'neighbours' ? row.nearest_site_id : row.site_id;
+    if (site != null && !openSites.has(site)) problems.push(`${name}: a row about ${site}, which is outside the public scope, reached the snapshot`);
+    if (name === 'plumes') {
+      if (!scope.regions.includes(row.region)) problems.push(`plumes: a plume in region ${row.region ?? 'none'} is outside the public scope`);
+      if (row.site_public === false) problems.push('plumes: a plume still carries its tie to a site under review');
     }
   }
 }

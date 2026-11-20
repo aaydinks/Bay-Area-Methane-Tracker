@@ -270,6 +270,27 @@ update_log = pa.DataFrameSchema(
     coerce=True,
 )
 
+# Columns `mw publish build` stamps on the assembled tables (ADR 0021), keyed by database
+# table. They are not in the schemas above: a snapshot written before the public scope
+# existed has none of them, and the load then uses the database's "in scope" defaults.
+#   region        the project region a site (by county) or a plume (by place) falls in
+#   public_scope  the public website may show the row
+#   site_public   plumes only: the public website may show which site the plume is tied to
+SCOPE_COLUMNS = {
+    "sites": ["region", "public_scope"],
+    "neighbours": ["public_scope"],
+    "plumes": ["region", "public_scope", "site_public"],
+    "passes": ["public_scope"],
+    "site_estimates": ["public_scope"],
+    "checks": ["public_scope"],
+    "check_results": ["public_scope"],
+    "operator_reports": ["public_scope"],
+    "population_context": ["public_scope"],
+    "site_features": ["public_scope"],
+    "update_log": ["public_scope"],
+}
+SCOPE_DEFAULTS = {"region": None, "public_scope": True, "site_public": True}
+
 TABLES = {
     "sites": sites,
     "neighbours": neighbours,

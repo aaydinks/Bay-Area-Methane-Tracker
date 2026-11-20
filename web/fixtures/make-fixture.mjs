@@ -124,6 +124,7 @@ function passesAndPlumes(pub, through) {
               acquired_utc: acquired, lon: +(s.lon + (rand() - 0.5) * 0.006).toFixed(5), lat: +(s.lat + (rand() - 0.5) * 0.006).toFixed(5),
               q_kg_hr: inst.instrument === 'emit' ? null : q, q_sigma_kg_hr: inst.instrument === 'emit' ? null : Math.round(q * 0.3), site_id: s.site_id,
               attribution: rand() < 0.85 ? 'inside' : 'buffer', distance_m: 0, data_version: 'fixture', overpass_id, restricted: inst.restricted,
+              region: 'bay-area', public_scope: true, site_public: true,
               new_in_update: pub.publish_id === 'fixture-review-0002' && acquired > '2026-09-01',
             });
           }
@@ -138,6 +139,7 @@ const sites = PUBS.flatMap((pub) => SITES.map((s) => ({
   publish_id: pub.publish_id, site_id: s.site_id, name: s.name, city: s.city, county: s.county, operator: s.site_id === 'shoreline' ? 'City of Mountain View' : null,
   tier: 'pilot', status: s.status, swis_number: s.swis, ghgrp_facility_id: s.ghgrp, polygon_source: 'provisional 500 m buffer around the CalRecycle SWIS point',
   provisional: true, area_km2: 0.785, lon: s.lon, lat: s.lat, outline_geojson: circle(s.lon, s.lat, 500),
+  region: 'bay-area', public_scope: true,
 })));
 
 const neighbours = PUBS.map((pub) => ({

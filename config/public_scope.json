@@ -1,0 +1,6 @@
+{
+  "about": "Which regions and site tiers the public website may show (ADR 0021). Everything else stays on the review copy. `mw publish build` stamps each row from this file, the database enforces the stamp, and the public-output check reads this file again by itself. Only the project owner widens it, after a review window.",
+  "version": 1,
+  "regions": ["bay-area"],
+  "tiers": ["pilot"]
+}
