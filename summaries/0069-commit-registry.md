@@ -1,6 +1,6 @@
 # PR #69: Put the site registry the scheduled run uses into the repository
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/69)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/69)
 
 ## In one sentence
 
