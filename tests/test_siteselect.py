@@ -204,6 +204,45 @@ def test_repair_controls_are_the_chosen_sites_not_every_registry_site(tmp_path, 
         )
 
 
+def test_repair_controls_can_be_the_sites_of_the_fit_being_tested(tmp_path, monkeypatch):
+    # ADR 0021: the controls are the official fit's sites, however large the registry grows
+    _registry_inputs(tmp_path)
+    (tmp_path / "registry").mkdir()
+    _check_table().assign(site_id="newby-island").to_csv(
+        tmp_path / "registry" / "checks.csv", index=False
+    )
+    runs = tmp_path / "processed" / "runs"
+    runs.mkdir(parents=True)
+    (runs / "fit-official.json").write_text(json.dumps({"sites": ["newby-island", "acme-fill"]}))
+    (runs / "fit-old.json").write_text(json.dumps({"kind": "real"}))
+    seen = {}
+    monkeypatch.setattr(repair_run, "run_all", _fake_run_all(seen))
+    args = (_project(tmp_path), load_model(), load_instruments())
+    run_id = repair_run.run_real(*args, allow_unconfirmed=True, fit_run_id="fit-official")
+
+    assert seen["controls"] == ["newby-island"]  # acme-fill has no searched passes
+    assert seen["sites"] == ["newby-island"]
+    out = tmp_path / "processed" / "repair_outcomes"
+    manifest = json.loads((out / f"{run_id}.json").read_text())
+    assert manifest["controls_from_fit"] == "fit-official"
+    assert manifest["site_selection"] == {"tiers": [], "sites": ["acme-fill", "newby-island"]}
+    assert manifest["sites_not_selected"] == [SCREEN, "potrero-hills"]
+
+    with pytest.raises(run.ConfigNotReadyError, match="does not record its sites"):
+        repair_run.run_real(*args, allow_unconfirmed=True, fit_run_id="fit-old")
+    with pytest.raises(run.ConfigNotReadyError, match="not both"):
+        repair_run.run_real(*args, fit_run_id="fit-official", tiers=("pilot",))
+    with pytest.raises(FileNotFoundError, match="--fit takes a model run id"):
+        repair_run.run_real(*args, fit_run_id="fit-nowhere")
+
+    monkeypatch.setattr(repair_run, "run_real", lambda *a, **kw: seen.update(kw) or "repairs-x")
+    result = CliRunner().invoke(
+        app, ["repair", "run", "--allow-unconfirmed", "--fit", "fit-official", "--power-fits", "3"]
+    )
+    assert result.exit_code == 0, result.output
+    assert seen["fit_run_id"] == "fit-official" and seen["sites"] == () and seen["tiers"] == ()
+
+
 def test_run_all_draws_each_checks_controls_from_the_control_sites(monkeypatch):
     from datetime import UTC, datetime
 

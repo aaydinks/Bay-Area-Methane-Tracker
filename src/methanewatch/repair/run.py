@@ -277,6 +277,25 @@ def site_covariates(
     return features.design(table[table["site_id"].isin(sites)], cfg.covariates.names)
 
 
+def _fit_sites(project: ProjectConfig, run_id: str, other_choice: bool) -> list[str]:
+    """The sites the model run ``run_id`` recorded in its manifest."""
+    import json
+
+    from methanewatch.model.run import ConfigNotReadyError
+
+    if other_choice:
+        raise ConfigNotReadyError(
+            "choose the sites with --fit, or with --tier and --site, not both"
+        )
+    path = project.resolve(project.paths.processed) / "runs" / f"{run_id}.json"
+    if not path.exists():
+        raise FileNotFoundError(f"missing {path}; --fit takes a model run id")
+    recorded = json.loads(path.read_text()).get("sites") or []
+    if not recorded:
+        raise ConfigNotReadyError(f"model run {run_id} does not record its sites")
+    return sorted(recorded)
+
+
 def run_real(
     project: ProjectConfig,
     cfg: ModelConfig,
@@ -286,6 +305,7 @@ def run_real(
     include_unsearched: Iterable[str] = (),
     sites: Iterable[str] = (),
     tiers: Iterable[str] = (),
+    fit_run_id: str | None = None,
     n_power_fits: int = 15,
     seed: int = 0,
 ) -> str:
@@ -294,8 +314,9 @@ def run_real(
     Like ``mw model fit``, it leaves out instruments whose plume search has not run, unless
     named in ``include_unsearched``, and the manifest says so (ADR 0016). ``sites`` and
     ``tiers`` choose the control sites the same way that command chooses the sites to fit
-    (``model.siteselect``). A check at a site outside the choice is still tested, against
-    those controls.
+    (``model.siteselect``), and ``fit_run_id`` chooses the sites a model run recorded, so the
+    controls are those of the fit being tested (ADR 0021). A check at a site outside the choice
+    is still tested, against those controls.
     """
     import json
 
@@ -313,6 +334,8 @@ def run_real(
     det = pd.read_parquet(det_path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
+    if fit_run_id:
+        sites = _fit_sites(project, fit_run_id, bool(tuple(sites) or tuple(tiers)))
     chosen = select_sites(interim, det, sites, tiers)
     if chosen.explicit:
         # The checked sites keep their own passes; only the controls are limited
@@ -368,6 +391,7 @@ def run_real(
             "power_target": POWER_TARGET,
             "covariates": cov.manifest() if cov is not None else None,
             "instruments": used,
+            "controls_from_fit": fit_run_id,
             **chosen.manifest(),
             **sel.manifest(),
         },

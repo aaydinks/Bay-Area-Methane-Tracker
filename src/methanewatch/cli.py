@@ -410,12 +410,22 @@ def repair_run(
     ] = None,
     site: FitSites = None,
     tier: FitTiers = None,
+    fit: Annotated[
+        str | None,
+        typer.Option(
+            "--fit",
+            help="Use the sites of this model run (processed/runs), for example the official "
+            "fit, in place of --tier and --site.",
+        ),
+    ] = None,
 ) -> None:
     """Outcome of every dated check in the registry, with its minimum detectable drop.
 
     Like `mw model fit`, it leaves out an instrument whose plume search has not run (decision
     record 0016), and --tier and --site choose the control sites the way that command chooses
-    the sites to fit. A check at a site outside the choice is still tested, against them.
+    the sites to fit. --fit takes them from a model run, so the controls are the sites of the
+    fit being tested (decision record 0021). A check at a site outside the choice is still
+    tested, against them.
     """
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.repair import run
@@ -440,6 +450,7 @@ def repair_run(
             include_unsearched=tuple(include_unsearched or ()),
             sites=tuple(site or ()),
             tiers=tuple(tier or ()),
+            fit_run_id=fit,
             n_power_fits=power_fits,
         )
     except ConfigNotReadyError as exc:

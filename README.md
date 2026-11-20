@@ -91,8 +91,9 @@ not marked review: the review site shows the newest review copy, and it keeps th
 stops at `review`, says which passes changed, and shows the notification. To bring the review copy up to date,
 run `mw model fit`, check the fit, name it in `publish.official_model_run` on `main`, and run the job again.
 Once the registry holds sites of more than one tier, `mw model fit` and `mw repair run` stop until told which
-sites to use (`--tier pilot`, or `--site` per site), and the run manifest records the choice. Sentinel-2 passes
-are built only for the tiers in `coverage.sentinel2_site_tiers` (`pilot`).
+sites to use (`--tier pilot`, or `--site` per site), and the run manifest records the choice. `mw repair run
+--fit <run>` draws its control sites from the sites of that fit. Sentinel-2 passes are built only for the tiers
+in `coverage.sentinel2_site_tiers` (`pilot`).
 
 On the owner's Mac a launchd job runs it on Mondays and Thursdays at 08:00 (a Mac that is asleep runs it on
 waking), so the free database plan never sees seven quiet days. A run that stops before the push still ends
