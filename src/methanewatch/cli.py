@@ -164,6 +164,68 @@ def config_check() -> None:
             typer.echo(f"  - {p}")
 
 
+@sites_app.command("screen")
+def sites_screen() -> None:
+    """Propose screening-tier sites and outlines from CalRecycle's records (ADR 0018).
+
+    Writes a proposal and a review table to data/interim/screening/ for a person to check.
+    It never changes data/registry.
+    """
+    import geopandas as gpd
+    import pandas as pd
+
+    from methanewatch.ingest import calrecycle_boundaries
+    from methanewatch.sites import registry, screening
+
+    project = config.load_project()
+    datasets_dir = project.resolve(project.paths.datasets) / "calrecycle"
+    registry_dir = project.resolve(project.paths.registry)
+    boundary_file = calrecycle_boundaries.latest(project.resolve(project.paths.raw))
+    for path, hint in [
+        (datasets_dir / "swis_landfills.csv", "run `mw ingest calrecycle` and `mw datasets build`"),
+        (boundary_file, "run `mw ingest calrecycle-boundaries`"),
+    ]:
+        if path is None or not path.exists():
+            typer.secho(f"missing input; {hint}", fg=typer.colors.YELLOW, err=True)
+            raise typer.Exit(code=2)
+    existing = registry.build_registry(
+        registry_dir,
+        project.resolve(project.paths.interim),
+        region_bbox=project.bbox,
+        metric_crs=project.crs_metric,
+    )
+    existing = gpd.GeoDataFrame(existing[["site_id", "geometry"]], crs="EPSG:4326")
+    pilots = pd.read_csv(datasets_dir / "swis_pilot_sites.csv", dtype=str)
+    pilots = pilots[pilots["site_id"].isin(existing["site_id"])]
+    overrides_path = registry_dir / "screening_overrides.csv"
+    proposal = screening.propose(
+        pd.read_csv(datasets_dir / "swis_landfills.csv"),
+        calrecycle_boundaries.outlines(boundary_file),
+        county_region={c.name: r.id for r in project.regions for c in r.counties},
+        existing=existing,
+        existing_swis=dict(zip(pilots["swis_number"], pilots["site_id"], strict=True)),
+        boundaries_as_of=calrecycle_boundaries.DATA_AS_OF,
+        overrides=pd.read_csv(overrides_path, dtype=str) if overrides_path.exists() else None,
+        metric_crs=project.crs_metric,
+    )
+    out = project.resolve(project.paths.interim) / "screening"
+    out.mkdir(parents=True, exist_ok=True)
+    proposal.sites.to_csv(out / "sites_proposed.csv", index=False)
+    proposal.outlines.to_file(out / "sites_proposed.geojson", driver="GeoJSON")
+    proposal.review.to_csv(out / "review.csv", index=False)
+    review = proposal.review
+    drawn = (~proposal.outlines["source"].str.startswith("provisional")).sum()
+    typer.echo(
+        f"{len(review)} landfills considered; {int(review['included'].sum())} selected, "
+        f"{int(review['in_registry'].sum())} already in the registry; "
+        f"{len(proposal.sites)} proposed ({int(drawn)} with a drawn outline, "
+        f"{len(proposal.sites) - int(drawn)} with a provisional buffer)"
+    )
+    for problem in proposal.problems:
+        typer.secho(f"to settle by hand: {problem}", fg=typer.colors.YELLOW)
+    typer.echo(f"wrote {out}; nothing in data/registry was changed")
+
+
 @sites_app.command("build")
 def sites_build() -> None:
     """Build data/interim/sites.parquet from data/registry and run QA checks."""
@@ -255,6 +317,16 @@ def ingest_calrecycle() -> None:
     project = config.load_project()
     counties = [c.name for c in project.counties]
     typer.echo(f"wrote {calrecycle.pull(project.resolve(project.paths.raw), counties)}")
+
+
+@ingest_app.command("calrecycle-boundaries")
+def ingest_calrecycle_boundaries() -> None:
+    """CalRecycle's landfill boundary polygons, statewide, keyed by SWIS number (data as of
+    2021; terms of reuse still to check)."""
+    from methanewatch.ingest import calrecycle_boundaries
+
+    project = config.load_project()
+    typer.echo(f"wrote {calrecycle_boundaries.pull(project.resolve(project.paths.raw))}")
 
 
 @ingest_app.command("boundaries")
