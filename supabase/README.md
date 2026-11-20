@@ -45,6 +45,11 @@ update log by comparing it with the previous publication. `mw publish set-visibi
 or `public` promotes it; public asks for confirmation and refuses a simulated run. The connection
 string comes from `SUPABASE_DB_URL` in `.env`.
 
+Every push stores a full copy and nothing removes old ones by itself. `mw publish prune` lists the
+draft and review publications older than the newest few (8 review copies and 2 drafts unless told
+otherwise); `--apply` removes them and their rows. A public publication and the newest review copy
+always stay. The snapshot folders on disk are not touched, so a removed copy can be pushed again.
+
 ## Testing
 
 `tests/db/test_migrations.py` applies the migrations to an empty database, loads a few rows, and then
