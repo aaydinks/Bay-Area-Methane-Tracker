@@ -319,3 +319,18 @@ def build_boundaries(
     _geojson(district, out / "air_district_bay_area.geojson")
     _copy_manifests([pulls[-1]], out)
     return {"boundaries_counties": len(counties), "boundaries_air_district": len(district)}
+
+
+def build_air_districts(raw: Path, out: Path) -> dict[str, int]:
+    """Every CARB air district that touches the project's regions, at full detail: the
+    registry reads this file to say which district each site sits in."""
+    from methanewatch.ingest import air_districts
+
+    path = air_districts.latest(raw)
+    if path is None:
+        raise FileNotFoundError("no air district pull yet; run `mw ingest air-districts`")
+    out.mkdir(parents=True, exist_ok=True)
+    districts = air_districts.outlines(path)
+    _geojson(districts, out / "air_districts.geojson")
+    _copy_manifests([path.parent], out)
+    return {"air_districts": len(districts)}

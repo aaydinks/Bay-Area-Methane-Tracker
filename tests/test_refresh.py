@@ -28,6 +28,8 @@ def add_screen_site(registry):
     """
     sites = pd.read_csv(registry / "sites.csv", dtype=str, keep_default_na=False)
     row = dict.fromkeys(sites.columns, "") | {"site_id": "c", "tier": "screen"}
+    if "county" in sites:
+        row["county"] = sites["county"].iloc[0]
     if "name" in sites:
         row["name"] = "Site C"
     pd.concat([sites, pd.DataFrame([row])]).to_csv(registry / "sites.csv", index=False)
@@ -145,7 +147,8 @@ def _fixture_project(tmp_path):
     reg.mkdir()
     (interim / "footprints").mkdir(parents=True)
     pd.DataFrame(
-        {"site_id": ["a", "b"], "tier": "pilot", "status": ["", "closed"],
+        {"site_id": ["a", "b"], "county": "Santa Clara", "tier": "pilot",
+         "status": ["", "closed"],
          "polygon_source": ["provisional 500 m buffer", "permit map"]}
     ).to_csv(reg / "sites.csv", index=False)  # fmt: skip
     pd.DataFrame({"site_id": ["a", "b"], "ghgrp_facility_id": ["1", ""]}).to_csv(

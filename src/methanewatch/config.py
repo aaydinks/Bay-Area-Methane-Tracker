@@ -178,6 +178,11 @@ class ProjectConfig(_Strict):
     def carb_districts(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(d for r in self.regions for d in r.carb_districts))
 
+    @property
+    def county_region(self) -> dict[str, str]:
+        """County name -> the id of its region."""
+        return {c.name: r.id for r in self.regions for c in r.counties}
+
     def region_of_county(self, county: str | None) -> str | None:
         """The region a county belongs to, by name; ``None`` for a county in no region."""
         if not isinstance(county, str):

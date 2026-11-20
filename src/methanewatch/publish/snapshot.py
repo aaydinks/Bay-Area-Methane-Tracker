@@ -432,6 +432,12 @@ def build(
             "status": sites.get("status"),
             "swis_number": sites.get("swis_number"),
             "ghgrp_facility_id": sites.get("ghgrp_facility_id"),
+            "air_district": sites.get("air_district"),
+            # a registry built before the column existed, or a blank, reads as unconfirmed
+            "air_district_confirmed": sites.get(
+                "air_district_confirmed", pd.Series(False, index=sites.index)
+            ).eq(True),
+            "district_facility_id": sites.get("district_facility_id"),
             "outline_wkt": sites.geometry.to_wkt(),
             "polygon_source": sites.get("polygon_source"),
             "provisional": sites.get("polygon_source", pd.Series("", index=sites.index))

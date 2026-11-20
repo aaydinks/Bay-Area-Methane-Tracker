@@ -205,6 +205,14 @@ def test_pass_cloud_columns_refuse_values_outside_their_range(db, column, value)
         )
 
 
+def test_a_site_loaded_without_an_air_district_reads_as_unconfirmed(db):
+    with as_role(db, "anon"):
+        assert rows(
+            db,
+            "select air_district, air_district_confirmed, district_facility_id from public.v_sites",
+        ) == [(None, False, None)]
+
+
 def test_anon_sees_runs_of_public_publications_only(db):
     with as_role(db, "anon"):
         assert rows(db, "select run_id from public.runs") == [("model-public",)]

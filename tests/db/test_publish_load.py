@@ -70,6 +70,14 @@ def test_push_loads_every_table_as_a_draft_and_the_feed(clean, tmp_path):
             assert rows(conn, "select count(*) from public.publications") == [(0,)]
         assert rows(
             conn,
+            "select site_id, swis_number, air_district, air_district_confirmed, "
+            "district_facility_id from public.v_sites order by 1",
+        ) == [
+            ("newby-island", "43-AN-0003", "Bay Area", False, None),
+            ("sonoma-central", "49-AA-0001", "Bay Area", True, "TEST-1"),
+        ]
+        assert rows(
+            conn,
             "select instrument, valid_frac, valid_frac_tile, valid_frac_source "
             "from public.passes order by 1",
         ) == [
@@ -128,6 +136,20 @@ def test_snapshots_without_the_cloud_columns_load_them_as_null(clean, tmp_path, 
             "select count(*) from public.passes "
             "where valid_frac_tile is null and valid_frac_source is null",
         ) == [(3,)]
+
+
+def test_snapshots_from_before_the_air_district_load_it_as_unconfirmed(clean, tmp_path):
+    snapshot = _snapshot(tmp_path, "pub-old")
+    snapshot.tables["sites"] = snapshot.tables["sites"].drop(
+        columns=["air_district", "air_district_confirmed", "district_facility_id"]
+    )
+    load.push(snapshot, clean)
+    with psycopg.connect(clean) as conn:
+        assert rows(
+            conn,
+            "select distinct air_district, air_district_confirmed, district_facility_id "
+            "from public.sites",
+        ) == [(None, False, None)]
 
 
 def test_simulated_runs_can_never_be_public(clean, tmp_path):

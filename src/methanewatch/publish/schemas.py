@@ -38,6 +38,10 @@ sites = pa.DataFrameSchema(
         "status": pa.Column(str, nullable=True),
         "swis_number": pa.Column(str, nullable=True),
         "ghgrp_facility_id": pa.Column(str, nullable=True),
+        # The air district is read from CARB's 2004 outlines until a person has checked it
+        "air_district": pa.Column(str, nullable=True),
+        "air_district_confirmed": pa.Column(bool),
+        "district_facility_id": pa.Column(str, nullable=True),
         "outline_wkt": pa.Column(str, nullable=True),
         "polygon_source": pa.Column(str, nullable=True),
         "provisional": pa.Column(bool),

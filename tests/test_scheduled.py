@@ -31,7 +31,8 @@ def make_project(tmp_path):
     reg.mkdir()
     (interim / "footprints").mkdir(parents=True)
     pd.DataFrame(
-        {"site_id": ["a", "b"], "name": ["Site A", "Site B"], "tier": "pilot",
+        {"site_id": ["a", "b"], "name": ["Site A", "Site B"], "county": "Santa Clara",
+         "tier": "pilot",
          "status": ["", "closed"], "polygon_source": ["provisional 500 m buffer", "permit map"]}
     ).to_csv(reg / "sites.csv", index=False)  # fmt: skip
     pd.DataFrame({"site_id": ["a", "b"], "ghgrp_facility_id": ["1", ""]}).to_csv(
