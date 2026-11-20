@@ -14,6 +14,13 @@ and saves them for later.
 Results are screening indications for investigation, and data arrives with about a 10-30 day lag, 
 so this is not real-time monitoring; it's more so retrospective reasoning.
 
+**Scope (from November 2026).** Two regions: the nine Bay Area counties and the North Valley
+(San Joaquin, Stanislaus, Merced, Sacramento and Yolo counties). Beside the methane estimate, each
+landfill gains what its operator reports to EPA (including CO2 from burning landfill gas), site
+operations data, regulatory records, and context about its surroundings. CO2 is shown as reported,
+never estimated. New sites appear on the review copy before the public site. See section 16 of
+[`docs/PLAN.md`](docs/PLAN.md).
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/). uv installs Python 3.12 itself.

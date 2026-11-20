@@ -3,6 +3,24 @@
 crs_geographic: "EPSG:4326"
 crs_metric: "EPSG:32610" # UTM zone 10N, for buffers and distances in metres
 
+# Where the project looks (ADR 0018). Every module reads its counties and its box from here.
+# All of it must lie west of 120°W: EPSG:32610 and the Sentinel-2 pixel code assume UTM zone 10N.
+regions:
+  - id: bay-area
+    label: Bay Area
+    bbox: [-123.64, 36.89, -121.20, 38.87] # the nine counties (Census TIGERweb extent)
+    carb_districts: [BA] # CARB's air-district codes whose outlines are pulled
+    counties:
+      - { name: Alameda, fips: "001" }
+      - { name: Contra Costa, fips: "013" }
+      - { name: Marin, fips: "041" }
+      - { name: Napa, fips: "055" }
+      - { name: San Francisco, fips: "075" }
+      - { name: San Mateo, fips: "081" }
+      - { name: Santa Clara, fips: "085" }
+      - { name: Solano, fips: "095" }
+      - { name: Sonoma, fips: "097" }
+
 paths:
   registry: data/registry # hand-curated, committed
   raw: data/raw # immutable downloads + manifest.json per pull
@@ -13,9 +31,9 @@ paths:
 
 # What `mw refresh` pulls each time. Every refresh repeats the full window up to today,
 # so late-published data and reprocessed plumes are picked up; earlier pulls are kept.
+# EMIT and Carbon Mapper are asked for the box that covers every region above.
 ingest:
   start: 2022-08-01 # EMIT's first methane scenes are from 2022-08-10
-  bbox: [-123.64, 36.89, -121.20, 38.87] # the nine Bay Area counties (Census TIGERweb extent)
   sentinel2_bbox: [-122.8, 37.3, -121.8, 38.4] # around the five pilot sites; scenes are many
 
 attribution:
