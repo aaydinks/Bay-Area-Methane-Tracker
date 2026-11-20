@@ -1,6 +1,6 @@
 # PR #74: A gate on what the public website may show
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/74)
+**Status:** merged 2026-11-20 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/74)
 
 ## In one sentence
 
@@ -41,8 +41,9 @@ and added to the list. Every other row shows as before.
 
 ## Still to do
 
-- The database change must be applied to the live database before this is merged. That needs the
-  project owner's go-ahead.
+- Done on 2026-11-20, with the project owner's go-ahead: the database change was applied to the
+  live database from the file itself and recorded in the migration list. Read with the public key
+  afterwards, the five sites and every count were unchanged, apart from the one plume above.
 - The review site does not yet mark which sites are held back from the public (planned with the
   pages for many sites).
 - The website's database type file is out of date and is regenerated separately.
