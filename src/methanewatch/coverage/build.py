@@ -6,10 +6,11 @@ and normalized plumes to ``data/interim/plumes/<source>.parquet``. This step
 writes ``overpasses.parquet``, ``detections.parquet`` and
 ``unmatched_plumes.parquet`` to ``data/interim``.
 
-Sentinel-2 passes take Sen2Cor's clear share over each site from
-``data/interim/s2_site_clear.parquet`` (``mw s2 site-clear``, ADR 0014) before
-detections are joined, so both tables count the same passes. This step reads
-that table only; it never goes to the network.
+Sentinel-2 passes are built only for sites of the tiers in
+``coverage.sentinel2_site_tiers`` (``config/project.yaml``). They take Sen2Cor's clear
+share over each site from ``data/interim/s2_site_clear.parquet`` (``mw s2 site-clear``,
+ADR 0014) before detections are joined, so both tables count the same passes. This step
+reads that table only; it never goes to the network.
 """
 
 from __future__ import annotations
@@ -22,7 +23,12 @@ import pandas as pd
 from methanewatch import schemas
 from methanewatch.attribution import attribute_plumes
 from methanewatch.config import ProjectConfig
-from methanewatch.coverage.overpasses import apply_site_clear, build_detections, from_footprints
+from methanewatch.coverage.overpasses import (
+    apply_site_clear,
+    build_detections,
+    from_footprints,
+    sentinel2_sites,
+)
 
 # Footprint file stem -> coverage_source label
 SOURCES = {"emit": "cmr-granule", "sentinel2": "s2-scene", "carbonmapper": "stac-footprint"}
@@ -43,7 +49,7 @@ def build(project: ProjectConfig) -> dict[str, int]:
         frames.append(
             from_footprints(
                 fp,
-                sites,
+                sentinel2_sites(sites, project.coverage) if path.stem == "sentinel2" else sites,
                 project.coverage,
                 source=SOURCES[path.stem],
                 metric_crs=project.crs_metric,

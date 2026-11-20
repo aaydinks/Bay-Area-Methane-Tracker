@@ -80,13 +80,20 @@ for review and commit.
 
 The run never fits the model. Its snapshot carries the estimates of the official fit, the checked run named in
 `publish.official_model_run` in `config/project.yaml` (now `fit-20261107T010105Z`), but only while that fit's
-detections (`data/processed/runs/<run>-detections.parquet`) still equal the refreshed ones for the instruments
-it used. Instruments the fit left out, such as Sentinel-2 until its plume search runs, are counted in the
-manifest and not compared. When the detections differ, for example after a new EMIT pass, or when no usable fit
-is named, the snapshot has no estimates. It is still loaded as a draft, so the database stays active, but it is
+detections (`data/processed/runs/<run>-detections.parquet`) still equal the refreshed ones for the sites and
+instruments it used. Instruments the fit left out, such as Sentinel-2 until its plume search runs, and sites it
+does not cover, such as one added to the registry later, are counted in the manifest and not compared. A site
+the official fit does not cover has no estimate, unless a second fit is named in `publish.screening_model_run`:
+its estimates fill in those sites only, always marked provisional, and a screening fit that no longer matches
+its own detections is left out without stopping the run. When the official fit's detections differ, for
+example after a new EMIT pass, or when no usable fit is named, the snapshot has no estimates. It is still loaded as a draft, so the database stays active, but it is
 not marked review: the review site shows the newest review copy, and it keeps the one with estimates. The run
 stops at `review`, says which passes changed, and shows the notification. To bring the review copy up to date,
 run `mw model fit`, check the fit, name it in `publish.official_model_run` on `main`, and run the job again.
+Once the registry holds sites of more than one tier, `mw model fit` and `mw repair run` stop until told which
+sites to use (`--tier pilot`, or `--site` per site), and the run manifest records the choice. `mw repair run
+--fit <run>` draws its control sites from the sites of that fit. Sentinel-2 passes are built only for the tiers
+in `coverage.sentinel2_site_tiers` (`pilot`).
 
 On the owner's Mac a launchd job runs it on Mondays and Thursdays at 08:00 (a Mac that is asleep runs it on
 waking), so the free database plan never sees seven quiet days. A run that stops before the push still ends

@@ -40,15 +40,17 @@ def test_fit_passes_allow_unconfirmed_through(monkeypatch):
 
     seen = {}
 
-    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False, include_unsearched=()):
-        seen["allow_unconfirmed"] = allow_unconfirmed
+    def fake_fit_real(project, cfg, instruments, *, include_unsearched=(), **kwargs):
+        seen["allow_unconfirmed"] = kwargs["allow_unconfirmed"]
         seen["include_unsearched"] = include_unsearched
+        seen["sites"], seen["tiers"] = kwargs["sites"], kwargs["tiers"]
         return "fit-test"
 
     monkeypatch.setattr(run, "fit_real", fake_fit_real)
     result = runner.invoke(app, ["model", "fit", "--allow-unconfirmed"])
     assert result.exit_code == 0, result.output
-    assert seen == {"allow_unconfirmed": True, "include_unsearched": ()}
+    # With no --site or --tier the fit is asked for no choice of sites
+    assert seen == {"allow_unconfirmed": True, "include_unsearched": (), "sites": (), "tiers": ()}
     assert "run fit-test" in result.output
 
 
@@ -58,7 +60,7 @@ def test_fit_passes_include_unsearched_through(monkeypatch):
 
     seen = {}
 
-    def fake_fit_real(project, cfg, instruments, *, allow_unconfirmed=False, include_unsearched=()):
+    def fake_fit_real(project, cfg, instruments, *, include_unsearched=(), **kwargs):
         seen["include_unsearched"] = include_unsearched
         return "fit-test"
 

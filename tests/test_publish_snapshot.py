@@ -534,3 +534,181 @@ def test_a_source_without_display_terms_keeps_every_figure_hidden(tmp_path):
     for name in ("passes", "plumes", "site_estimates", "check_results"):
         assert not t[name]["display_only"].any(), name
     assert t["site_estimates"]["restricted"].all()
+
+
+# --- two fits side by side: the official fit and a screening run ---------------------------
+
+SCREEN_SITE = "kirby-canyon"
+
+
+def _add_screening(tmp_path, *, kind="real", provisional=False):
+    """A screen-tier site in the registry, and a second fit that has it and one pilot."""
+    interim, processed = tmp_path / "interim", tmp_path / "processed"
+    sites = gpd.read_parquet(interim / "sites.parquet")
+    extra = gpd.GeoDataFrame(
+        {"site_id": [SCREEN_SITE], "name": ["Kirby Canyon Landfill"], "tier": "screen"},
+        geometry=[Point(-121.67, 37.18).buffer(0.005)],
+        crs="EPSG:4326",
+    )
+    pd.concat([sites, extra], ignore_index=True).to_parquet(interim / "sites.parquet")
+    (processed / "runs" / "screen-1.json").write_text(
+        json.dumps(
+            {
+                "run_id": "screen-1",
+                "kind": kind,
+                "provisional": provisional,
+                "created_at": "2026-11-19T00:00:00+00:00",
+                "instruments": ["emit"],
+                "sites": ["newby-island", SCREEN_SITE],
+            }
+        )
+    )
+    # Its figure for the pilot differs from the official fit's, as a pooled fit's would
+    pd.DataFrame(
+        {
+            "site_id": ["newby-island", SCREEN_SITE],
+            "period": "all",
+            "run_id": "screen-1",
+            "n_usable_overpasses": [2, 12],
+            "n_detections": [2, 3],
+            "f_med": [0.5, 0.25],
+            "f_lo": [0.3, 0.1],
+            "f_hi": [0.7, 0.5],
+            "qbar_kg_hr_med": [1200.0, 400.0],
+            "qbar_kg_hr_lo": [700.0, 200.0],
+            "qbar_kg_hr_hi": [2400.0, 900.0],
+            "E_t_yr_med": [5200.0, 870.0],
+            "E_t_yr_lo": [2000.0, 300.0],
+            "E_t_yr_hi": [9000.0, 2100.0],
+            "status": ["estimate", "estimate"],
+            "rhat_max": 1.0,
+            "ess_bulk_min": 900.0,
+            "divergences": 0,
+        }
+    ).to_parquet(processed / "site_estimates" / "screen-1.parquet")
+
+
+def _build(tmp_path, **kwargs):
+    return snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        check_run_id="repairs-1",
+        publish_id="pub-test",
+        **kwargs,
+    )
+
+
+def test_a_site_outside_the_official_fit_has_no_estimate_and_changes_no_other(tmp_path):
+    _write_inputs(tmp_path)
+    before = _build(tmp_path)
+    _add_screening(tmp_path)
+    after = _build(tmp_path)  # no screening run named
+
+    assert SCREEN_SITE in set(after.tables["sites"]["site_id"])
+    assert SCREEN_SITE not in set(after.tables["site_estimates"]["site_id"])
+    for name in before.tables:
+        if name != "sites":
+            pd.testing.assert_frame_equal(after.tables[name], before.tables[name])
+    pilots = after.tables["sites"].iloc[: len(before.tables["sites"])]
+    pd.testing.assert_frame_equal(pilots, before.tables["sites"])
+    assert after.runs == before.runs and "screening_run_id" not in after.publication
+    same = {k: v for k, v in after.publication.items() if k != "created_at"}
+    assert same == {k: v for k, v in before.publication.items() if k != "created_at"}
+
+
+def test_a_screening_run_fills_in_only_the_sites_the_official_fit_lacks(tmp_path):
+    _write_inputs(tmp_path)
+    _add_screening(tmp_path)
+    official = _build(tmp_path)
+    both = _build(tmp_path, screening_run_id="screen-1")
+
+    est = both.tables["site_estimates"]
+    # The pilots' rows are the official fit's, untouched by the screening run's own figures
+    pilots = est[est["site_id"].isin(SITES)].reset_index(drop=True)
+    pd.testing.assert_frame_equal(pilots, official.tables["site_estimates"])
+    assert (pilots["model_run_id"] == "model-1").all()
+    assert pilots.set_index("site_id").loc["newby-island", "e_t_yr_med"] == 2300.0
+    # The screen-tier site's row comes from the screening run, always provisional
+    screen = est.set_index("site_id").loc[SCREEN_SITE]
+    assert screen["model_run_id"] == "screen-1" and screen["e_t_yr_med"] == 870.0
+    assert screen["provisional"] and screen["status"] == "provisional"
+    assert screen["restricted"] and screen["display_only"]  # as the other estimates here
+    assert len(est) == 3 and both.publication["provisional"]
+    # Both fits are listed; the publication's model run stays the official one
+    assert both.publication["model_run_id"] == "model-1"
+    assert both.publication["screening_run_id"] == "screen-1"
+    models = [(r["run_id"], r.get("role")) for r in both.runs if r["kind"] == "model"]
+    assert models == [("model-1", None), ("screen-1", snap.SCREENING)]
+    assert both.model_instruments()[0] == ["emit", "sentinel2", "tanager1"]  # the official fit's
+    for name in both.tables:
+        if name != "site_estimates":
+            pd.testing.assert_frame_equal(both.tables[name], official.tables[name])
+    again = snap.Snapshot.read(both.write(tmp_path / "publications"))
+    assert again.publication["screening_run_id"] == "screen-1"
+    assert len(again.tables["site_estimates"]) == 3
+
+
+def test_screening_rows_are_provisional_whatever_the_official_fit_is(tmp_path):
+    _write_inputs(tmp_path)
+    _add_screening(tmp_path)
+    _set_model_manifest(tmp_path, provisional=False)
+    s = snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        screening_run_id="screen-1",
+    )
+    flags = s.tables["site_estimates"].set_index("site_id")["provisional"].to_dict()
+    assert flags == {"newby-island": False, "sonoma-central": False, SCREEN_SITE: True}
+    assert s.publication["provisional"]
+
+
+def test_a_screening_run_that_adds_no_site_changes_nothing(tmp_path):
+    _write_inputs(tmp_path)
+    _add_screening(tmp_path)
+    est = tmp_path / "processed" / "site_estimates" / "screen-1.parquet"
+    pd.read_parquet(est).head(1).to_parquet(est)  # only the pilot the official fit has
+    _set_model_manifest(tmp_path, provisional=False)
+    official = snap.build(
+        _project(tmp_path), load_data_terms(), load_impact(), model_run_id="model-1"
+    )
+    both = snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        screening_run_id="screen-1",
+    )
+    pd.testing.assert_frame_equal(both.tables["site_estimates"], official.tables["site_estimates"])
+    assert not both.publication["provisional"]
+    # Naming the official fit as its own screening run is the same as naming none
+    same = snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        screening_run_id="model-1",
+    )
+    assert "screening_run_id" not in same.publication and len(same.runs) == len(official.runs)
+
+
+def test_a_simulated_screening_run_is_refused(tmp_path):
+    _write_inputs(tmp_path)
+    _add_screening(tmp_path, kind="synthetic-demo")
+    with pytest.raises(snap.SimulatedRunError, match="screen-1 is a simulated run"):
+        _build(tmp_path, screening_run_id="screen-1")
+
+
+def test_cli_build_takes_a_screening_run(tmp_path, monkeypatch):
+    _write_inputs(tmp_path)
+    _add_screening(tmp_path)
+    monkeypatch.setattr("methanewatch.config.load_project", lambda: _project(tmp_path))
+    result = CliRunner().invoke(
+        app, ["publish", "build", "--model-run", "model-1", "--screening-run", "screen-1"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "site_estimates: 3 rows" in result.output
+    assert "screening run screen-1: 1 provisional estimates" in result.output

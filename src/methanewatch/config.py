@@ -51,6 +51,8 @@ class Attribution(_Strict):
 class Coverage(_Strict):
     min_coverage_frac: float = Field(ge=0, le=1)
     min_valid_frac: float = Field(ge=0, le=1)
+    # Registry tiers whose sites get Sentinel-2 passes (coverage step and ``mw s2 site-clear``)
+    sentinel2_site_tiers: tuple[str, ...] = ("pilot",)
 
 
 class RepairWindows(_Strict):
@@ -113,6 +115,9 @@ class PublishSettings(_Strict):
     source_lag_days: int = Field(default=30, ge=0)
     # The checked fit whose estimates scheduled copies carry (``mw scheduled-run``)
     official_model_run: str | None = None
+    # A second fit for the sites the official fit does not cover. Its rows are always
+    # published as provisional, and the official fit's rows win where both have a site.
+    screening_model_run: str | None = None
 
 
 class ProjectConfig(_Strict):

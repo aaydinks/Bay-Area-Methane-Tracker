@@ -2,8 +2,9 @@
 
 For each row of ``data/registry/checks.csv`` (operator repairs, Air District
 inspections and notices, CARB plume notices; ADR 0010) this calls ``verify_repair`` with
-every other site as a control and adds the minimum detectable drop (MDE) for
-that repair's own pass schedule:
+every other chosen site as a control and adds the minimum detectable drop (MDE) for
+that repair's own pass schedule. The controls are the sites the run was asked to use (by
+tier or id, like ``mw model fit``), not every site in the registry:
 
 1. Fit the persistence model to every site's "before" window to get typical
    parameters (posterior medians of f, mu, sigma).
@@ -228,10 +229,17 @@ def run_all(
     seed: int = 0,
     n_power_fits: int = 15,
     progress: bool = True,
+    control_sites: Sequence[str] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Outcomes (one row per repair) and the power curves behind each MDE."""
+    """Outcomes (one row per repair) and the power curves behind each MDE.
+
+    Each repair's controls are the other sites of ``control_sites``, or of ``detections``
+    when it is None.
+    """
     rng = np.random.default_rng(seed)
-    sites = sorted(detections["site_id"].unique())
+    sites = (
+        sorted(detections["site_id"].unique()) if control_sites is None else sorted(control_sites)
+    )
     rows, curves = [], []
     for rep in repairs:
         controls = [s for s in sites if s != rep.site_id]
@@ -269,6 +277,25 @@ def site_covariates(
     return features.design(table[table["site_id"].isin(sites)], cfg.covariates.names)
 
 
+def _fit_sites(project: ProjectConfig, run_id: str, other_choice: bool) -> list[str]:
+    """The sites the model run ``run_id`` recorded in its manifest."""
+    import json
+
+    from methanewatch.model.run import ConfigNotReadyError
+
+    if other_choice:
+        raise ConfigNotReadyError(
+            "choose the sites with --fit, or with --tier and --site, not both"
+        )
+    path = project.resolve(project.paths.processed) / "runs" / f"{run_id}.json"
+    if not path.exists():
+        raise FileNotFoundError(f"missing {path}; --fit takes a model run id")
+    recorded = json.loads(path.read_text()).get("sites") or []
+    if not recorded:
+        raise ConfigNotReadyError(f"model run {run_id} does not record its sites")
+    return sorted(recorded)
+
+
 def run_real(
     project: ProjectConfig,
     cfg: ModelConfig,
@@ -276,17 +303,24 @@ def run_real(
     *,
     allow_unconfirmed: bool = False,
     include_unsearched: Iterable[str] = (),
+    sites: Iterable[str] = (),
+    tiers: Iterable[str] = (),
+    fit_run_id: str | None = None,
     n_power_fits: int = 15,
     seed: int = 0,
 ) -> str:
     """Outcomes for ``data/registry/checks.csv`` on ``interim/detections.parquet``.
 
     Like ``mw model fit``, it leaves out instruments whose plume search has not run, unless
-    named in ``include_unsearched``, and the manifest says so (ADR 0016).
+    named in ``include_unsearched``, and the manifest says so (ADR 0016). ``sites`` and
+    ``tiers`` choose the control sites the same way that command chooses the sites to fit
+    (``model.siteselect``), and ``fit_run_id`` chooses the sites a model run recorded, so the
+    controls are those of the fit being tested (ADR 0021). A check at a site outside the choice
+    is still tested, against those controls.
     """
     import json
 
-    from methanewatch.model.run import ConfigNotReadyError, select_searched
+    from methanewatch.model.run import ConfigNotReadyError, select_searched, select_sites
     from methanewatch.provenance import new_id, run_manifest
 
     registry = project.resolve(project.paths.registry)
@@ -300,6 +334,13 @@ def run_real(
     det = pd.read_parquet(det_path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
+    if fit_run_id:
+        sites = _fit_sites(project, fit_run_id, bool(tuple(sites) or tuple(tiers)))
+    chosen = select_sites(interim, det, sites, tiers)
+    if chosen.explicit:
+        # The checked sites keep their own passes; only the controls are limited
+        checked = {r.site_id for r in repairs}
+        det = det[det["site_id"].isin(set(chosen.site_ids) | checked)].reset_index(drop=True)
     sel = select_searched(interim, det, instruments, include_unsearched)
     det = sel.detections
     used = sel.used
@@ -320,8 +361,16 @@ def run_real(
         covariates=cov,
     )
     run_id = new_id("repairs")
+    # Controls come from the chosen sites that still have passes after the instrument selection
+    controls = sorted(set(chosen.site_ids) & set(det["site_id"])) if chosen.explicit else None
     outcomes, power = run_all(
-        repairs, det, settings, run_id=run_id, seed=seed, n_power_fits=n_power_fits
+        repairs,
+        det,
+        settings,
+        run_id=run_id,
+        seed=seed,
+        n_power_fits=n_power_fits,
+        control_sites=controls,
     )
     out = project.resolve(project.paths.processed) / "repair_outcomes"
     out.mkdir(parents=True, exist_ok=True)
@@ -342,6 +391,8 @@ def run_real(
             "power_target": POWER_TARGET,
             "covariates": cov.manifest() if cov is not None else None,
             "instruments": used,
+            "controls_from_fit": fit_run_id,
+            **chosen.manifest(),
             **sel.manifest(),
         },
     )

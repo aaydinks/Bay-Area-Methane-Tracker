@@ -25,6 +25,17 @@ from methanewatch import schemas
 from methanewatch.config import Coverage
 
 
+def sentinel2_sites(sites: gpd.GeoDataFrame, coverage: Coverage) -> gpd.GeoDataFrame:
+    """The sites Sentinel-2 passes are built for: those of ``coverage.sentinel2_site_tiers``.
+
+    The coverage step and ``sentinel2/siteclear`` both use this, so they build the same
+    passes. A site table with no ``tier`` column is returned whole.
+    """
+    if "tier" not in sites:
+        return sites
+    return sites[sites["tier"].isin(coverage.sentinel2_site_tiers)]
+
+
 def from_footprints(
     footprints: gpd.GeoDataFrame,
     sites: gpd.GeoDataFrame,

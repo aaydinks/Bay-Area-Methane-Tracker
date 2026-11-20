@@ -43,6 +43,10 @@ attribution:
 coverage:
   min_coverage_frac: 0.8 # share of the site polygon inside the footprint
   min_valid_frac: 0.7 # share of covered pixels that are cloud-free / unmasked
+  # Sentinel-2 passes are built only for sites of these registry tiers (sites.csv, `tier`).
+  # It sees only very large plumes and each pass reads a Sen2Cor window, so sites added for
+  # screening are left out unless their tier is listed here.
+  sentinel2_site_tiers: [pilot]
 
 repair:
   window_months: 12
@@ -78,3 +82,8 @@ publish:
   # data/processed/runs). Change it only after a new fit has been checked; a scheduled run
   # leaves review alone while the refreshed detections differ from this fit's.
   official_model_run: fit-20261107T010105Z
+  # Optional second fit for sites the official fit does not cover (for example the screening
+  # tier). A site's estimate comes from the official fit when that fit has the site, otherwise
+  # from this run, marked provisional; with neither, the site has no estimate. Unset: only the
+  # official fit is carried.
+  screening_model_run: null
