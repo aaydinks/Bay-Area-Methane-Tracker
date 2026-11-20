@@ -3,7 +3,7 @@
 A run writes, under ``data/processed``:
 - ``site_estimates/<run_id>.parquet``: one row per site (schemas.site_estimates)
 - ``runs/<run_id>.json``: run manifest (code, config, diagnostics, kind, and for a real
-  fit the instruments left out because their plume search has not run)
+  fit the sites chosen and the instruments left out because their plume search has not run)
 - ``runs/<run_id>-detections.parquet``: the detections the fit used
 - ``runs/<run_id>.zarr``: posterior draws
 
@@ -27,7 +27,7 @@ from methanewatch.config import (
     ProjectConfig,
     load_synthetic,
 )
-from methanewatch.model import persistence, searched, simulate
+from methanewatch.model import persistence, searched, simulate, siteselect
 from methanewatch.model.grid import LogRateGrid
 from methanewatch.model.summarize import summarize
 from methanewatch.provenance import new_id, run_manifest
@@ -99,6 +99,31 @@ def select_searched(
     return sel
 
 
+def select_sites(
+    interim: Path,
+    det: pd.DataFrame,
+    sites: Iterable[str] = (),
+    tiers: Iterable[str] = (),
+) -> siteselect.SiteSelection:
+    """The detections of the sites a real fit covers: ``siteselect.select`` on the registry.
+
+    ``mw model fit`` and ``mw repair run`` both go through here. With no choice, every site
+    is taken while they are all of one tier; a registry of several tiers needs ``sites`` or
+    ``tiers``. Prints an explicit choice; raises ConfigNotReadyError when it cannot be met.
+    """
+    try:
+        chosen = siteselect.select(det, siteselect.site_tiers(interim), sites=sites, tiers=tiers)
+    except ValueError as exc:
+        raise ConfigNotReadyError(str(exc)) from exc
+    if chosen.explicit:
+        asked = [f"tier {t}" for t in chosen.tiers] + [f"site {s}" for s in chosen.sites]
+        print(
+            f"sites: {len(chosen.site_ids)} chosen ({', '.join(asked)}); "
+            f"{len(chosen.not_selected)} with detections left out"
+        )
+    return chosen
+
+
 def fit_real(
     project: ProjectConfig,
     cfg: ModelConfig,
@@ -106,11 +131,15 @@ def fit_real(
     *,
     allow_unconfirmed: bool = False,
     include_unsearched: Iterable[str] = (),
+    sites: Iterable[str] = (),
+    tiers: Iterable[str] = (),
 ) -> str:
     """Fit ``interim/detections.parquet`` with the real instrument settings.
 
-    Instruments whose plume search has not run are left out (see ``model.searched``), unless
-    named in ``include_unsearched``. The manifest names what was left out and why.
+    ``sites`` (ids) and ``tiers`` (registry tiers) choose the sites to fit; see
+    ``model.siteselect``. Instruments whose plume search has not run are left out (see
+    ``model.searched``), unless named in ``include_unsearched``. The manifest names the
+    choice of sites, and what was left out and why.
     """
     interim = project.resolve(project.paths.interim)
     path = interim / "detections.parquet"
@@ -119,7 +148,8 @@ def fit_real(
     det = pd.read_parquet(path)
     if cfg.grid.q_min_kg_hr is None:
         raise ConfigNotReadyError("set model.grid.q_min_kg_hr (the emission floor) first")
-    sel = select_searched(interim, det, instruments, include_unsearched)
+    chosen = select_sites(interim, det, sites, tiers)
+    sel = select_searched(interim, chosen.detections, instruments, include_unsearched)
     det = sel.detections
     used = sel.used
     inst = {k: instruments.instruments[k] for k in used}
@@ -162,6 +192,7 @@ def fit_real(
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
             "covariates": cov.manifest() if cov is not None else None,
+            **chosen.manifest(),
             **sel.manifest(),
         },
     )

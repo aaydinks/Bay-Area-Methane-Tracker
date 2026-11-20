@@ -18,7 +18,7 @@ from methanewatch.cli import app
 from methanewatch.config import load_project
 from methanewatch.ingest import pipeline
 from methanewatch.publish import load
-from tests.test_refresh import UTM, utm_box
+from tests.test_refresh import UTM, add_screen_site, utm_box
 
 DSN = "postgresql://writer:s3cret-pw@db.example.invalid:5432/postgres"
 HOOK = "https://hooks.example.invalid/deploy/abc123"
@@ -56,9 +56,24 @@ def make_project(tmp_path):
 
 
 def name_fit(
-    project, run_id, detections, *, kind="real", ok=True, dirty=False, instruments=None, missing=()
+    project,
+    run_id,
+    detections,
+    *,
+    kind="real",
+    ok=True,
+    dirty=False,
+    instruments=None,
+    missing=(),
+    sites=("a", "b"),
+    manifest_sites=False,
+    role="official_model_run",
 ):
-    """Write a model run's files (all but ``missing``) and name it the official fit."""
+    """Write a model run's files (all but ``missing``) and name it the official fit.
+
+    ``sites`` are the sites it has estimates for, also written to its manifest with
+    ``manifest_sites`` (as ``mw model fit`` does). ``role`` is the config key that names it.
+    """
     processed = project.resolve(project.paths.processed)
     (processed / "runs").mkdir(parents=True, exist_ok=True)
     (processed / "site_estimates").mkdir(parents=True, exist_ok=True)
@@ -68,21 +83,22 @@ def name_fit(
                 {"run_id": run_id, "created_at": "2025-11-01T00:00:00Z", "kind": kind,
                  "git_dirty": dirty, "provisional": True, "diagnostics": {"ok": ok},
                  "instruments": instruments or sorted(detections["instrument"].unique())}
+                | ({"sites": sorted(sites)} if manifest_sites else {})
             )
         )  # fmt: skip
     if "detections" not in missing:
         detections.to_parquet(processed / "runs" / f"{run_id}-detections.parquet")
     if "estimates" not in missing:
         pd.DataFrame(
-            {"site_id": ["a", "b"], "period": "all", "run_id": run_id,
-             "n_usable_overpasses": [10, 10], "n_detections": [1, 0],
+            {"site_id": list(sites), "period": "all", "run_id": run_id,
+             "n_usable_overpasses": 10, "n_detections": [1, 0, 0][: len(sites)],
              "f_med": 0.2, "f_lo": 0.1, "f_hi": 0.4,
              "qbar_kg_hr_med": 500.0, "qbar_kg_hr_lo": 300.0, "qbar_kg_hr_hi": 800.0,
              "E_t_yr_med": 876.0, "E_t_yr_lo": 300.0, "E_t_yr_hi": 2000.0,
-             "status": ["provisional", "insufficient_data"], "rhat_max": 1.004,
-             "ess_bulk_min": 700.0, "divergences": 0}
+             "status": ["provisional", "insufficient_data", "estimate"][: len(sites)],
+             "rhat_max": 1.004, "ess_bulk_min": 700.0, "divergences": 0}
         ).to_parquet(processed / "site_estimates" / f"{run_id}.parquet")  # fmt: skip
-    publish = project.publish.model_copy(update={"official_model_run": run_id})
+    publish = project.publish.model_copy(update={role: run_id})
     return project.model_copy(update={"publish": publish})
 
 
@@ -350,6 +366,141 @@ def test_a_refresh_that_changes_the_fit_detections_leaves_the_copy_a_draft(world
     assert det.loc[seen, "overpass_id"] in m["reason"]
     assert "publish.official_model_run" in m["reason"]
     assert m["steps"]["deploy_hook"] == {"ok": False, "not_run": True}
+
+
+# --- a registry with more sites than the official fit covers -------------------------------
+
+SCREENING = "fit-20251102T000000Z"
+
+
+def test_a_site_added_after_the_fit_does_not_stop_the_review_copy(world):
+    project, root, calls = world
+    add_screen_site(root / "registry")  # every pass that sees the pilots now sees it too
+    m = scheduled.run(project)
+
+    assert m["ok"] and m["stopped_at"] is None and m["visibility"] == "review"
+    assert m["steps"]["refresh"]["passes"] == 30
+    fit = m["steps"]["model_run"]
+    assert fit["model_run_id"] == FIT and "drift" not in fit and "no_estimates" not in fit
+    # The fit's own sites are compared; the new site's passes are counted
+    assert fit["sites"] == ["a", "b"] and fit["sites_not_in_fit"] == {"c": 10}
+    # The two fitted sites keep their estimates and the new site has none
+    out = root / "processed" / "publications" / m["publish_id"]
+    estimates = pd.read_parquet(out / "site_estimates.parquet")
+    assert sorted(estimates["site_id"]) == ["a", "b"]
+    assert set(pd.read_parquet(out / "sites.parquet")["site_id"]) == {"a", "b", "c"}
+    assert calls["visibility"] == [(m["publish_id"], "review")]
+    # Compared over every site, as before, the same refresh reads as ten added passes
+    now = pd.read_parquet(root / "interim" / "detections.parquet")
+    everywhere = scheduled.detections_drift(fit_detections(root), now, ["emit"])
+    assert everywhere["emit"]["added"] == 10
+
+
+def test_the_sites_a_fit_covers_come_from_its_manifest(world):
+    project, root, _ = world
+    add_screen_site(root / "registry")
+    project = name_fit(project, FIT, fit_detections(root), manifest_sites=True)
+    assert refresh_mod.run(project)["ok"]
+    result = scheduled.official_fit(project)
+    assert result["model_run_id"] == FIT and result["sites"] == ["a", "b"]
+
+    # A fit that did take the new site is held to it: its passes are missing from what it used
+    project = name_fit(project, FIT, fit_detections(root), manifest_sites=True, sites="abc")
+    result = scheduled.official_fit(project)
+    assert result["model_run_id"] is None and result["drift"]["emit"]["added"] == 10
+
+
+def test_a_change_at_a_fitted_site_still_stops_the_copy_when_other_sites_exist(world):
+    project, root, calls = world
+    add_screen_site(root / "registry")
+    det = fit_detections(root)
+    det.drop(index=det.index[~det["detected"]][0]).to_parquet(
+        root / "processed" / "runs" / f"{FIT}-detections.parquet"
+    )
+    m = scheduled.run(project)
+
+    assert m["stopped_at"] == "review" and "emit: 1 pass added" in m["reason"]
+    assert m["steps"]["model_run"]["drift"]["emit"]["added"] == 1  # not the new site's ten
+    assert calls["visibility"] == []
+
+
+def test_a_screening_fit_fills_in_the_sites_the_official_fit_lacks(world):
+    project, root, _ = world
+    add_screen_site(root / "registry")
+    assert refresh_mod.run(project)["ok"]
+    now = pd.read_parquet(root / "interim" / "detections.parquet")
+    # The screening fit pooled all three sites; the official fit still has a and b
+    project = name_fit(
+        project, SCREENING, now, sites="abc", manifest_sites=True, role="screening_model_run"
+    )
+    m = scheduled.run(project)
+
+    assert m["ok"] and m["visibility"] == "review" and m["model_run_id"] == FIT
+    fit = m["steps"]["model_run"]
+    assert fit["screening_run_id"] == SCREENING and fit["screening_sites"] == ["a", "b", "c"]
+    build = m["steps"]["publish_build"]
+    assert build["screening_run_id"] == SCREENING and build["rows"]["site_estimates"] == 3
+    out = root / "processed" / "publications" / m["publish_id"]
+    est = pd.read_parquet(out / "site_estimates.parquet").set_index("site_id")
+    assert est["model_run_id"].to_dict() == {"a": FIT, "b": FIT, "c": SCREENING}
+    assert est.loc["c", "provisional"] and est.loc["c", "status"] == "provisional"
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert manifest["publication"]["model_run_id"] == FIT
+    assert manifest["publication"]["screening_run_id"] == SCREENING
+    assert f"and from {SCREENING}" in manifest["publication"]["notes"]
+
+
+def test_a_screening_fit_that_cannot_be_carried_never_holds_back_the_official_one(world):
+    project, root, _ = world
+    add_screen_site(root / "registry")
+    assert refresh_mod.run(project)["ok"]
+    now = pd.read_parquet(root / "interim" / "detections.parquet")
+    # It was fit before the new site's last pass arrived
+    stale = now.drop(index=now.index[now["site_id"] == "c"][-1])
+    project = name_fit(
+        project, SCREENING, stale, sites="abc", manifest_sites=True, role="screening_model_run"
+    )
+    m = scheduled.run(project)
+
+    assert m["ok"] and m["visibility"] == "review" and m["model_run_id"] == FIT
+    fit = m["steps"]["model_run"]
+    assert fit["screening"] == SCREENING and fit["screening_run_id"] is None
+    assert f"screening fit {SCREENING} no longer matches" in fit["screening_no_estimates"]
+    assert fit["screening_drift"]["emit"]["added"] == 1
+    build = m["steps"]["publish_build"]
+    assert "screening_run_id" not in build and build["rows"]["site_estimates"] == 2
+
+    missing = project.publish.model_copy(update={"screening_model_run": "fit-nowhere"})
+    result = scheduled.screening_fit(project.model_copy(update={"publish": missing}))
+    assert result["screening_run_id"] is None
+    assert "has no manifest or estimates or detections on disk" in result["screening_no_estimates"]
+
+
+def test_a_screening_fit_is_not_carried_without_the_official_one(world):
+    project, root, _ = world
+    now = pd.read_parquet(root / "interim" / "detections.parquet")
+    project = name_fit(project, SCREENING, now, role="screening_model_run")
+    fit_detections(root).head(0).to_parquet(
+        root / "processed" / "runs" / f"{FIT}-detections.parquet"
+    )
+    m = scheduled.run(project)
+
+    assert m["stopped_at"] == "review" and "screening" not in m["steps"]["model_run"]
+    assert m["steps"]["publish_build"]["rows"]["site_estimates"] == 0
+
+
+def test_without_a_screening_fit_named_the_run_says_nothing_of_one(world):
+    project, root, _ = world
+    assert project.publish.screening_model_run is None
+    m = scheduled.run(project)
+    assert not [k for k in m["steps"]["model_run"] if k.startswith("screening")]
+    assert "screening_run_id" not in m["steps"]["publish_build"]
+    manifest = json.loads(
+        (root / "processed" / "publications" / m["publish_id"] / "manifest.json").read_text()
+    )
+    assert "screening_run_id" not in manifest["publication"]
+    assert manifest["publication"]["notes"].endswith(f"estimates from {FIT}")
+    assert [r["run_id"] for r in manifest["runs"]] == [m["refresh_id"], FIT]
 
 
 def test_without_an_official_fit_the_copy_stays_a_draft(world):

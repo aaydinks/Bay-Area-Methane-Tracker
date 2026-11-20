@@ -56,6 +56,22 @@ for name, sub in [
 s2_app.add_typer(cloud_app, name="cloud")
 
 Site = Annotated[str, typer.Option(help="site_id from the registry, e.g. newby-island")]
+FitSites = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--site",
+        help="Use this site (site_id). Repeat for several; adds to --tier. Recorded in the "
+        "run manifest.",
+    ),
+]
+FitTiers = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--tier",
+        help="Use the sites of this registry tier, e.g. pilot. Repeat for several. Needed "
+        "once the registry has sites of more than one tier. Recorded in the run manifest.",
+    ),
+]
 
 
 def _run(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -320,11 +336,17 @@ def model_fit(
             "run manifest."
         ),
     ] = None,
+    site: FitSites = None,
+    tier: FitTiers = None,
 ) -> None:
     """Fit the persistence model to data/interim/detections.parquet.
 
     An instrument whose plume search has not run (no plume table from any of its sources in
     data/interim/plumes) is left out, and the run manifest says so (decision record 0016).
+
+    --tier and --site choose the sites to fit. With neither, every site with detections is
+    fit while they are all of one tier; a registry with several tiers needs a choice, so that
+    sites added later do not join a fit, and move the other sites' estimates, unnoticed.
     """
     from methanewatch.model import run
 
@@ -346,6 +368,8 @@ def model_fit(
             instruments,
             allow_unconfirmed=allow_unconfirmed,
             include_unsearched=tuple(include_unsearched or ()),
+            sites=tuple(site or ()),
+            tiers=tuple(tier or ()),
         )
     except run.ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
@@ -376,11 +400,14 @@ def repair_run(
             "run manifest."
         ),
     ] = None,
+    site: FitSites = None,
+    tier: FitTiers = None,
 ) -> None:
     """Outcome of every dated check in the registry, with its minimum detectable drop.
 
     Like `mw model fit`, it leaves out an instrument whose plume search has not run (decision
-    record 0016).
+    record 0016), and --tier and --site choose the control sites the way that command chooses
+    the sites to fit. A check at a site outside the choice is still tested, against them.
     """
     from methanewatch.model.run import ConfigNotReadyError
     from methanewatch.repair import run
@@ -403,6 +430,8 @@ def repair_run(
             instruments,
             allow_unconfirmed=allow_unconfirmed,
             include_unsearched=tuple(include_unsearched or ()),
+            sites=tuple(site or ()),
+            tiers=tuple(tier or ()),
             n_power_fits=power_fits,
         )
     except ConfigNotReadyError as exc:
@@ -712,6 +741,13 @@ def _dsn() -> str:
 @publish_app.command("build")
 def publish_build(
     model_run: Annotated[str | None, typer.Option(help="Model run id (processed/runs).")] = None,
+    screening_run: Annotated[
+        str | None,
+        typer.Option(
+            help="A second model run for the sites --model-run does not have. Its rows are "
+            "marked provisional."
+        ),
+    ] = None,
     check_run: Annotated[
         str | None, typer.Option(help="Check run id (processed/repair_outcomes).")
     ] = None,
@@ -732,6 +768,7 @@ def publish_build(
             config.load_data_terms(),
             config.load_impact(),
             model_run_id=model_run,
+            screening_run_id=screening_run,
             check_run_id=check_run,
             refresh_id=refresh,
             allow_simulated=allow_simulated,
@@ -747,6 +784,10 @@ def publish_build(
     if used:
         gaps = "; left out: " + ", ".join(f"{k} ({v})" for k, v in left.items()) if left else ""
         typer.echo(f"model run instruments: {', '.join(used)}{gaps}")
+    if s.publication.get("screening_run_id"):
+        est = s.tables["site_estimates"]
+        n = int((est["model_run_id"] == s.publication["screening_run_id"]).sum())
+        typer.echo(f"screening run {s.publication['screening_run_id']}: {n} provisional estimates")
     flags = ", ".join(k for k in ("simulated", "provisional") if s.publication[k])
     typer.echo(
         f"wrote {out} (data through {s.publication['data_through']}{', ' + flags if flags else ''})"
@@ -860,7 +901,9 @@ def scheduled_run(
     """Refresh, rebuild datasets, build and push a review snapshot, call the review deploy hook.
 
     The snapshot carries the official fit (publish.official_model_run) only while the refreshed
-    detections still match it; otherwise it is loaded as a draft and the run stops before review.
+    detections still match it for the sites it covers; otherwise it is loaded as a draft and the
+    run stops before review. Sites added to the registry after the fit do not stop it. A fit
+    named in publish.screening_model_run fills in the sites the official fit lacks.
     Exits 0 when every step ran and 2 when the run stopped, with the step and the reason; both
     are kept in data/processed/scheduled/<run_id>.json. Never makes anything public.
     """
@@ -880,9 +923,11 @@ def scheduled_run(
             typer.echo(f"{name}: skipped ({result['reason']})")
         elif result["ok"]:
             no_estimates = result.get("no_estimates")
+            no_screening = result.get("screening_no_estimates")
             typer.echo(
                 f"{name}: ok ({result['seconds']} s)"
                 + (f"; no estimates: {no_estimates}" if no_estimates else "")
+                + (f"; no screening estimates: {no_screening}" if no_screening else "")
             )
         else:
             typer.secho(f"{name}: FAILED {result['error']}", fg=typer.colors.RED, err=True)

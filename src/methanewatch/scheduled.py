@@ -13,9 +13,14 @@ The steps, in order. Nothing after a failed step runs:
    stay manual (ADR 0011). The changes are left for the owner to review and commit.
 3. ``model_run``: decide whether the copy carries the official fit, the checked run named in
    ``publish.official_model_run`` (``config/project.yaml``). It does only while the detections that
-   fit used still equal the refreshed ones for the instruments it used (``official_fit``).
-   Instruments it left out, such as Sentinel-2 while its plume search has not run, are counted,
-   not compared. The model is never refit here: a refit is checked by a person before it is named.
+   fit used still equal the refreshed ones for the sites and instruments it used
+   (``official_fit``). Instruments it left out, such as Sentinel-2 while its plume search has not
+   run, and sites it does not cover, such as one added to the registry after the fit, are
+   counted, not compared. With the official fit carried, a fit named in
+   ``publish.screening_model_run`` is checked the same way over its own sites
+   (``screening_fit``) and carried for the sites the official fit lacks. One that cannot be
+   carried is left out with the reason, and the run goes on. The model is never refit here: a
+   refit is checked by a person before it is named.
 4. ``publish_build``: assemble and check a snapshot of that refresh, with the official fit's
    estimates when it is carried and none otherwise. Check results stay empty.
 5. ``push``: load it into the database as a draft (``SUPABASE_DB_URL`` in ``.env``). This runs
@@ -91,17 +96,29 @@ DRIFT_KINDS = ("added", "changed", "removed")
 
 
 def detections_drift(
-    fit: pd.DataFrame, now: pd.DataFrame, instruments: Sequence[str]
+    fit: pd.DataFrame,
+    now: pd.DataFrame,
+    instruments: Sequence[str],
+    sites: Sequence[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """How ``now`` differs from the detections a fit used, for each of ``instruments``.
 
     Passes are matched on ``overpass_id`` and compared on ``MODEL_INPUTS`` only, so other columns
     and row order do not count. Empty when they are equal. Each entry has the number of passes
     ``added``, ``changed`` and ``removed`` since the fit and up to three example pass ids.
+    With ``sites``, only passes over those sites are compared: a site the fit never covered,
+    such as one added to the registry later, is not a change to the fit.
     """
     cols = ["overpass_id", *MODEL_INPUTS]
-    m = fit.loc[fit["instrument"].isin(instruments), cols].merge(
-        now.loc[now["instrument"].isin(instruments), cols],
+
+    def compared(df: pd.DataFrame) -> pd.DataFrame:
+        keep = df["instrument"].isin(instruments)
+        if sites is not None:
+            keep &= df["site_id"].isin(sites)
+        return df.loc[keep, cols]
+
+    m = compared(fit).merge(
+        compared(now),
         on="overpass_id",
         how="outer",
         suffixes=("_fit", "_now"),
@@ -138,32 +155,27 @@ def describe_drift(drift: dict[str, dict[str, Any]]) -> str:
     return "; ".join(parts)
 
 
-def official_fit(project: ProjectConfig) -> dict[str, Any]:
-    """Whether a copy of the current interim tables may carry the official fit's estimates.
-
-    ``model_run_id`` is the run to carry, or None with ``no_estimates`` saying why: no fit is
-    named, its files are missing, it is not a real fit from a clean checkout that passed its
-    checks, or the detections it used differ from ``interim/detections.parquet`` for its
-    instruments (``drift``). ``left_out`` counts the current detections of other instruments.
-    """
-    run_id = project.publish.official_model_run
-    if not run_id:
-        return {
-            "official": None,
-            "model_run_id": None,
-            "no_estimates": "no official fit is named (publish.official_model_run)",
-        }
-    out: dict[str, Any] = {"official": run_id, "model_run_id": None}
+def _fit_files(project: ProjectConfig, run_id: str) -> dict[str, Path]:
     processed = project.resolve(project.paths.processed)
-    files = {
+    return {
         "manifest": processed / "runs" / f"{run_id}.json",
         "estimates": processed / "site_estimates" / f"{run_id}.parquet",
         "detections": processed / "runs" / f"{run_id}-detections.parquet",
     }
+
+
+def _check_fit(project: ProjectConfig, run_id: str, label: str) -> dict[str, Any]:
+    """Whether the fit ``run_id`` still stands for the current interim tables.
+
+    ``problem`` is None, or why it does not: files missing, not a real fit from a clean checkout
+    that passed its checks, or its detections differ from ``interim/detections.parquet`` for
+    the sites and instruments it used (``drift``). The other keys say what was compared.
+    ``label`` names the fit in the reason ("official fit").
+    """
+    files = _fit_files(project, run_id)
     missing = [k for k, path in files.items() if not path.exists()]
     if missing:
-        why = f"official fit {run_id} has no {' or '.join(missing)} on disk"
-        return out | {"no_estimates": why}
+        return {"problem": f"{label} {run_id} has no {' or '.join(missing)} on disk"}
     manifest = json.loads(files["manifest"].read_text())
     problems = []
     if manifest.get("kind") != "real":
@@ -173,10 +185,13 @@ def official_fit(project: ProjectConfig) -> dict[str, Any]:
     if manifest.get("git_dirty"):
         problems.append("it was fit from a checkout with unsaved changes")
     if problems:
-        return out | {"no_estimates": f"official fit {run_id}: {'; '.join(problems)}"}
+        return {"problem": f"{label} {run_id}: {'; '.join(problems)}"}
 
     used = pd.read_parquet(files["detections"])
     instruments = sorted(manifest.get("instruments") or used["instrument"].unique())
+    # The sites the fit covers; passes over any other site are counted, not compared. A fit
+    # that names none and used no detections covers nothing knowable, so every pass counts.
+    sites = sorted(manifest.get("sites") or used["site_id"].unique()) or None
     det_path = project.resolve(project.paths.interim) / "detections.parquet"
     now = (
         pd.read_parquet(det_path)
@@ -184,21 +199,72 @@ def official_fit(project: ProjectConfig) -> dict[str, Any]:
         else pd.DataFrame(columns=["overpass_id", *MODEL_INPUTS])
     )
     left_out = now.loc[~now["instrument"].isin(instruments), "instrument"].value_counts()
-    out |= {
+    outside = ~now["site_id"].isin(sites) if sites else pd.Series(False, index=now.index)
+    other_sites = now.loc[outside, "site_id"].value_counts()
+    out: dict[str, Any] = {
+        "problem": None,
         "instruments": instruments,
+        "sites": sites or [],
         "detections": int(used["instrument"].isin(instruments).sum()),
         "left_out": {str(k): int(v) for k, v in left_out.sort_index().items()},
+        "sites_not_in_fit": {str(k): int(v) for k, v in other_sites.sort_index().items()},
     }
-    drift = detections_drift(used, now, instruments)
+    drift = detections_drift(used, now, instruments, sites)
     if drift:
-        return out | {
+        out |= {
             "drift": drift,
-            "no_estimates": (
-                f"official fit {run_id} no longer matches the refreshed detections "
+            "problem": (
+                f"{label} {run_id} no longer matches the refreshed detections "
                 f"({describe_drift(drift)})"
             ),
         }
+    return out
+
+
+def official_fit(project: ProjectConfig) -> dict[str, Any]:
+    """Whether a copy of the current interim tables may carry the official fit's estimates.
+
+    ``model_run_id`` is the run to carry, or None with ``no_estimates`` saying why: no fit is
+    named, its files are missing, it is not a real fit from a clean checkout that passed its
+    checks, or the detections it used differ from ``interim/detections.parquet`` for its
+    sites and instruments (``drift``). ``left_out`` counts the current detections of other
+    instruments, and ``sites_not_in_fit`` those of sites the fit does not cover (added to the
+    registry since, or outside the fit's site selection).
+    """
+    run_id = project.publish.official_model_run
+    if not run_id:
+        return {
+            "official": None,
+            "model_run_id": None,
+            "no_estimates": "no official fit is named (publish.official_model_run)",
+        }
+    checked = _check_fit(project, run_id, "official fit")
+    problem = checked.pop("problem")
+    out = {"official": run_id, "model_run_id": None} | checked
+    if problem:
+        return out | {"no_estimates": problem}
     return out | {"model_run_id": run_id}
+
+
+def screening_fit(project: ProjectConfig) -> dict[str, Any]:
+    """Whether the copy may also carry the screening fit (``publish.screening_model_run``).
+
+    Empty when none is named. Otherwise ``screening_run_id`` is the run to carry for the sites
+    the official fit does not cover, or None with ``screening_no_estimates`` saying why. The
+    rules are the official fit's, over the screening fit's own sites and instruments. A
+    screening fit that cannot be carried never holds back the official one.
+    """
+    run_id = project.publish.screening_model_run
+    if not run_id or run_id == project.publish.official_model_run:
+        return {}
+    checked = _check_fit(project, run_id, "screening fit")
+    out: dict[str, Any] = {"screening": run_id, "screening_run_id": None}
+    if checked["problem"]:
+        out["screening_no_estimates"] = checked["problem"]
+        if "drift" in checked:
+            out["screening_drift"] = checked["drift"]
+        return out
+    return out | {"screening_run_id": run_id, "screening_sites": checked["sites"]}
 
 
 PAUSED = "database paused or unreachable"
@@ -368,18 +434,25 @@ def run(
         result = official_fit(project)
         state["model_run_id"] = result["model_run_id"]
         state["no_estimates"] = result.get("no_estimates")
+        if result["model_run_id"]:
+            # Only beside the official fit: a copy never carries screening estimates alone
+            result |= screening_fit(project)
+        state["screening_run_id"] = result.get("screening_run_id")
         return result
 
     def publish_build() -> dict[str, Any]:
-        model_run_id = state["model_run_id"]
+        model_run_id, screening_run_id = state["model_run_id"], state["screening_run_id"]
+        estimates = f"estimates from {model_run_id}" if model_run_id else "no estimates"
+        if screening_run_id:
+            estimates += f", and from {screening_run_id} for sites it does not cover"
         s = snap.build(
             project,
             load_data_terms(),
             load_impact(),
             refresh_id=state["refresh_id"],
             model_run_id=model_run_id,
-            notes=f"scheduled run {run_id}; "
-            + (f"estimates from {model_run_id}" if model_run_id else "no estimates"),
+            screening_run_id=screening_run_id,
+            notes=f"scheduled run {run_id}; {estimates}",
         )
         s.write(project.resolve(project.paths.processed) / "publications")
         state["snapshot"] = s
@@ -387,6 +460,7 @@ def run(
         return {
             "publish_id": s.publish_id,
             "model_run_id": model_run_id,
+            **({"screening_run_id": screening_run_id} if screening_run_id else {}),
             "rows": {k: len(v) for k, v in tables.items()},
             "restricted_rows": {
                 k: int(tables[k]["restricted"].sum())

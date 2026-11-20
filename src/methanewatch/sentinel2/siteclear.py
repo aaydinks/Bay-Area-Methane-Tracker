@@ -1,4 +1,7 @@
-"""Sen2Cor's clear share over each pilot site on each Sentinel-2 pass (ADR 0014).
+"""Sen2Cor's clear share over each site on each Sentinel-2 pass (ADR 0014).
+
+Only sites of the tiers in ``coverage.sentinel2_site_tiers`` (``config/project.yaml``,
+``pilot`` by default) get Sentinel-2 passes, here and in the coverage step.
 
 ADR 0014's check of the cloud model did not hold, so the share that decides whether a
 Sentinel-2 pass counts comes from Sen2Cor, not from the model. Only Sen2Cor's scene
@@ -208,18 +211,21 @@ def passes_from_footprints(project) -> pd.DataFrame:
     """Every Sentinel-2 site-day the coverage step will build, with its scene and window centre.
 
     Built from the footprints and sites, not from ``overpasses.parquet``, because the coverage
-    step reads this module's table to build that file.
+    step reads this module's table to build that file. Like that step, it takes only the
+    sites of the configured tiers (``overpasses.sentinel2_sites``).
     """
     import geopandas as gpd
 
-    from methanewatch.coverage.overpasses import from_footprints
+    from methanewatch.coverage.overpasses import from_footprints, sentinel2_sites
 
     interim = project.resolve(project.paths.interim)
     fp_path = interim / "footprints" / "sentinel2.parquet"
     if not fp_path.exists():
         return pd.DataFrame()
     fp = gpd.read_parquet(fp_path)
-    sites = gpd.read_parquet(interim / "sites.parquet")
+    sites = sentinel2_sites(gpd.read_parquet(interim / "sites.parquet"), project.coverage)
+    if sites.empty:
+        return pd.DataFrame()
     ov = from_footprints(
         fp, sites, project.coverage, source="s2-scene", metric_crs=project.crs_metric
     )
@@ -229,7 +235,8 @@ def passes_from_footprints(project) -> pd.DataFrame:
 
 
 def pull(project, *, workers: int = 8, client=None) -> dict:
-    """Sen2Cor's share for every Sentinel-2 site-day, written to ``data/interim``.
+    """Sen2Cor's share for every Sentinel-2 site-day of the configured tiers, written to
+    ``data/interim``.
 
     New SCL windows go to ``data/raw/s2scl/<pull_id>/`` with a manifest; a run that reads
     nothing new writes no pull. The table ``data/interim/s2_site_clear.parquet`` holds every
@@ -261,7 +268,8 @@ def pull(project, *, workers: int = 8, client=None) -> dict:
 
 def refresh_step(project) -> dict:
     """``pull`` for ``mw refresh``. Passes Earth Search could not serve keep the tile figure;
-    the step then fails, so the refresh is not reported as complete."""
+    the step then fails, so the refresh is not reported as complete. Only passes over sites of
+    the configured tiers are read, so only those can fail it."""
     counts = pull(project)
     if counts.get(ERROR):
         raise RuntimeError(

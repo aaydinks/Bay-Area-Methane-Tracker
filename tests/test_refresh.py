@@ -21,6 +21,25 @@ def utm_box(x0, y0, x1, y1):
     return gpd.GeoSeries([box(x0, y0, x1, y1)], crs=UTM).to_crs("EPSG:4326").iloc[0]
 
 
+def add_screen_site(registry):
+    """Add a third site, ``c``, of the screen tier to a fixture registry of two pilots.
+
+    It lies between the pilots, so every fixture scene that covers them covers it too.
+    """
+    sites = pd.read_csv(registry / "sites.csv", dtype=str, keep_default_na=False)
+    row = dict.fromkeys(sites.columns, "") | {"site_id": "c", "tier": "screen"}
+    if "name" in sites:
+        row["name"] = "Site C"
+    pd.concat([sites, pd.DataFrame([row])]).to_csv(registry / "sites.csv", index=False)
+    outlines = gpd.read_file(registry / "sites.geojson")
+    extra = gpd.GeoDataFrame(
+        {"site_id": ["c"], "part": "boundary"},
+        geometry=[utm_box(595000, 4146000, 596000, 4147000)],
+        crs="EPSG:4326",
+    )
+    pd.concat([outlines, extra]).to_file(registry / "sites.geojson", driver="GeoJSON")
+
+
 def _plume_csv(path, rows):
     base = {
         "instrument": "tan",
@@ -207,3 +226,95 @@ def test_refresh_rejects_unknown_sources(tmp_path):
     project, _ = _fixture_project(tmp_path)
     with pytest.raises(ValueError, match="unknown sources"):
         refresh.run(project, skip=["landsat"])
+
+
+def _sentinel2_refresh(tmp_path, monkeypatch, project, interim):
+    """Refresh with EMIT and Sentinel-2 scenes over every fixture site; no network.
+
+    Returns the refresh manifest and the sites whose Sen2Cor window was read.
+    """
+    import numpy as np
+    import pystac_client
+
+    from methanewatch.sentinel2 import siteclear, sitecloud
+
+    days = pd.date_range("2025-01-05T18:00Z", periods=3, freq="14D")
+    scene = utm_box(585000, 4140000, 605000, 4150000)
+
+    def fake_emit(project, bbox, start, end):
+        gpd.GeoDataFrame(
+            {"scene_id": [f"e{i}" for i in range(3)], "instrument": "emit",
+             "acquired_utc": days, "valid_frac": 0.95},
+            geometry=[scene] * 3,
+            crs="EPSG:4326",
+        ).to_parquet(interim / "footprints" / "emit.parquet")  # fmt: skip
+        return {"emit_scenes": 3}
+
+    def fake_sentinel2(project, bbox, start, end):
+        stamps = [d.strftime("%Y%m%dT%H%M%S") for d in days]
+        gpd.GeoDataFrame(
+            {"scene_id": [f"s{i}" for i in range(3)], "instrument": "sentinel2",
+             "acquired_utc": days, "valid_frac": 0.9, "platform": "sentinel-2c",
+             "product_uri": [f"S2C_MSIL1C_{st}_N0511_R013_T10SEG_{st}.SAFE" for st in stamps]},
+            geometry=[scene] * 3,
+            crs="EPSG:4326",
+        ).to_parquet(interim / "footprints" / "sentinel2.parquet")  # fmt: skip
+        return {"sentinel2_scenes": 3}
+
+    read = []
+
+    def fetch(product_uri, x, y, client):
+        read.append(round(x))
+        clear = np.full((sitecloud.WINDOW_PX, sitecloud.WINDOW_PX), 4, np.uint8)
+        return siteclear.SclWindow(clear, np.zeros(4), {"item": product_uri})
+
+    monkeypatch.setattr(pipeline, "ingest_emit", fake_emit)
+    monkeypatch.setattr(pipeline, "ingest_sentinel2", fake_sentinel2)
+    monkeypatch.setattr(pipeline, "ingest_carbonmapper", lambda *a: {"plumes": 0})
+    monkeypatch.setattr(siteclear, "fetch", fetch)
+    monkeypatch.setattr(pystac_client.Client, "open", staticmethod(lambda url: object()))
+    return refresh.run(project, csv=False), read
+
+
+def test_sentinel2_passes_are_built_only_for_sites_of_the_configured_tiers(tmp_path, monkeypatch):
+    # A site added for screening must not add Sentinel-2 passes, nor Sen2Cor windows to read
+    project, interim = _fixture_project(tmp_path)
+    assert project.coverage.sentinel2_site_tiers == ("pilot",)
+    add_screen_site(tmp_path / "registry")
+    m, read = _sentinel2_refresh(tmp_path, monkeypatch, project, interim)
+
+    assert m["ok"], m["steps"]
+    assert m["steps"]["sites"]["sites"] == 3
+    ov = pd.read_parquet(interim / "overpasses.parquet")
+    by_site = ov.groupby(["instrument", "site_id"]).size()
+    assert by_site["sentinel2"].to_dict() == {"a": 3, "b": 3}  # none for the screen-tier site
+    assert by_site["emit"].to_dict() == {"a": 3, "b": 3, "c": 3}  # other instruments see it
+    clear = pd.read_parquet(interim / "s2_site_clear.parquet")
+    assert set(clear["site_id"]) == {"a", "b"} and len(clear) == 6
+    assert sorted(set(read)) == [590500, 600500]  # only the two pilots' windows were read
+    counts = m["steps"]["coverage"]
+    assert counts["s2_site_share"] == 6 and counts["s2_tile_fallback"] == 0
+
+
+def test_a_tier_listed_in_the_config_gets_sentinel2_passes(tmp_path, monkeypatch):
+    project, interim = _fixture_project(tmp_path)
+    add_screen_site(tmp_path / "registry")
+    coverage = project.coverage.model_copy(update={"sentinel2_site_tiers": ("pilot", "screen")})
+    project = project.model_copy(update={"coverage": coverage})
+    m, read = _sentinel2_refresh(tmp_path, monkeypatch, project, interim)
+
+    assert m["ok"], m["steps"]
+    ov = pd.read_parquet(interim / "overpasses.parquet")
+    assert ov[ov["instrument"] == "sentinel2"].groupby("site_id").size().to_dict() == {
+        "a": 3, "b": 3, "c": 3
+    }  # fmt: skip
+    assert len(set(read)) == 3
+
+
+def test_with_only_pilot_sites_the_tier_setting_changes_nothing(tmp_path, monkeypatch):
+    # Today's registry: every site is a pilot, so the same passes are built as before
+    project, interim = _fixture_project(tmp_path)
+    m, _ = _sentinel2_refresh(tmp_path, monkeypatch, project, interim)
+    ov = pd.read_parquet(interim / "overpasses.parquet")
+    assert ov.groupby("instrument").size().to_dict() == {"emit": 6, "sentinel2": 6}
+    assert m["steps"]["s2_site_clear"]["passes"] == 6

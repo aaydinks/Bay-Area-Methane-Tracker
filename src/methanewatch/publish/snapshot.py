@@ -4,6 +4,10 @@ A snapshot is everything the website needs for one run: sites, passes, plumes, e
 checks and their labelled results, operator figures, residents nearby, the method checks and
 the run manifests. It is written to ``data/processed/publications/<publish_id>/`` as Parquet
 tables plus ``manifest.json``, validated against ``publish.schemas`` and the wording check.
+
+Estimates can come from two fits side by side. A site's row comes from the model run (the
+official fit) when that run has the site, otherwise from the screening run when one is given,
+and otherwise the site has no row. Screening rows are always marked provisional.
 """
 
 from __future__ import annotations
@@ -28,6 +32,10 @@ from methanewatch.publish import schemas as pub
 from methanewatch.publish.labels import label_result
 from methanewatch.publish.validation import validation_rows
 from methanewatch.report.lint import check_text
+
+# Marks the screening run among a snapshot's runs. Its ``kind`` stays "model", the only kind
+# the database has for a fit.
+SCREENING = "screening"
 
 
 class SimulatedRunError(ValueError):
@@ -55,7 +63,14 @@ class Snapshot:
         A run that records ``instruments_left_out`` (ADR 0016) gives its reason. For an older
         run only the gap between its instruments and the published passes is known.
         """
-        model = next((r["manifest"] for r in self.runs if r["kind"] == "model"), None)
+        model = next(
+            (
+                r["manifest"]
+                for r in self.runs
+                if r["kind"] == "model" and r.get("role") != SCREENING
+            ),
+            None,
+        )
         if not model:
             return [], {}
         used = sorted(model.get("instruments") or [])
@@ -240,12 +255,26 @@ def insufficient_reasons(est: pd.DataFrame, model: ModelConfig) -> pd.Series:
     return pd.Series(reasons, index=est.index, dtype=object)
 
 
+def _estimate_rows(processed: Path, run_id: str, model: ModelConfig) -> pd.DataFrame:
+    """One fit's estimates with the published column names, its run id and the reasons."""
+    est = pd.read_parquet(processed / "site_estimates" / f"{run_id}.parquet")
+    est = est.rename(
+        columns={"E_t_yr_med": "e_t_yr_med", "E_t_yr_lo": "e_t_yr_lo", "E_t_yr_hi": "e_t_yr_hi"}
+    )
+    return est.assign(
+        model_run_id=run_id,
+        period=est.get("period", "all"),
+        insufficient_reason=insufficient_reasons(est, model),
+    )
+
+
 def build(
     project: ProjectConfig,
     terms: DataTermsConfig,
     impact: ImpactConfig,
     *,
     model_run_id: str | None = None,
+    screening_run_id: str | None = None,
     check_run_id: str | None = None,
     refresh_id: str | None = None,
     reports_root: Path | None = None,
@@ -254,7 +283,11 @@ def build(
     notes: str | None = None,
     model: ModelConfig | None = None,
 ) -> Snapshot:
-    """The snapshot for one run. Raises on a simulated run or a wording hit."""
+    """The snapshot for one run. Raises on a simulated run or a wording hit.
+
+    ``screening_run_id`` names a second fit whose estimates fill in the sites ``model_run_id``
+    does not have, marked provisional. Without it the snapshot holds the model run's rows only.
+    """
     interim = project.resolve(project.paths.interim)
     processed = project.resolve(project.paths.processed)
     registry = project.resolve(project.paths.registry)
@@ -282,6 +315,21 @@ def build(
         simulated = model_manifest.get("kind") == "synthetic-demo"
         provisional = provisional or bool(model_manifest.get("provisional"))
         runs.append({"run_id": model_run_id, "kind": "model", "manifest": model_manifest})
+    if screening_run_id == model_run_id:
+        screening_run_id = None  # the same fit twice adds nothing
+    simulated_run = model_run_id if simulated else None
+    if screening_run_id:
+        screening_manifest = _read_json(processed / "runs" / f"{screening_run_id}.json")
+        if screening_manifest.get("kind") == "synthetic-demo":
+            simulated, simulated_run = True, simulated_run or screening_run_id
+        runs.append(
+            {
+                "run_id": screening_run_id,
+                "kind": "model",
+                "role": SCREENING,
+                "manifest": screening_manifest,
+            }
+        )
     check_manifest = None
     if check_run_id:
         path = processed / "repair_outcomes" / f"{check_run_id}.json"
@@ -290,7 +338,7 @@ def build(
         runs.append({"run_id": check_run_id, "kind": "repair", "manifest": check_manifest})
     if simulated and not allow_simulated:
         raise SimulatedRunError(
-            f"{model_run_id} is a simulated run; pass allow_simulated to publish it as a draft"
+            f"{simulated_run} is a simulated run; pass allow_simulated to publish it as a draft"
         )
 
     tables: dict[str, pd.DataFrame] = {}
@@ -442,16 +490,26 @@ def build(
     derived_display_only = derived_restricted and behind <= display_instruments
 
     # --- estimates -----------------------------------------------------------------------
+    # The model run's rows first; the screening run only fills in sites that run lacks.
+    frames = []
     if model_run_id:
-        est = pd.read_parquet(processed / "site_estimates" / f"{model_run_id}.parquet")
-        est = est.rename(
-            columns={"E_t_yr_med": "e_t_yr_med", "E_t_yr_lo": "e_t_yr_lo", "E_t_yr_hi": "e_t_yr_hi"}
+        frames.append(
+            _estimate_rows(processed, model_run_id, model or load_model()).assign(
+                provisional=bool(model_manifest and model_manifest.get("provisional"))
+            )
         )
+    if screening_run_id:
+        rows = _estimate_rows(processed, screening_run_id, model or load_model())
+        covered = set(frames[0]["site_id"]) if frames else set()
+        rows = rows[~rows["site_id"].isin(covered)]
+        if len(rows):
+            # Always provisional, whatever the screening fit says of itself
+            status = rows["status"].replace("estimate", "provisional")
+            frames.append(rows.assign(provisional=True, status=status))
+            provisional = True
+    if frames:
+        est = frames[0] if len(frames) == 1 else pd.concat(frames, ignore_index=True)
         tables["site_estimates"] = est.assign(
-            model_run_id=model_run_id,
-            period=est.get("period", "all"),
-            insufficient_reason=insufficient_reasons(est, model or load_model()),
-            provisional=bool(model_manifest and model_manifest.get("provisional")),
             restricted=derived_restricted,
             display_only=derived_display_only,
         )[list(pub.site_estimates.columns)]
@@ -548,6 +606,9 @@ def build(
         "git_dirty": git_dirty(),
         "notes": notes,
     }
+    if screening_run_id:
+        # Only when one is used, so a snapshot without it is the same as before
+        publication["screening_run_id"] = screening_run_id
     data_terms = [
         {
             "source": name,
