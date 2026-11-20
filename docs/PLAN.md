@@ -4,6 +4,8 @@ Companion to *Bay Area Landfill Methane Watch: Project Plan* (Oct 3, 2026). That
 
 Budget: about 100–120 hours over 12 weeks at 8–10 hours a week. Every choice below is sized to that budget. The project has one Python package, flat files, one Makefile, and a static dashboard. There are no services, databases to run, or orchestration frameworks.
 
+**Amended November 2026 (PR 68).** The project now covers two regions and more than the methane estimate. §16 says what changed and in what order it is built; where §16 and an earlier section disagree, §16 wins. The decisions are in ADRs 0018 to 0021.
+
 ---
 
 ## 0. Ground rules that shape the code
@@ -155,9 +157,12 @@ Every table has a pandera schema in `schemas.py` and is written as Parquet (GeoP
 |---|---|---|
 | site_id | str | slug, e.g. `newby-island` |
 | name, city, county, operator | str | |
-| tier | enum | `pilot` (5) / `screen` (~38) |
+| tier | enum | `pilot` (5) / `screen` (every other listed landfill in the two regions; see §16.2) |
+| region | enum | `bay-area` / `north-valley` (§16.1) |
+| air_district | str? | from an overlay of CARB's district outlines; unconfirmed until checked |
+| swis_number | str? | CalRecycle's site number |
 | status | enum | `active` / `closed` / `mixed` |
-| baaqmd_facility_id | str? | from permits |
+| district_facility_id | str? | from permits (was `baaqmd_facility_id`) |
 | ghgrp_facility_id | str? | via `operator_crosswalk.csv` |
 | geometry | MultiPolygon | full permitted footprint |
 | working_face_geom, closed_geom | MultiPolygon? | pilot sites only |
@@ -238,6 +243,7 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 - **Screen (~38):** get the list from the Air District (Rule 8-34 landfills). Use EPA LMOP coordinates where they help. Pull `landuse=landfill` polygons from OpenStreetMap, and fall back to a 750 m buffer around the point (`polygon_source=buffer`).
 - `mw sites build` validates the result. It checks that polygons are valid, that each falls in the 9 Bay Area counties, and that polygons don't overlap. It then writes `interim/sites.parquet` and a QA map (`reports/validation/sites_map.html`).
 - Record known neighbors, which matters most at Newby Island (compost facility, energy facility, wastewater plant).
+- *Amended November 2026:* the screening tier was never loaded from an Air District list. It is now built from CalRecycle's list for both regions, with outlines from CalRecycle's boundary layer where one exists, and the region check replaces the nine-county check (§16.1, §16.2).
 
 ### Phase 2: Ingest and the overpass table
 
@@ -578,3 +584,94 @@ Total ≈ 109 hours. If behind schedule, cut in this order: S2 quantification be
 - [ ] Operator comparison table with gap explanations
 - [ ] Dashboard, technical note, and two-page briefing published after the two-week review window
 - [ ] README and DATA_TERMS state non-commercial use and credit every data source
+
+---
+
+## 16. Expansion: two regions and more measures (November 2026)
+
+Decided on Nov 19, 2026. The reasons and the options turned down are in ADRs 0018 (regions), 0019 (measures), 0020 (wording for context) and 0021 (public scope, two fits, old copies). This section is the build plan.
+
+**What does not change:** this is still a retrospective tracker. Outputs are screening indications, never compliance findings, never health claims. The persistence model, the repair test and the five gates stay as written above.
+
+### 16.1 Regions
+
+| Region | Counties |
+|---|---|
+| `bay-area` | Alameda, Contra Costa, Marin, Napa, San Francisco, San Mateo, Santa Clara, Solano, Sonoma |
+| `north-valley` | San Joaquin, Stanislaus, Merced, Sacramento, Yolo |
+
+- Regions are one list in `config/project.yaml`, read by one loader. No module keeps its own box or county list.
+- Everything lies west of 120°W, so EPSG:32610 stays. The registry check rejects a site east of that line.
+- Each site carries `region`, `air_district` and `swis_number`.
+
+### 16.2 Sites
+
+- **Pilot (5):** unchanged. Four gain real outlines from CalRecycle's boundary layer; Shoreline keeps a provisional outline until one is drawn.
+- **Screen:** every permitted landfill, open or closed, on CalRecycle's list for the two regions. No transfer stations, exempt sites or waste-to-energy plants. The list is reviewed by hand before it enters the registry.
+- **Deep-dive sites in the North Valley** are chosen after the first screening results.
+- **Outlines:** hand-drawn, else CalRecycle's boundary layer by SWIS number, else a 750 m buffer marked provisional.
+- **Neighbours:** a plume that Carbon Mapper tags with a sector other than waste is marked ambiguous and never assigned to a landfill.
+- **Sentinel-2:** pilot and deep-dive sites only.
+
+### 16.3 Measures
+
+Everything that is not a methane estimate goes in one table, `site_metrics`, described by a catalogue in `config/metrics.yaml`. The methane tables get no gas column.
+
+| Measure | Source | Kind |
+|---|---|---|
+| Reported CH4, CO2, biogenic CO2 and N2O per year | EPA GHGRP | reported |
+| CO2 plumes seen near the site per year (a count) | Carbon Mapper | observed |
+| Waste in place, gas collected and flared, energy projects | EPA landfill program database, CalRecycle | reported |
+| Inspections, notices and repairs | air districts, CARB (the checks tables of ADR 0010) | reported |
+| Nearest air monitors | EPA AQS | context |
+| People nearby, CalEnviroScreen scores | Census, OEHHA | context |
+
+- **CO2 is never modelled.** No instrument used here sees landfill CO2. It is shown as reported, or as a count of plumes found.
+- **"Not reported" is not zero.** Most landfills file no combustion report.
+- **Context is never attributed to the landfill** and never ranked (ADR 0020).
+
+### 16.4 What the public site may show
+
+- An allowlist of regions and tiers (`config/public_scope.json`), starting as the Bay Area pilot tier. It is enforced in the database, in the web build and in the public-output check.
+- New sites and new regions go to the review copy first. The owner widens the allowlist after a review window.
+- `official_model_run` supplies the figures for the sites it covers. An optional `screening_model_run` supplies estimates for the rest, marked provisional.
+- A pooled fit becomes official only after Gate 3 passes at the real site count, with a region term and each region's own pass rates.
+
+### 16.5 Build order
+
+One pull request each, from `main`, merged before the next starts.
+
+| # | Step | Changes the public site? |
+|---|---|---|
+| 1 | This amendment and ADRs 0018 to 0021 | No |
+| 2 | Commit the registry as the scheduled run uses it | No |
+| 3 | Make the scheduled run and fits safe for more sites (§16.4, two fits) | No |
+| 4 | Public scope gate | No |
+| 5 | Prune command for old review copies | No |
+| 6 | Regions loader, Bay Area only; EPA county-name fix | No |
+| 7 | Registry columns | SWIS number appears on pilot pages |
+| 8 | Screening builder | No |
+| 9 | Bay Area screening rows | No; review copy grows |
+| 10 | North Valley: region, wider pulls, rows | No; review copy only |
+| 11 | Real outlines for four pilots, the sector rule, refit and gates | When the owner promotes the new fit |
+| 12 | `site_metrics`, the catalogue and EPA's gases | New section at the next promotion |
+| 13 | Pages for many sites, neutral copy | Layout and wording |
+| 14 | Regulators generalised | Label wording |
+| 15 | Gate 3 at scale and the first screening fit | No; review copy only |
+| 16+ | One source each: CO2 plume counts, site operations, CalEnviroScreen, air monitors | New sections as promoted |
+
+If time runs short, cut from the end of step 16 backwards: air monitors, CalEnviroScreen, site operations, CO2 plume counts, then the screening fit. **Never cut** steps 3 to 5, the Gate 3 rerun, the wording check or the review window.
+
+### 16.6 Checks for this work
+
+- Step 3: the same publication tables as before for the five pilots.
+- Step 4: a fixture with a site and a plume outside the allowlist must fail the public build and appear in the review build.
+- Step 6: the Bay Area region reproduces the earlier box and county lists exactly.
+- Steps 9 and 10: counts per county match the CalRecycle pull; the wider pulls reproduce the counts recorded in ADR 0018.
+- Step 12: EPA's 2023 rows for Kiefer Landfill match the figures recorded in ADR 0019.
+- Step 15: Gate 3 coverage inside 85 to 95% at the new site count.
+- CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present.
+
+### 16.7 Out of scope
+
+A CO2 emission model. Sources other than landfills, except as a reason to mark a plume ambiguous. Counties south of Merced or east of 120°W. Linking an air monitor to a site by wind direction.
