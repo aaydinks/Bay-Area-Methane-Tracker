@@ -1,6 +1,6 @@
 # PR #70: One definition of where the project looks
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/70)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/70)
 
 ## In one sentence
 
