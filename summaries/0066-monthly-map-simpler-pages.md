@@ -1,6 +1,6 @@
 # PR #66: A month-by-month plume view and simpler inner pages
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/66)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/66)
 
 ## In one sentence
 
