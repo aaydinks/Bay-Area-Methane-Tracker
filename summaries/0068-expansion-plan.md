@@ -1,6 +1,6 @@
 # PR #68: Widen the plan to two regions and more than methane
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/68)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/68)
 
 ## In one sentence
 
