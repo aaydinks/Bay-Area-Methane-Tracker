@@ -338,26 +338,94 @@ def set_visibility(dsn: str, publish_id: str, visibility: str) -> dict:
     return {"publish_id": publish_id, "from": current, "to": visibility}
 
 
+PUBLICATION_COLUMNS = (
+    "publish_id",
+    "visibility",
+    "simulated",
+    "provisional",
+    "data_through",
+    "created_at",
+)
+# Every table whose rows belong to one publication and go when it is deleted (on delete cascade)
+CONTENT_TABLES = (
+    "sites",
+    "neighbours",
+    "plumes",
+    "passes",
+    "site_estimates",
+    "checks",
+    "check_results",
+    "operator_reports",
+    "population_context",
+    "site_features",
+    "validation_results",
+    "update_log",
+)
+
+
+def _publications(cur) -> list[dict]:
+    cur.execute(
+        f"select {', '.join(PUBLICATION_COLUMNS)} from public.publications order by created_at desc"
+    )
+    return [dict(zip(PUBLICATION_COLUMNS, r, strict=True)) for r in cur.fetchall()]
+
+
 def list_publications(dsn: str) -> list[dict]:
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
-        cur.execute(
-            "select publish_id, visibility, simulated, provisional, data_through, created_at "
-            "from public.publications order by created_at desc"
-        )
-        return [
-            dict(
-                zip(
-                    [
-                        "publish_id",
-                        "visibility",
-                        "simulated",
-                        "provisional",
-                        "data_through",
-                        "created_at",
-                    ],
-                    r,
-                    strict=True,
-                )
+        return _publications(cur)
+
+
+def prunable(publications: list[dict], *, keep_review: int = 8, keep_draft: int = 2) -> list[dict]:
+    """The old draft and review publications that may be removed (ADR 0021), oldest first.
+
+    A public publication is never chosen. The newest ``keep_review`` review copies and the
+    newest ``keep_draft`` drafts stay; the newest review copy always stays, because the next
+    push compares itself with it to write the update feed.
+    """
+    if keep_review < 1:
+        raise ValueError("keep_review must be at least 1: the newest review copy always stays")
+    if keep_draft < 0:
+        raise ValueError("keep_draft cannot be negative")
+    chosen: list[dict] = []
+    for visibility, keep in (("review", keep_review), ("draft", keep_draft)):
+        rows = [p for p in publications if p["visibility"] == visibility]
+        rows.sort(key=lambda p: p["created_at"], reverse=True)
+        chosen += rows[keep:]
+    return sorted(chosen, key=lambda p: p["created_at"])
+
+
+def prune(dsn: str, *, keep_review: int = 8, keep_draft: int = 2, apply: bool = False) -> dict:
+    """List, and with ``apply`` delete, old draft and review publications and their rows.
+
+    One transaction. The delete repeats the rule that a public publication is never removed,
+    so a copy promoted while this runs is safe. Run records (``runs``) and the snapshot
+    folders on disk are left alone, so a removed publication can be pushed again.
+    """
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        publications = _publications(cur)
+        chosen = prunable(publications, keep_review=keep_review, keep_draft=keep_draft)
+        ids = [p["publish_id"] for p in chosen]
+        rows = {}
+        for table in CONTENT_TABLES:
+            cur.execute(f"select count(*) from public.{table} where publish_id = any(%s)", (ids,))
+            rows[table] = cur.fetchone()[0]
+        deleted = 0
+        if apply and ids:
+            cur.execute(
+                "delete from public.publications "
+                "where publish_id = any(%s) and visibility <> 'public'",
+                (ids,),
             )
-            for r in cur.fetchall()
-        ]
+            deleted = cur.rowcount
+            conn.commit()
+    kept: dict[str, int] = {}
+    for p in publications:
+        if p["publish_id"] not in ids:
+            kept[p["visibility"]] = kept.get(p["visibility"], 0) + 1
+    return {
+        "applied": apply,
+        "publications": chosen,
+        "rows": rows,
+        "deleted": deleted,
+        "kept": kept,
+    }

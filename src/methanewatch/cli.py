@@ -848,6 +848,45 @@ def publish_list() -> None:
         )
 
 
+@publish_app.command("prune")
+def publish_prune(
+    keep_review: Annotated[
+        int, typer.Option(help="Newest review copies to keep (at least 1).")
+    ] = 8,
+    keep_draft: Annotated[int, typer.Option(help="Newest drafts to keep.")] = 2,
+    apply: Annotated[
+        bool, typer.Option("--apply", help="Delete them. Without this, only list them.")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Skip the confirmation.")] = False,
+) -> None:
+    """List old draft and review publications in the database, and with --apply remove them.
+
+    A public publication and the newest review copy always stay (ADR 0021). The snapshot
+    folders on disk are not touched, so a removed publication can be pushed again.
+    """
+    from methanewatch.publish.load import prune
+
+    try:
+        plan = prune(_dsn(), keep_review=keep_review, keep_draft=keep_draft)
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+    for p in plan["publications"]:
+        typer.echo(f"{p['publish_id']}  {p['visibility']:7}  data through {p['data_through']}")
+    n, total = len(plan["publications"]), sum(plan["rows"].values())
+    kept = ", ".join(f"{v} {k}" for k, v in sorted(plan["kept"].items())) or "none"
+    typer.echo(f"{n} publications and {total} rows could be removed; staying: {kept}")
+    if not n:
+        return
+    if not apply:
+        typer.echo("dry run: nothing was removed; add --apply to remove them")
+        return
+    if not yes:
+        typer.confirm(f"Remove these {n} publications from the database?", abort=True)
+    done = prune(_dsn(), keep_review=keep_review, keep_draft=keep_draft, apply=True)
+    typer.echo(f"removed {done['deleted']} publications")
+
+
 # --- scheduled run ------------------------------------------------------------------------
 
 
