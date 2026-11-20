@@ -75,12 +75,12 @@ insert into public.checks
    'A well was repaired.', 'log.pdf', false);
 
 insert into public.check_results
-  (publish_id, check_run_id, check_id, site_id, call, n_before, n_after, evidence, restricted,
-   public_scope) values
-  ('pub-scope', 'repairs-1', 'chk-open', 'open-site', 'insufficient_data', 0, 0, 'none', false,
-   true),
-  ('pub-scope', 'repairs-1', 'chk-held', 'held-site', 'insufficient_data', 0, 0, 'none', false,
-   false);
+  (publish_id, check_run_id, check_id, site_id, call, n_before, n_after, evidence, colour,
+   plain_reading, restricted, public_scope) values
+  ('pub-scope', 'repairs-1', 'chk-open', 'open-site', 'insufficient_data', 0, 0, 'none', 'grey',
+   'Not enough passes to test for a change.', false, true),
+  ('pub-scope', 'repairs-1', 'chk-held', 'held-site', 'insufficient_data', 0, 0, 'none', 'grey',
+   'Not enough passes to test for a change.', false, false);
 
 insert into public.operator_reports
   (publish_id, site_id, year, source, reported_ch4_t, facility_id, url, public_scope) values
@@ -228,15 +228,16 @@ def test_push_carries_the_stamp_into_the_database(test_dsn, tmp_path):
             assert rows(
                 conn, "select site_id, region, public_scope from public.sites order by site_id"
             ) == [("newby-island", "bay-area", True), ("sonoma-central", "bay-area", False)]
-            assert rows(
+            plumes = rows(
                 conn,
                 "select plume_id, region, public_scope, site_public from public.plumes "
-                "where plume_id in ('e1', 'e-sonoma', 'e-east') order by plume_id",
-            ) == [
-                ("e-east", None, False, True),
-                ("e-sonoma", "bay-area", True, False),
-                ("e1", "bay-area", True, True),
-            ]
+                "where plume_id in ('e1', 'e-sonoma', 'e-east')",
+            )
+            assert {p[0]: p[1:] for p in plumes} == {
+                "e-east": (None, False, True),
+                "e-sonoma": ("bay-area", True, False),
+                "e1": ("bay-area", True, True),
+            }
             assert rows(
                 conn,
                 "select distinct site_id, public_scope from public.passes order by site_id",
