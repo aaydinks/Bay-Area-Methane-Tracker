@@ -7,8 +7,6 @@ const MethaneMap = lazy(() => import('./MethaneMap'));
 
 interface Props {
   sites: SiteSummary[];
-  isPublic: boolean;
-  dataThrough: string | null;
   availableSources: string[];
 }
 

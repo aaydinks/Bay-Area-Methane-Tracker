@@ -65,3 +65,46 @@ test('the home page has one main next step and no moving carousels', async ({ pa
   await expect(page.locator('.steps > li')).toHaveCount(3);
   await expect(page.locator('.carousel')).toHaveCount(0);
 });
+
+test('the map steps through plumes month by month', async ({ page }) => {
+  await page.goto('/map/');
+  const load = page.getByRole('button', { name: 'Load the map now' });
+  // The map may start loading on its own as it scrolls into view, so the button can vanish.
+  if (await load.isVisible()) await load.click({ timeout: 3000 }).catch(() => undefined);
+  const label = page.locator('.timeline-label');
+  await expect(label).toContainText(/All dates, \w{3} \d{4} to \w{3} \d{4} · \d+ plumes? seen/);
+  await page.getByLabel('By month').check();
+  const slider = page.locator('.timeline-slider');
+  await expect(slider).toBeVisible();
+  await expect(label).toContainText(/^[A-Z][a-z]+ \d{4} · \d+ plumes? seen/);
+  const first = await label.textContent();
+  await slider.fill(await slider.getAttribute('max') ?? '1');
+  await expect(label).not.toHaveText(first ?? '');
+  await page.getByLabel('By quarter').check();
+  await expect(label).toContainText(/^[A-Z][a-z]{2} to [A-Z][a-z]{2} \d{4} · \d+ plumes? seen/);
+  const play = page.locator('.timeline .play');
+  await play.click();
+  await expect(play).toHaveAttribute('aria-pressed', 'true');
+  await play.click();
+  await expect(play).toHaveAttribute('aria-pressed', 'false');
+  // The filters and the full key stay one click away, closed at first.
+  await expect(page.locator('details.map-more')).not.toHaveAttribute('open', '');
+  // The loaded map and its timeline pass the same accessibility scan as the pages.
+  await page.locator('details.map-more summary').click();
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  const serious = results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? ''));
+  expect(serious.map((v) => `${v.id}: ${v.help} ${v.nodes[0]?.html.slice(0, 160) ?? ''}`)).toEqual([]);
+});
+
+test('the map and site pages lead with one sentence and keep the notices', async ({ page }) => {
+  for (const route of ['/map/', '/sites/newby-island/']) {
+    await page.goto(route);
+    await expect(page.locator('main .lede')).toHaveCount(1);
+    await expect(page.locator('.banner', { hasText: 'Provisional' })).toHaveCount(1);
+    await expect(page.locator('body')).toContainText(/screening indication/i);
+    await expect(page.locator('main details.more').first()).toBeAttached();
+  }
+  await page.goto('/sites/newby-island/');
+  await expect(page.locator('.headline-figure')).toContainText('tonnes a year');
+  await expect(page.locator('[data-testid="model-instruments"]')).toBeHidden();
+});

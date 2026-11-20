@@ -37,58 +37,37 @@ const leftHere = model.leftOut
   .filter((l) => l.usable > 0);
 const showModel = Boolean(estimate) && model.used.length > 0;
 const leftNames = new Set(showModel ? leftHere.map((l) => l.instrument) : []);
+const hasEstimate = Boolean(estimate) && estimate?.status !== 'insufficient_data';
+// One plain sentence under the title, built from what this update holds for the site.
+const plain = hasEstimate && estimate
+  ? `A plume was seen in ${num(estimate.n_detections)} of the ${num(estimate.n_usable_overpasses)} clear looks used for the estimate below.`
+  : estimate
+    ? `There is not enough data for an estimate yet${estimate.insufficient_reason ? `: ${estimate.insufficient_reason}` : ''}.`
+    : 'There is no estimate for this landfill in this update.';
 ---
-<Base title={site.name ?? id} description={`Persistence estimate, passes, checks and operator-reported figures for ${site.name}.`} kind="site" image={`/og/${id}.png`}>
+<Base title={site.name ?? id} description={`What satellites and aircraft have seen of methane at ${site.name}, with an estimate and its range.`} kind="site" image={`/og/${id}.png`}>
   <h1>{site.name}</h1>
-  <p class="lede">{site.city}, {site.county} County{site.operator ? ` · operated by ${site.operator}` : ''}{site.status ? ` · ${site.status}` : ''}. Everything on this page is a screening indication for investigation.</p>
-  <dl class="facts">
-    <dt>Outline</dt><dd>{site.provisional ? `Provisional (${site.polygon_source ?? 'placeholder'})` : site.polygon_source ?? 'traced'}</dd>
-    {site.swis_number && <><dt>CalRecycle SWIS</dt><dd>{site.swis_number}</dd></>}
-    {site.ghgrp_facility_id && <><dt>EPA GHGRP facility</dt><dd>{site.ghgrp_facility_id}</dd></>}
-    {features && <><dt>Area</dt><dd>{num(features.area_km2)} km²</dd></>}
-  </dl>
+  <p class="lede">{site.city}, {site.county} County. {plain}</p>
 
   <section aria-labelledby="estimate">
-    <h2 id="estimate">Persistence estimate</h2>
-    {estimate && estimate.status !== 'insufficient_data' ? (
-      <>
-        <dl class="facts">
-          <dt>Annual methane above the floor</dt><dd><Range med={estimate.e_t_yr_med} lo={estimate.e_t_yr_lo} hi={estimate.e_t_yr_hi} unit="t/yr" /></dd>
-          <dt>Share of observed times emitting</dt><dd><Range med={estimate.f_med == null ? null : estimate.f_med * 100} lo={estimate.f_lo == null ? null : estimate.f_lo * 100} hi={estimate.f_hi == null ? null : estimate.f_hi * 100} unit="%" /></dd>
-          <dt>Typical rate while emitting</dt><dd><Range med={estimate.qbar_kg_hr_med} lo={estimate.qbar_kg_hr_lo} hi={estimate.qbar_kg_hr_hi} unit="kg/hr" /></dd>
-          <dt>Passes used</dt><dd>{num(estimate.n_usable_overpasses)} usable, {num(estimate.n_detections)} with a detection</dd>
-        </dl>
-        {estimate.provisional && <p class="muted">Provisional: some detection curves are not yet confirmed.</p>}
-      </>
+    <h2 id="estimate">How much methane</h2>
+    {hasEstimate && estimate ? (
+      <div class="headline-figure">
+        <p class="figure"><span class="figure-value">{num(estimate.e_t_yr_med)}</span> <span class="figure-unit">tonnes a year</span></p>
+        <p class="figure-range">90% range {num(estimate.e_t_yr_lo)} to {num(estimate.e_t_yr_hi)} tonnes a year{estimate.provisional ? ' · provisional' : ''}</p>
+        <p class="muted">Methane above what the instruments can detect, in daytime and clear skies. It is not the landfill's total.</p>
+      </div>
     ) : (
       <EmptyState title="Insufficient data" expected={estimate?.insufficient_reason ? `${estimate.insufficient_reason}. ${EXPECTED.estimates}` : EXPECTED.estimates} />
-    )}
-    {showModel && (
-      <p class="muted" data-testid="model-instruments">
-        The model run uses {listText(model.used.map(label))}.
-        {leftHere.map((l) => l.reason === NOT_SEARCHED
-          ? ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are left out: no plume search has run on them yet, and a pass nobody searched is not a pass that saw nothing.`
-          : ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are not part of this model run.`)}
-      </p>
     )}
   </section>
 
   <section aria-labelledby="passes">
-    <h2 id="passes">Passes by instrument</h2>
+    <h2 id="passes">When satellites looked</h2>
     {passes.length ? (
       <>
-      <PassTimeline rows={passMonths} siteName={site.name ?? id} />
-      <TableWrap label="Passes by instrument">
-        <table>
-          <caption>{plumeDays ? `${num(plumeDays.plume_days)} plume days over ${num(plumeDays.usable_passes)} usable passes.` : ''}</caption>
-          <thead><tr><th scope="col">Instrument</th><th scope="col" class="num">Passes</th><th scope="col" class="num">Usable</th><th scope="col" class="num">With a detection</th></tr></thead>
-          <tbody>
-            {passes.map((p) => (
-              <tr><th scope="row">{INSTRUMENT[p.instrument] ?? p.instrument}{leftNames.has(p.instrument) && <span class="muted"> · not in the estimate</span>}</th><td class="num">{num(p.passes)}</td><td class="num">{num(p.usable)}</td><td class="num">{num(p.detected)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+        <p>How often each instrument had a clear look at the landfill, month by month, and when it saw a plume.</p>
+        <PassTimeline rows={passMonths} siteName={site.name ?? id} />
       </>
     ) : (
       <EmptyState title="No passes yet" expected={EXPECTED.plumes} />
@@ -103,7 +82,7 @@ const leftNames = new Set(showModel ? leftHere.map((l) => l.instrument) : []);
           <li>
             {date(c.date_start)} <span class="muted">({DATE_CONFIDENCE[c.date_confidence ?? ''] ?? ''})</span> · <CheckTypeTag type={c.check_type} repairKind={c.repair_kind} /> · <ResultBadge colour={c.colour} held={c.result_held} />
             {c.plain_reading && <p>{c.plain_reading}</p>}
-            {c.change_pct_med != null && <p class="muted">Change {pct(c.change_pct_med)} (90% range {pct(c.change_pct_lo)} to {pct(c.change_pct_hi)}); passes before / after {num(c.n_before)} / {num(c.n_after)}.</p>}
+            {!c.plain_reading && c.change_pct_med != null && <p class="muted">Change {pct(c.change_pct_med)} (90% range {pct(c.change_pct_lo)} to {pct(c.change_pct_hi)}); passes before / after {num(c.n_before)} / {num(c.n_after)}.</p>}
           </li>
         ))}
       </ul>
@@ -112,34 +91,85 @@ const leftNames = new Set(showModel ? leftHere.map((l) => l.instrument) : []);
     )}
   </section>
 
-  <section aria-labelledby="operator">
-    <h2 id="operator">Satellite estimate versus operator-reported figures</h2>
-    {reports.length ? (
-      <TableWrap label="Operator-reported figures">
-        <table>
-          <caption>Reported figures are published as t CO2e; the factor used to convert them back to tonnes of methane is unconfirmed. The satellite figure is methane above the detection floor in daytime, clear skies, not a total.</caption>
-          <thead><tr><th scope="col">Year</th><th scope="col">Source</th><th scope="col" class="num">Reported t CH4</th><th scope="col" class="num">As published, t CO2e</th><th scope="col" class="num">Factor used</th></tr></thead>
-          <tbody>
-            {reports.map((r) => (
-              <tr><th scope="row">{r.year}</th><td><a href={r.url}>{r.source}</a></td><td class="num">{num(r.reported_ch4_t)}</td><td class="num">{num(r.reported_co2e_t)}</td><td class="num">{num(r.gwp_used)}{r.gwp_confirmed ? '' : ' (unconfirmed)'}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
-    ) : (
-      <EmptyState title="No operator-reported figures" expected={EXPECTED.operator} />
-    )}
-  </section>
+  <section aria-labelledby="details">
+    <h2 id="details">Details</h2>
+    <details class="more">
+      <summary>The estimate in full</summary>
+      {hasEstimate && estimate ? (
+        <dl class="facts">
+          <dt>Annual methane above the floor</dt><dd><Range med={estimate.e_t_yr_med} lo={estimate.e_t_yr_lo} hi={estimate.e_t_yr_hi} unit="t/yr" /></dd>
+          <dt>Share of observed times emitting</dt><dd><Range med={estimate.f_med == null ? null : estimate.f_med * 100} lo={estimate.f_lo == null ? null : estimate.f_lo * 100} hi={estimate.f_hi == null ? null : estimate.f_hi * 100} unit="%" /></dd>
+          <dt>Typical rate while emitting</dt><dd><Range med={estimate.qbar_kg_hr_med} lo={estimate.qbar_kg_hr_lo} hi={estimate.qbar_kg_hr_hi} unit="kg/hr" /></dd>
+          <dt>Passes used</dt><dd>{num(estimate.n_usable_overpasses)} usable, {num(estimate.n_detections)} with a detection</dd>
+        </dl>
+      ) : (
+        <p class="muted">No estimate in this update.</p>
+      )}
+      {hasEstimate && estimate?.provisional && <p class="muted">Provisional: some detection curves are not yet confirmed.</p>}
+      {showModel && (
+        <p class="muted" data-testid="model-instruments">
+          The model run uses {listText(model.used.map(label))}.
+          {leftHere.map((l) => l.reason === NOT_SEARCHED
+            ? ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are left out: no plume search has run on them yet, and a pass nobody searched is not a pass that saw nothing.`
+            : ` ${label(l.instrument)}'s ${num(l.usable)} usable passes are not part of this model run.`)}
+        </p>
+      )}
+    </details>
 
-  <section aria-labelledby="context">
-    <h2 id="context">Context</h2>
-    {neighbours.length > 0 && (
-      <p>Other methane sources nearby: {neighbours.map((n) => `${n.name} (${n.kind}, ${num(n.distance_m)} m)`).join('; ')}. Plumes near them are marked ambiguous and never assigned to this landfill.</p>
+    {passes.length > 0 && (
+      <details class="more">
+        <summary>Passes by instrument</summary>
+        <TableWrap label="Passes by instrument">
+          <table>
+            <caption>{plumeDays ? `${num(plumeDays.plume_days)} plume days over ${num(plumeDays.usable_passes)} usable passes.` : ''}</caption>
+            <thead><tr><th scope="col">Instrument</th><th scope="col" class="num">Passes</th><th scope="col" class="num">Usable</th><th scope="col" class="num">With a detection</th></tr></thead>
+            <tbody>
+              {passes.map((p) => (
+                <tr><th scope="row">{INSTRUMENT[p.instrument] ?? p.instrument}{leftNames.has(p.instrument) && <span class="muted"> · not in the estimate</span>}</th><td class="num">{num(p.passes)}</td><td class="num">{num(p.usable)}</td><td class="num">{num(p.detected)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+      </details>
     )}
-    {residents.length ? (
-      <p>Residents nearby, as context only: {residents.map((r) => `${num(r.residents)} within ${r.radius_km} km`).join(', ')}.</p>
-    ) : (
-      <p class="muted">Residents nearby appear once the census context is loaded.</p>
-    )}
+
+    <details class="more" id="operator">
+      <summary>Satellite estimate versus operator-reported figures</summary>
+      {reports.length ? (
+        <TableWrap label="Operator-reported figures">
+          <table>
+            <caption>Reported figures are published as t CO2e; the factor used to convert them back to tonnes of methane is unconfirmed. The satellite figure is methane above the detection floor in daytime, clear skies, not a total.</caption>
+            <thead><tr><th scope="col">Year</th><th scope="col">Source</th><th scope="col" class="num">Reported t CH4</th><th scope="col" class="num">As published, t CO2e</th><th scope="col" class="num">Factor used</th></tr></thead>
+            <tbody>
+              {reports.map((r) => (
+                <tr><th scope="row">{r.year}</th><td><a href={r.url}>{r.source}</a></td><td class="num">{num(r.reported_ch4_t)}</td><td class="num">{num(r.reported_co2e_t)}</td><td class="num">{num(r.gwp_used)}{r.gwp_confirmed ? '' : ' (unconfirmed)'}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+      ) : (
+        <EmptyState title="No operator-reported figures" expected={EXPECTED.operator} />
+      )}
+    </details>
+
+    <details class="more">
+      <summary>About the site and its surroundings</summary>
+      <dl class="facts">
+        {site.operator && <><dt>Operator</dt><dd>{site.operator}</dd></>}
+        {site.status && <><dt>Status</dt><dd>{site.status}</dd></>}
+        <dt>Outline</dt><dd>{site.provisional ? `Provisional (${site.polygon_source ?? 'placeholder'})` : site.polygon_source ?? 'traced'}</dd>
+        {site.swis_number && <><dt>CalRecycle SWIS</dt><dd>{site.swis_number}</dd></>}
+        {site.ghgrp_facility_id && <><dt>EPA GHGRP facility</dt><dd>{site.ghgrp_facility_id}</dd></>}
+        {features && <><dt>Area</dt><dd>{num(features.area_km2)} km²</dd></>}
+      </dl>
+      {neighbours.length > 0 && (
+        <p>Other methane sources nearby: {neighbours.map((n) => `${n.name} (${n.kind}, ${num(n.distance_m)} m)`).join('; ')}. Plumes near them are marked ambiguous and never assigned to this landfill.</p>
+      )}
+      {residents.length ? (
+        <p>Residents nearby, as context only: {residents.map((r) => `${num(r.residents)} within ${r.radius_km} km`).join(', ')}.</p>
+      ) : (
+        <p class="muted">Residents nearby appear once the census context is loaded.</p>
+      )}
+    </details>
   </section>
 </Base>

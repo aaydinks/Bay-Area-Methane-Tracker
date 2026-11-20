@@ -1,8 +1,9 @@
 import type { FeatureCollection } from 'geojson';
-import { type GeoJSONSource, type LayerSpecification, Map as MapLibreMap, Marker, NavigationControl, ScaleControl, setWorkerUrl } from 'maplibre-gl';
+import { type GeoJSONSource, type LayerSpecification, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, ScaleControl, setWorkerUrl } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { firstMonthOf, shortMonth, stepLabel, stepOf, stepsFor, type StepKind } from '../lib/timeline';
 
 setWorkerUrl(workerUrl);
 
@@ -46,21 +47,12 @@ export interface SiteSummary {
 
 interface Props {
   sites: SiteSummary[];
-  isPublic: boolean;
-  dataThrough: string | null;
   availableSources: string[];
 }
 
 type FC = FeatureCollection;
 const EMPTY: FC = { type: 'FeatureCollection', features: [] };
 
-function monthKey(iso: string) {
-  return iso.slice(0, 7);
-}
-function monthLabel(key: string) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
-}
 function fmt(x: number | null | undefined) {
   if (x == null) return '–';
   return x.toLocaleString('en-US', { maximumSignificantDigits: 3 });
@@ -94,9 +86,9 @@ function addLayers(map: MapLibreMap) {
       },
     },
     {
-      id: 'plumes-point', type: 'circle', source: 'plumes', minzoom: 10,
+      id: 'plumes-point', type: 'circle', source: 'plumes',
       paint: {
-        'circle-radius': 5,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 3, 10, 5, 14, 7],
         'circle-color': '#c8102e',
         'circle-opacity': ['case', ['==', ['get', 'attribution'], 'ambiguous'], 0, 0.85],
         'circle-stroke-color': ['case', ['to-boolean', ['get', 'new_in_update']], '#111111', '#c8102e'],
@@ -107,7 +99,7 @@ function addLayers(map: MapLibreMap) {
   for (const spec of specs) if (!map.getLayer(spec.id)) map.addLayer(spec);
 }
 
-export default function MethaneMap({ sites, isPublic, dataThrough, availableSources }: Props) {
+export default function MethaneMap({ sites, availableSources }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -115,7 +107,10 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
   const [ready, setReady] = useState(0);
   const [sources, setSources] = useState<Set<string>>(new Set(availableSources));
   const [instruments, setInstruments] = useState<Set<string>>(new Set(INSTRUMENTS.map((i) => i.id)));
-  const [range, setRange] = useState<[number, number] | null>(null);
+  // The timeline: all dates at once, or one month (or quarter) at a time.
+  const [stepKind, setStepKind] = useState<'all' | StepKind>('all');
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const [weight, setWeight] = useState<'count' | 'rate'>('count');
   const [layers, setLayers] = useState({ heat: true, points: true, passes: true, outlines: true, neighbours: true, boundaries: true });
   const [selected, setSelected] = useState<string | null>(null);
@@ -134,30 +129,63 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
     };
   }, []);
 
-  const months = useMemo(() => {
-    if (!data) return [] as string[];
-    const keys = new Set<string>();
-    for (const f of data.plumes.features) keys.add(monthKey(String(f.properties?.acquired_utc ?? '')));
-    return [...keys].filter((k) => k.length === 7).sort();
-  }, [data]);
-  useEffect(() => {
-    if (months.length && !range) setRange([0, months.length - 1]);
-  }, [months, range]);
+  const dates = useMemo(() => (data ? data.plumes.features.map((f) => String(f.properties?.acquired_utc ?? '')) : []), [data]);
+  const span = useMemo(() => stepsFor(dates, 'month'), [dates]);
+  const steps = useMemo(() => (stepKind === 'all' ? [] : stepsFor(dates, stepKind)), [dates, stepKind]);
+  const current = stepKind === 'all' ? null : (steps[Math.min(index, steps.length - 1)] ?? null);
+  const hasRates = useMemo(() => Boolean(data?.plumes.features.some((f) => f.properties?.q_kg_hr != null)), [data]);
 
   const filtered = useMemo<FC>(() => {
     if (!data) return EMPTY;
-    const [a, b] = range ?? [0, Math.max(0, months.length - 1)];
-    const lo = months[a] ?? '0000-00';
-    const hi = months[b] ?? '9999-99';
     return {
       type: 'FeatureCollection',
       features: data.plumes.features.filter((f) => {
         const p = f.properties ?? {};
-        const m = monthKey(String(p.acquired_utc ?? ''));
-        return sources.has(String(p.source)) && instruments.has(String(p.instrument)) && m >= lo && m <= hi;
+        if (!sources.has(String(p.source)) || !instruments.has(String(p.instrument))) return false;
+        return stepKind === 'all' || current === null || stepOf(String(p.acquired_utc ?? ''), stepKind) === current;
       }),
     };
-  }, [data, sources, instruments, range, months]);
+  }, [data, sources, instruments, stepKind, current]);
+
+  // Play steps forward about once a second and stops on the last step.
+  useEffect(() => {
+    if (!playing || stepKind === 'all') return;
+    const timer = window.setInterval(() => {
+      setIndex((i) => {
+        if (i >= steps.length - 1) {
+          setPlaying(false);
+          return i;
+        }
+        return i + 1;
+      });
+    }, 1100);
+    return () => window.clearInterval(timer);
+  }, [playing, stepKind, steps.length]);
+
+  const changeStep = (next: 'all' | StepKind) => {
+    setPlaying(false);
+    if (next !== 'all') {
+      // Keep the reader's place: the new step that holds the month they were looking at.
+      const month = current && stepKind !== 'all' ? firstMonthOf(current, stepKind) : null;
+      const nextSteps = stepsFor(dates, next);
+      const at = month ? nextSteps.indexOf(stepOf(month, next)) : 0;
+      setIndex(Math.max(0, at));
+    }
+    setStepKind(next);
+  };
+  const togglePlay = () => {
+    if (playing) {
+      setPlaying(false);
+      return;
+    }
+    if (stepKind === 'all') {
+      setStepKind('month');
+      setIndex(0);
+    } else if (index >= steps.length - 1) {
+      setIndex(0);
+    }
+    setPlaying(true);
+  };
 
   const passFc = useMemo<FC>(
     () => ({
@@ -182,6 +210,11 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
       zoom: 8.2,
       attributionControl: { compact: false },
     });
+    // Open on the five landfills, whatever the width of the screen.
+    if (sites.length > 1) {
+      const bounds = sites.reduce((b, s) => b.extend([s.lon, s.lat]), new LngLatBounds([sites[0].lon, sites[0].lat], [sites[0].lon, sites[0].lat]));
+      map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 64, right: 48 }, maxZoom: 11, animate: false });
+    }
     map.addControl(new NavigationControl({ visualizePitch: false }), 'top-left');
     map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('style.load', () => {
@@ -227,7 +260,18 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
     }
   }, [ready, layers, weight]);
 
-  // Site markers: shape = latest record type, colour = its result, grey when none on record.
+  // Plumes per landfill for the dates and filters shown, for the count badge on each marker.
+  const countsBySite = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const f of filtered.features) {
+      const id = String(f.properties?.site_id ?? '');
+      if (id && f.properties?.attribution !== 'ambiguous') counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [filtered]);
+
+  // Site markers: shape = latest record type, colour = its result, grey when none on record. A red
+  // badge gives the number of plumes at the site for the dates shown, readable at any zoom.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -238,8 +282,9 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
       const colour = s.latest?.held ? 'grey' : (s.latest?.colour ?? 'grey');
       el.className = `site-marker ${colour}${selected === s.site_id ? ' is-selected' : ''}`;
       const what = s.latest ? (s.latest.held ? 'result held back' : s.latest.label) : 'no check on record';
-      el.setAttribute('aria-label', `${s.name}: ${what}`);
-      el.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">${SHAPES[s.latest?.held ? 'lock' : (s.latest?.icon ?? 'dot')] ?? SHAPES.dot}</svg>`;
+      const n = countsBySite.get(s.site_id) ?? 0;
+      el.setAttribute('aria-label', `${s.name}: ${n} ${n === 1 ? 'plume' : 'plumes'} for the dates shown; latest check: ${what}`);
+      el.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">${SHAPES[s.latest?.held ? 'lock' : (s.latest?.icon ?? 'dot')] ?? SHAPES.dot}</svg>${n ? `<span class="plume-badge" aria-hidden="true">${n}</span>` : ''}`;
       el.addEventListener('click', () => setSelected((cur) => (cur === s.site_id ? null : s.site_id)));
       return new Marker({ element: el }).setLngLat([s.lon, s.lat]).addTo(map);
     });
@@ -247,7 +292,7 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [ready, sites, selected]);
+  }, [ready, sites, selected, countsBySite]);
 
   const site = sites.find((s) => s.site_id === selected) ?? null;
   const plumesAtSite = site ? filtered.features.filter((f) => f.properties?.site_id === site.site_id).length : 0;
@@ -257,65 +302,14 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
     else next.add(id);
     return next;
   };
+  const count = filtered.features.length;
+  const countText = `${count.toLocaleString('en-US')} ${count === 1 ? 'plume' : 'plumes'} seen`;
+  const when = stepKind === 'all' || !current
+    ? span.length ? `All dates, ${shortMonth(span[0])} to ${shortMonth(span[span.length - 1])}` : 'All dates'
+    : stepLabel(current, stepKind);
 
   return (
     <div className="map-layout">
-      <form className="map-controls" aria-label="Map filters" onSubmit={(e) => e.preventDefault()}>
-        <fieldset>
-          <legend>Source</legend>
-          {SOURCES.filter((s) => availableSources.includes(s.id)).map((s) => (
-            <label key={s.id}>
-              <input type="checkbox" checked={sources.has(s.id)} onChange={() => setSources(toggleIn(sources, s.id))} /> {s.label}
-            </label>
-          ))}
-          {isPublic && <p className="muted" style={{ margin: '0.25rem 0 0', fontSize: '0.85rem' }}>Carbon Mapper is held back until its terms are confirmed.</p>}
-        </fieldset>
-        <fieldset>
-          <legend>Instrument</legend>
-          {INSTRUMENTS.map((i) => (
-            <label key={i.id}>
-              <input type="checkbox" checked={instruments.has(i.id)} onChange={() => setInstruments(toggleIn(instruments, i.id))} /> {i.label}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset>
-          <legend>Dates</legend>
-          {months.length > 1 && range ? (
-            <>
-              <label htmlFor="from">From {monthLabel(months[range[0]])}</label>
-              <input id="from" type="range" min={0} max={months.length - 1} value={range[0]} onChange={(e) => setRange([Math.min(Number(e.target.value), range[1]), range[1]])} />
-              <label htmlFor="to">To {monthLabel(months[range[1]])}</label>
-              <input id="to" type="range" min={0} max={months.length - 1} value={range[1]} onChange={(e) => setRange([range[0], Math.max(Number(e.target.value), range[0])])} />
-              <div className="range-labels"><span>{monthLabel(months[0])}</span><span>{monthLabel(months[months.length - 1])}</span></div>
-            </>
-          ) : (
-            <p className="muted" style={{ margin: 0 }}>{data ? 'Too few plume dates to filter.' : 'Loading…'}</p>
-          )}
-        </fieldset>
-        <fieldset>
-          <legend>Heat map weight</legend>
-          <label><input type="radio" name="weight" checked={weight === 'count'} onChange={() => setWeight('count')} /> Count of plumes</label>
-          <label><input type="radio" name="weight" checked={weight === 'rate'} onChange={() => setWeight('rate')} /> Rate, where known</label>
-        </fieldset>
-        <fieldset>
-          <legend>Layers</legend>
-          {(
-            [
-              ['heat', 'Plume heat map'],
-              ['points', 'Plume origins (zoom in)'],
-              ['passes', 'Usable passes per site'],
-              ['outlines', 'Site outlines'],
-              ['neighbours', 'Neighbouring sources'],
-              ['boundaries', 'County and Air District lines'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key}>
-              <input type="checkbox" checked={layers[key]} onChange={() => setLayers({ ...layers, [key]: !layers[key] })} /> {label}
-            </label>
-          ))}
-        </fieldset>
-      </form>
-
       <div className="map-stage">
         {/* The canvas is a scrollable, zoomable region and must be reachable from the keyboard. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
@@ -331,14 +325,124 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
               <dt>Latest check</dt>
               <dd>{site.latest ? (site.latest.held ? `${site.latest.type_label}: result held back` : `${site.latest.type_label}: ${site.latest.label}`) : 'No check on record'}</dd>
               <dt>Plumes shown</dt>
-              <dd>{plumesAtSite} with the current filters</dd>
+              <dd>{plumesAtSite} for {stepKind === 'all' ? 'all dates' : when}</dd>
               <dt>Passes</dt>
               <dd>{site.usable_passes} usable; {site.plume_days} plume days ({site.plume_days_per_usable_pass == null ? '–' : site.plume_days_per_usable_pass.toFixed(3)} per usable pass)</dd>
             </dl>
             <p style={{ margin: 0 }}><a href={site.href}>Landfill page</a></p>
           </aside>
         )}
-        <ul className="map-legend" aria-label="Legend">
+      </div>
+
+      <div className="timeline" role="group" aria-label="Plumes over time">
+        <div className="timeline-row">
+          <button
+            type="button"
+            className="play"
+            aria-pressed={playing}
+            onClick={togglePlay}
+            disabled={!span.length}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+              {playing ? <path d="M4 3h3v10H4zM9 3h3v10H9z" /> : <path d="M4 2.5v11l9-5.5z" />}
+            </svg>
+            {playing ? 'Pause' : 'Play'}
+          </button>
+          <fieldset className="step-choice">
+            <legend className="visually-hidden">Show plumes</legend>
+            {(
+              [
+                ['all', 'All dates'],
+                ['month', 'By month'],
+                ['quarter', 'By quarter'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className={stepKind === key ? 'is-on' : undefined}>
+                <input type="radio" name="step" value={key} checked={stepKind === key} onChange={() => changeStep(key)} disabled={!span.length} /> {label}
+              </label>
+            ))}
+          </fieldset>
+        </div>
+        {stepKind !== 'all' && steps.length > 1 && (
+          <input
+            className="timeline-slider"
+            type="range"
+            min={0}
+            max={steps.length - 1}
+            value={Math.min(index, steps.length - 1)}
+            aria-label={stepKind === 'month' ? 'Month' : 'Quarter'}
+            aria-valuetext={when}
+            onChange={(e) => {
+              setPlaying(false);
+              setIndex(Number(e.target.value));
+            }}
+          />
+        )}
+        <p className="timeline-label" aria-live={playing ? 'off' : 'polite'}>
+          {data ? (
+            <>
+              <strong>{when}</strong> <span className="timeline-count">· {countText}</span>
+            </>
+          ) : (
+            'Loading map data…'
+          )}
+        </p>
+        <p className="timeline-note">Each red dot is one plume. A month with few or no dots may simply have had few clear looks at the landfills.</p>
+      </div>
+
+      <ul className="map-legend" aria-label="Key">
+        <li><span className="swatch plume" /> Plume</li>
+        <li><span className="swatch heat" /> Many plumes close together</li>
+        <li><span className="swatch marker" /><span className="swatch badge" aria-hidden="true">3</span> Landfill and its number of plumes for the dates shown; select it for a summary</li>
+        <li><span className="swatch pass" /> Clear looks at the site (bigger ring, more looks)</li>
+      </ul>
+
+      <details className="map-more">
+        <summary>More map options</summary>
+        <form className="map-controls" aria-label="Map filters" onSubmit={(e) => e.preventDefault()}>
+          <fieldset>
+            <legend>Source</legend>
+            {SOURCES.filter((s) => availableSources.includes(s.id)).map((s) => (
+              <label key={s.id}>
+                <input type="checkbox" checked={sources.has(s.id)} onChange={() => setSources(toggleIn(sources, s.id))} /> {s.label}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset>
+            <legend>Instrument</legend>
+            {INSTRUMENTS.map((i) => (
+              <label key={i.id}>
+                <input type="checkbox" checked={instruments.has(i.id)} onChange={() => setInstruments(toggleIn(instruments, i.id))} /> {i.label}
+              </label>
+            ))}
+          </fieldset>
+          {hasRates && (
+            <fieldset>
+              <legend>Heat map weight</legend>
+              <label><input type="radio" name="weight" checked={weight === 'count'} onChange={() => setWeight('count')} /> Count of plumes</label>
+              <label><input type="radio" name="weight" checked={weight === 'rate'} onChange={() => setWeight('rate')} /> Rate, where known</label>
+            </fieldset>
+          )}
+          <fieldset>
+            <legend>Layers</legend>
+            {(
+              [
+                ['heat', 'Plume heat map'],
+                ['points', 'Plume dots'],
+                ['passes', 'Usable passes per site'],
+                ['outlines', 'Site outlines'],
+                ['neighbours', 'Neighbouring sources'],
+                ['boundaries', 'County and Air District lines'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                <input type="checkbox" checked={layers[key]} onChange={() => setLayers({ ...layers, [key]: !layers[key] })} /> {label}
+              </label>
+            ))}
+          </fieldset>
+        </form>
+        <h3 className="map-more-heading">Full key</h3>
+        <ul className="map-legend full" aria-label="Full key">
           <li><span className="swatch heat" /> Plume density</li>
           <li><span className="swatch plume" /> Plume origin</li>
           <li><span className="swatch ambiguous" /> Ambiguous, near another source</li>
@@ -347,12 +451,9 @@ export default function MethaneMap({ sites, isPublic, dataThrough, availableSour
           <li><span className="swatch outline" /> Site outline (dashed: provisional)</li>
           <li><span className="swatch neighbour" /> Neighbouring source</li>
           <li><span className="swatch boundary" /> County and Air District</li>
-          <li>Marker shape: record type; colour: latest result</li>
+          <li>Marker shape: type of the latest record; colour: its result; grey: no check on record</li>
         </ul>
-        <p className="map-status" aria-live="polite">
-          {data ? `${filtered.features.length} plume origins shown${dataThrough ? `, data through ${dataThrough}` : ''}.` : 'Loading map data…'} Counts follow how often a site was observed.
-        </p>
-      </div>
+      </details>
     </div>
   );
 }

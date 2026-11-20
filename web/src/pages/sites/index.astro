@@ -20,7 +20,11 @@ const chartItems = withEstimate.map((s) => {
 ---
 <Base title="Landfills" description="The five landfills studied in depth, with their persistence estimates and latest checks." kind="sites">
   <h1>Landfills</h1>
-  <p class="lede">Each estimate is annual methane above the detection floor in daytime, clear-sky conditions, with its 90% range: a screening indication, not a site's total. Sites without enough data for an estimate are listed apart, with the reason, and not ranked.</p>
+  <p class="lede">The five landfills studied in depth, with how much methane satellites and aircraft suggest each one gives off in a year.</p>
+  <details class="more">
+    <summary>What the estimates mean</summary>
+    <p>Each estimate is annual methane above the detection floor in daytime, clear-sky conditions, with its 90% range: a screening indication, not a site's total. Sites without enough data for an estimate are listed apart, with the reason, and not ranked.</p>
+  </details>
   {hasPublication ? (
     <>
       <section aria-labelledby="ranked">

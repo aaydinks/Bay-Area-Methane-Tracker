@@ -136,6 +136,17 @@ caption { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-s
 details { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.85rem; background: var(--surface); }
 details summary { cursor: pointer; }
 details[open] summary { margin-bottom: 0.5rem; }
+/* "Details" sections that hold the technical figures under a page's main view. */
+details.more { margin-top: 1rem; }
+details.more > summary { font-size: 1.05rem; }
+details.more > :last-child { margin-bottom: 0.25rem; }
+
+/* A page's main figure, set large with its range under it. */
+.headline-figure { border-left: 5px solid var(--red); padding: 0.25rem 0 0.25rem 1rem; margin: 0 0 1rem; }
+.headline-figure p { margin: 0 0 0.25rem; }
+.headline-figure .figure-value { font-size: clamp(2.25rem, 7vw, 3.25rem); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.headline-figure .figure-unit { font-size: 1.2rem; }
+.headline-figure .figure-range { font-size: 1.05rem; }
 
 dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 1em; }
 dl.facts dt { color: var(--muted); }

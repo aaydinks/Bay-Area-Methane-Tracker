@@ -49,7 +49,10 @@ function metricText(m: unknown): string {
 
   <section aria-labelledby="checks">
     <h2 id="checks">Method checks</h2>
+    <p>Each check tests whether the method behaves as it should: whether its 90% ranges hold the true value often enough, and how often it would call a change that did not happen.</p>
     {results.length ? (
+      <details class="more">
+      <summary>Every method check run</summary>
       <TableWrap label="Method checks">
         <table>
           <caption>Each row is one run of a check, named by its run id. The note says whether it used simulated or real data.</caption>
@@ -67,6 +70,7 @@ function metricText(m: unknown): string {
           </tbody>
         </table>
       </TableWrap>
+      </details>
     ) : (
       <EmptyState title="No method checks loaded" expected="The Gate 3, hold-out, placebo and power results appear with the first published data update." />
     )}

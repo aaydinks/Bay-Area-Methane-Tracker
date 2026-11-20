@@ -47,11 +47,15 @@ const rows: CheckRow[] = [...snapshot.checks]
 ---
 <Base title="Past checks" description="Every dated inspection, notice and repair on record, with the measured change that followed it." kind="checks">
   <h1>Past checks</h1>
-  <p class="lede">One row per dated record at a landfill. The change is what the satellite record shows after that date, compared with control sites, with its 90% range. It is a screening indication that followed the date, never a cause. Colour never stands alone: every result has an icon and a label.</p>
+  <p class="lede">Every dated inspection, notice or repair on record at the landfills, and what the satellite record showed after it.</p>
+  <details class="more">
+    <summary>How to read this table</summary>
+    <p>One row per dated record at a landfill. The change is what the satellite record shows after that date, compared with control sites, with its 90% range. It is a screening indication that followed the date, never a cause. Colour never stands alone: every result has an icon and a label.</p>
+    <p>"Smallest drop the test could see" is the smallest drop this site's own passes would have caught 80% of the time; a real drop below it could have been missed. Terms are explained in <a href="/how-to-read/">How to read this site</a>.</p>
+  </details>
   {rows.length ? (
     <ChecksTable client:load rows={rows} />
   ) : (
     <EmptyState title="No checks on record yet" expected={EXPECTED.checks} />
   )}
-  <p class="muted">"Smallest drop the test could see" is the smallest drop this site's own passes would have caught 80% of the time; a real drop below it could have been missed. Terms are explained in <a href="/how-to-read/">How to read this site</a>.</p>
 </Base>

@@ -7,16 +7,20 @@ import imagery from '../assets/imagery/imagery.json';
 ---
 <Base title="Data and credits" description="Where the data comes from, what each source allows, and the downloads." kind="data">
   <h1>Data and credits</h1>
-  <p class="lede">Every figure on this site comes from one published snapshot, named below, and the publishable tables can be downloaded as CSV with a README that carries the publication id and the credits. Results are screening indications for investigation.</p>
+  <p class="lede">Where every figure on this site comes from, and the tables you can download.</p>
   {publication && (
-    <dl class="facts">
-      <dt>Publication</dt><dd><span class="mono">{publication.publish_id}</span></dd>
-      <dt>Data through</dt><dd>{date(publication.data_through)}</dd>
-      <dt>Published</dt><dd>{date(publication.published_at ?? publication.created_at)}</dd>
-      {publication.model_run_id && <><dt>Model run</dt><dd><span class="mono">{publication.model_run_id}</span></dd></>}
-      {publication.check_run_id && <><dt>Checks run</dt><dd><span class="mono">{publication.check_run_id}</span></dd></>}
-      {publication.refresh_id && <><dt>Data refresh</dt><dd><span class="mono">{publication.refresh_id}</span></dd></>}
-    </dl>
+    <details class="more">
+      <summary>Publication details</summary>
+      <p>Every figure on this site comes from one published snapshot, named here.</p>
+      <dl class="facts">
+        <dt>Publication</dt><dd><span class="mono">{publication.publish_id}</span></dd>
+        <dt>Data through</dt><dd>{date(publication.data_through)}</dd>
+        <dt>Published</dt><dd>{date(publication.published_at ?? publication.created_at)}</dd>
+        {publication.model_run_id && <><dt>Model run</dt><dd><span class="mono">{publication.model_run_id}</span></dd></>}
+        {publication.check_run_id && <><dt>Checks run</dt><dd><span class="mono">{publication.check_run_id}</span></dd></>}
+        {publication.refresh_id && <><dt>Data refresh</dt><dd><span class="mono">{publication.refresh_id}</span></dd></>}
+      </dl>
+    </details>
   )}
   <h2>Downloads</h2>
   {hasPublication && meta.downloads?.length ? (

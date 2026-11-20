@@ -1,8 +1,33 @@
 /* Map page: the map, its controls, legend and side panel. Loaded only on /map/. */
-.map-layout { display: grid; gap: 1rem; grid-template-columns: 1fr; }
-@media (min-width: 64rem) { .map-layout { grid-template-columns: 17rem 1fr; align-items: start; } }
+.map-layout { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
 
-.map-controls { display: flex; flex-direction: column; gap: 0.75rem; }
+/* The timeline under the map: play, step size, slider, and what is shown. */
+.timeline { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 0.75rem 1rem; display: grid; gap: 0.6rem; }
+.timeline-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
+.timeline .play {
+  display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 1.1rem; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--red); background: var(--red); color: var(--white); font: inherit;
+}
+.timeline .play:hover { background: var(--red-dark); border-color: var(--red-dark); }
+.timeline .play[aria-pressed="true"] { background: var(--white); color: var(--red-dark); }
+.timeline .play:disabled { opacity: 0.5; cursor: not-allowed; }
+.timeline .play svg { width: 1rem; height: 1rem; }
+.step-choice { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; border: 0; margin: 0; padding: 0; }
+.step-choice label {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-size: 0.95rem;
+}
+.step-choice label.is-on { background: var(--green); border-color: var(--green-line); }
+.step-choice input { margin: 0; }
+.timeline-slider { width: 100%; margin: 0; }
+.timeline-label { margin: 0; font-size: 1.15rem; }
+.timeline-label strong { font-weight: 700; }
+.timeline-count { color: var(--muted); }
+.timeline-note { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+.map-more { margin-top: 0.25rem; }
+.map-more-heading { font-size: 1rem; margin: 1rem 0 0.25rem; }
+.map-controls { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: start; }
 .map-controls fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem 0.75rem; margin: 0; background: var(--surface); }
 .map-controls legend { padding: 0 0.3rem; }
 .map-controls label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.95rem; padding: 0.15rem 0; }
@@ -10,7 +35,7 @@
 .map-controls .range-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
 
 .map-stage { position: relative; }
-.map-canvas { width: 100%; height: min(70vh, 640px); min-height: 380px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; background: var(--surface); }
+.map-canvas { width: 100%; height: min(65vh, 600px); min-height: 340px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; background: var(--surface); }
 .map-canvas:focus-visible { outline: 3px solid var(--focus); }
 
 .site-marker {
@@ -19,6 +44,11 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 .site-marker svg { width: 18px; height: 18px; }
+.plume-badge {
+  position: absolute; top: -10px; right: -14px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px;
+  background: var(--red); color: var(--white); border: 2px solid var(--white); font: 700 12px/18px var(--font); text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
 .site-marker.red { color: var(--result-red); }
 .site-marker.orange { color: var(--result-orange); }
 .site-marker.yellow { color: var(--result-yellow); border-style: dashed; }
@@ -35,7 +65,7 @@
 .map-panel .close { position: absolute; right: 0.5rem; top: 0.5rem; border: 0; background: transparent; color: var(--text); font-size: 1.2rem; cursor: pointer; }
 .map-panel dl { margin: 0.5rem 0; }
 
-.map-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0.75rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: var(--muted); }
+.map-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; color: var(--muted); }
 .map-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
 .map-legend .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--border); }
 /* These match the layer colours in MethaneMap.tsx. */
@@ -47,8 +77,9 @@
 .map-legend .swatch.outline { background: rgba(143, 197, 156, 0.35); border: 2px dashed var(--green-ink); }
 .map-legend .swatch.neighbour { border-radius: 2px; background: #111111; }
 .map-legend .swatch.boundary { background: transparent; border: 1px solid var(--muted); }
+.map-legend .swatch.badge { width: auto; height: 18px; min-width: 18px; padding: 0 4px; border-radius: 999px; background: var(--red); color: var(--white); border: 0; font: 700 11px/18px var(--font); text-align: center; margin-left: -0.6rem; }
+.map-legend .swatch.marker { width: 16px; height: 16px; border-radius: 999px; background: var(--bg); border: 2px solid var(--result-grey); }
 
-.map-status { font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; }
 
 /* MapLibre's own controls in both themes */
 .maplibregl-ctrl-group { background: var(--bg) !important; }
