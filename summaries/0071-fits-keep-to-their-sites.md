@@ -1,6 +1,6 @@
 # PR #71: Keep fits and scheduled runs to the sites a fit covers
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/71)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/71)
 
 ## In one sentence
 
