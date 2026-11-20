@@ -19,6 +19,7 @@ import html
 import json
 import re
 import time
+from collections.abc import Sequence
 from pathlib import Path
 
 import httpx
@@ -29,17 +30,6 @@ from methanewatch.provenance import PullManifest
 
 BASE = "https://www2.calrecycle.ca.gov/SolidWaste"
 LANDFILL = "Solid Waste Landfill"
-BAY_AREA_COUNTIES = [
-    "Alameda",
-    "Contra Costa",
-    "Marin",
-    "Napa",
-    "San Francisco",
-    "San Mateo",
-    "Santa Clara",
-    "Solano",
-    "Sonoma",
-]
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=2, max=30))
@@ -65,17 +55,19 @@ def parse_details(page: str) -> dict:
     }
 
 
-def pull(raw_root: Path, pause_s: float = 0.2) -> Path:
+def pull(raw_root: Path, counties: Sequence[str], pause_s: float = 0.2) -> Path:
+    """``counties`` are the county names of the project's regions, as CalRecycle spells them."""
+    counties = list(counties)
     manifest = PullManifest.start(
         "calrecycle",
         f"{BASE}/Site/_GridRead; {BASE}/SiteActivity/_GridRead; {BASE}/Site/Details",
-        {"counties": BAY_AREA_COUNTIES, "activity": LANDFILL},
+        {"counties": counties, "activity": LANDFILL},
     )
     pull_dir = raw_root / "calrecycle" / manifest.pull_id
     pull_dir.mkdir(parents=True, exist_ok=True)
     sites, activities, details = [], {}, {}
     with httpx.Client(follow_redirects=True) as client:
-        for county in BAY_AREA_COUNTIES:
+        for county in counties:
             data = {"page": 1, "pageSize": 2000, "filter": f"County~eq~'{county}'"}
             sites += _request(client, "POST", "/Site/_GridRead", data=data).json()["Data"]
         for s in sites:

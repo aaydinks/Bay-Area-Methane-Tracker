@@ -18,9 +18,11 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import box
 
-# Loose bounding box around the nine Bay Area counties (lon/lat). A coarse check
-# for swapped coordinates or wrong CRS; not a county-boundary test.
-BAY_AREA_BBOX = box(-123.65, 36.85, -121.2, 38.9)
+# Margin in degrees around the project's regions. The box is a coarse check for swapped
+# coordinates or a wrong CRS; it is not a county-boundary test.
+REGION_PAD_DEG = 0.05
+# East edge of UTM zone 10N (see config.UTM10_EAST_LON); only enforced for EPSG:32610
+UTM10_EAST_LON = -120.0
 PARTS = {"boundary", "working_face", "closed", "neighbor"}
 SCREEN_BUFFER_M = 750
 
@@ -35,12 +37,23 @@ def read_polygons(path: Path) -> gpd.GeoDataFrame:
 
 
 def build_registry(
-    registry_dir: Path, out_dir: Path, *, metric_crs: str = "EPSG:32610"
+    registry_dir: Path,
+    out_dir: Path,
+    *,
+    region_bbox: tuple[float, float, float, float],
+    metric_crs: str = "EPSG:32610",
 ) -> gpd.GeoDataFrame:
+    """``region_bbox`` is the box covering the project's regions (``ProjectConfig.bbox``)."""
     attrs = pd.read_csv(registry_dir / "sites.csv", dtype=str).fillna("")
     polys = read_polygons(registry_dir / "sites.geojson")
 
-    problems = qa_inputs(attrs, polys)
+    problems = qa_inputs(attrs, polys, region_bbox)
+    if metric_crs == "EPSG:32610":
+        east = polys[polys.geometry.bounds["maxx"] > UTM10_EAST_LON]
+        if len(east):
+            problems.append(
+                f"geometries east of 120°W, outside UTM zone 10N: {east['site_id'].tolist()}"
+            )
     if problems:
         raise ValueError("registry QA failed:\n  " + "\n  ".join(problems))
 
@@ -70,7 +83,9 @@ def build_registry(
     return sites
 
 
-def qa_inputs(attrs: pd.DataFrame, polys: gpd.GeoDataFrame) -> list[str]:
+def qa_inputs(
+    attrs: pd.DataFrame, polys: gpd.GeoDataFrame, region_bbox: tuple[float, float, float, float]
+) -> list[str]:
     problems = []
     dupes = attrs.loc[attrs["site_id"].duplicated(), "site_id"].tolist()
     if dupes:
@@ -85,9 +100,11 @@ def qa_inputs(attrs: pd.DataFrame, polys: gpd.GeoDataFrame) -> list[str]:
     invalid = polys[~polys.geometry.is_valid]
     if len(invalid):
         problems.append(f"invalid geometries: {invalid['site_id'].tolist()}")
-    outside = polys[~polys.geometry.within(BAY_AREA_BBOX)]
+    west, south, east, north = region_bbox
+    pad = REGION_PAD_DEG
+    outside = polys[~polys.geometry.within(box(west - pad, south - pad, east + pad, north + pad))]
     if len(outside):
-        problems.append(f"geometries outside the Bay Area box: {outside['site_id'].tolist()}")
+        problems.append(f"geometries outside the project's regions: {outside['site_id'].tolist()}")
     return problems
 
 

@@ -160,7 +160,10 @@ def sites_build() -> None:
         typer.secho(f"no boundary polygon yet: {', '.join(missing)}", fg=typer.colors.YELLOW)
     try:
         sites = registry.build_registry(
-            registry_dir, project.resolve(project.paths.interim), metric_crs=project.crs_metric
+            registry_dir,
+            project.resolve(project.paths.interim),
+            region_bbox=project.bbox,
+            metric_crs=project.crs_metric,
         )
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
@@ -229,11 +232,13 @@ def ingest_emit(
 
 @ingest_app.command("calrecycle")
 def ingest_calrecycle() -> None:
-    """CalRecycle SWIS sites with a landfill activity in the nine counties (about 2 minutes)."""
+    """CalRecycle SWIS sites with a landfill activity in the project's counties (about 2 minutes
+    for nine counties)."""
     from methanewatch.ingest import calrecycle
 
     project = config.load_project()
-    typer.echo(f"wrote {calrecycle.pull(project.resolve(project.paths.raw))}")
+    counties = [c.name for c in project.counties]
+    typer.echo(f"wrote {calrecycle.pull(project.resolve(project.paths.raw), counties)}")
 
 
 @ingest_app.command("boundaries")
@@ -243,7 +248,10 @@ def ingest_boundaries() -> None:
     from methanewatch.ingest import boundaries
 
     project = config.load_project()
-    typer.echo(f"wrote {boundaries.pull(project.resolve(project.paths.raw))}")
+    pull_dir = boundaries.pull(
+        project.resolve(project.paths.raw), list(project.county_fips), project.carb_districts
+    )
+    typer.echo(f"wrote {pull_dir}")
     typer.secho(
         f"air district outline is CARB's as of {boundaries.DISTRICT_AS_OF}: "
         f"{boundaries.DISTRICT_CAVEAT}",
@@ -666,8 +674,12 @@ def datasets_build(
         "carbonmapper": lambda: datasets.build_carbonmapper(raw, root / "carbonmapper"),
         "ghgrp": lambda: datasets.build_ghgrp(raw, interim, root / "ghgrp"),
         "calrecycle": lambda: datasets.build_calrecycle(raw, root / "calrecycle"),
-        "census": lambda: datasets.build_census(raw, root / "census", sites, radius_km=6),
-        "boundaries": lambda: datasets.build_boundaries(raw, root / "boundaries"),
+        "census": lambda: datasets.build_census(
+            raw, root / "census", sites, radius_km=6, county_fips=project.county_fips
+        ),
+        "boundaries": lambda: datasets.build_boundaries(
+            raw, root / "boundaries", list(project.county_fips), project.carb_districts
+        ),
         "sentinel2-crops": lambda: datasets.build_sentinel2_crops(root, interim, sites),
         "emit-files": lambda: datasets.build_emit_files(raw, root, sites),
     }

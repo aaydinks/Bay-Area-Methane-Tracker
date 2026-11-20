@@ -48,7 +48,7 @@ def fixture_project(tmp_path):
             )
         }
     )
-    registry.build_registry(reg, interim, metric_crs=UTM)
+    registry.build_registry(reg, interim, region_bbox=project.bbox, metric_crs=UTM)
 
     days = pd.date_range("2025-01-05T18:00Z", periods=10, freq="14D")
     gpd.GeoDataFrame(

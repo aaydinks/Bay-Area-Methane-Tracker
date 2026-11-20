@@ -19,10 +19,12 @@ from methanewatch.ingest import boundaries
 from methanewatch.provenance import sha256_file
 
 FX = Path(__file__).parent / "fixtures"
+FIPS = ("001", "013", "041", "055", "075", "081", "085", "095", "097")
+BA = ("BA",)
 
 
 def _fake_download(client, url, path):
-    if url == boundaries.sources()[boundaries.DISTRICT_FILE]:
+    if url == boundaries.sources(FIPS, BA)[boundaries.DISTRICT_FILE]:
         path.write_bytes((FX / "carb_air_district_ba.geojson").read_bytes())
     else:
         path.write_bytes(url.encode())
@@ -30,14 +32,14 @@ def _fake_download(client, url, path):
 
 def test_pull_writes_manifest_with_sha256(tmp_path, monkeypatch):
     monkeypatch.setattr(boundaries, "_download", _fake_download)
-    pull_dir = boundaries.pull(tmp_path)
+    pull_dir = boundaries.pull(tmp_path, FIPS, BA)
     assert pull_dir.parent == tmp_path / "boundaries"
     manifest = json.loads((pull_dir / "manifest.json").read_text())
     assert manifest["source"] == "boundaries"
     assert manifest["pull_id"] == pull_dir.name
-    assert manifest["params"]["files"] == boundaries.sources()
+    assert manifest["params"]["files"] == boundaries.sources(FIPS, BA)
     assert manifest["params"]["district_as_of"] == "2004-03"
-    assert set(manifest["files"]) == set(boundaries.sources())
+    assert set(manifest["files"]) == set(boundaries.sources(FIPS, BA))
     assert len(manifest["files"]) == 14  # counties, places, tracts, roads, 9 x water, district
     for name, digest in manifest["files"].items():
         assert digest == sha256_file(pull_dir / name)
@@ -53,13 +55,13 @@ def test_pull_stops_when_carb_sends_an_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(boundaries, "_download", error_download)
     with pytest.raises(ValueError, match="Invalid query"):
-        boundaries.pull(tmp_path)
+        boundaries.pull(tmp_path, FIPS, BA)
     assert len(fetched) == 1  # the Census files were never requested
     assert not list((tmp_path / "boundaries").glob("*/manifest.json"))
 
 
 def test_district_from_recorded_carb_response():
-    d = boundaries.district(FX / "carb_air_district_ba.geojson")
+    d = boundaries.district(FX / "carb_air_district_ba.geojson", BA)
     assert len(d) == 1
     row = d.iloc[0]
     assert (row["NAME"], row["DIS"]) == ("Bay Area", "BA")
@@ -71,8 +73,21 @@ def test_district_from_recorded_carb_response():
     assert minx >= -123.64 and maxx <= -121.20 and miny >= 36.89 and maxy <= 38.87
 
 
+def test_carb_query_keeps_the_recorded_form_for_one_district():
+    # The recorded fixture and every earlier pull used exactly this filter
+    assert boundaries.carb_query(BA)["where"] == "DIS='BA'"
+    assert boundaries.carb_query(("BA", "SJV"))["where"] == "DIS IN ('BA','SJV')"
+    with pytest.raises(ValueError, match="no CARB district codes"):
+        boundaries.carb_query(())
+
+
+def test_district_rejects_an_answer_with_other_districts():
+    with pytest.raises(ValueError, match="expected DIS"):
+        boundaries.district(FX / "carb_air_district_ba.geojson", ("BA", "SJV"))
+
+
 def _county_zip(raw_pull: Path) -> None:
-    rows = [("06", fips, f"County {fips}") for fips in boundaries.COUNTY_FIPS]
+    rows = [("06", fips, f"County {fips}") for fips in FIPS]
     rows += [("06", "067", "Sacramento"), ("32", "001", "Churchill")]
     gdf = gpd.GeoDataFrame(
         {
@@ -103,12 +118,12 @@ def test_build_boundaries_writes_tidy_geojson(tmp_path):
     (pull / "manifest.json").write_text(json.dumps({"pull_id": pull.name}))
     out = tmp_path / "datasets" / "boundaries"
 
-    counts = datasets.build_boundaries(raw, out)
+    counts = datasets.build_boundaries(raw, out, FIPS, BA)
 
     assert counts == {"boundaries_counties": 9, "boundaries_air_district": 1}
     counties = gpd.read_file(out / "counties_2025.geojson")
     assert list(counties.columns) == ["GEOID", "COUNTYFP", "NAME", "geometry"]
-    assert counties["COUNTYFP"].tolist() == list(boundaries.COUNTY_FIPS)
+    assert counties["COUNTYFP"].tolist() == list(FIPS)
     assert counties.crs == "EPSG:4326"
     assert counties.is_valid.all()
     district = json.loads((out / "air_district_bay_area.geojson").read_text())
@@ -124,4 +139,4 @@ def test_build_boundaries_writes_tidy_geojson(tmp_path):
 
 def test_build_boundaries_without_a_pull(tmp_path):
     with pytest.raises(FileNotFoundError, match="mw ingest boundaries"):
-        datasets.build_boundaries(tmp_path, tmp_path / "out")
+        datasets.build_boundaries(tmp_path, tmp_path / "out", FIPS, BA)
