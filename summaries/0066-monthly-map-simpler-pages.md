@@ -1,6 +1,6 @@
 # PR #66: A month-by-month plume view and simpler inner pages
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/66)
+**Status:** merged 2026-11-19 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/66)
 
 ## In one sentence
 
@@ -18,13 +18,17 @@ home page.
 ## What it adds
 
 - **Map timeline.** Under the map: a Play button and a choice of "All dates", "By month" or
-  "By quarter". Each step shows only the plumes seen in it, with the month and a count, for
-  example "June 2026 · 3 plumes seen". The steps run through every month from the first plume
-  to the last, empty months included, so playing never skips time. A note says that a month
-  with few dots may have had few clear looks, not less methane.
+  "By quarter". Each step shows only the plumes seen in it, with the month and two counts, for
+  example "June 2026 · 31 plumes seen, 12 traced to the landfills". The steps run through every
+  month from the first plume to the last, empty months included, so playing never skips time.
+  A note says that a month with few dots may have had few clear looks, not less methane.
 - **Counts on the landfills.** At the map's starting zoom the landfill markers sit on top of
-  their plume dots, so each marker now carries a red badge with its number of plumes for the
-  dates shown. The map also opens fitted to the five landfills on any screen.
+  their plume dots, so each marker now carries a red badge with the number of plumes traced to
+  it for the dates shown: those starting inside its outline or within 500 m. The map also opens
+  fitted to the five landfills on any screen.
+- **A truer opening line.** About half of the dots on the public map start away from the five
+  landfills, so the map now says the dots are plumes seen over the Bay Area, and the number on
+  each landfill counts those traced to it.
 - **Map page.** The filters, the full key, notes about the map and the table move into
   closed sections under the map. Two lines that still said Carbon Mapper is held back are
   gone. The option to weight the heat map by plume rate shows only when some plume has a
