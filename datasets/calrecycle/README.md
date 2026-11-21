@@ -13,6 +13,12 @@ same thing: a few entries are industrial or small rural units (for example the U
 waste unit), and old dumps recorded under other activity types are not included. Review
 it before treating it as the 38-site screen.
 
+Reviewed on 2026-11-21: the 28 permitted landfills that were not already pilots entered the
+site registry as the Bay Area screening tier (`data/registry/sites.csv`). One landfill that
+reports methane to EPA is not on this list: Davis Street Sanitary Landfill in San Leandro
+(SWIS 01-AA-0006, EPA facility 1003800), which CalRecycle records under the activity "Solid
+Waste Disposal Site". Fourteen closed, permitted Bay Area sites carry that activity.
+
 ## Pilot reference points: `swis_pilot_sites.csv`
 
 `swis_pilot_sites.csv`: one row per pilot site from CalRecycle's Solid Waste Information

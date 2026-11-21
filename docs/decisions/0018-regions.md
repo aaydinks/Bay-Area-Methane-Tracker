@@ -72,7 +72,11 @@ Two facts about the present state matter:
 - Dairies and other methane sources sit near Valley landfills. A plume that Carbon Mapper tags with
   a sector other than waste is marked ambiguous and never assigned to a landfill. That rule also
   touches the pilots, so it lands together with their new outlines and refit.
-- **Still to check:** terms of use for the CalRecycle layer; the date of CARB's district outlines;
-  the final box of each region against county outlines.
+- **Still to check:** the date of CARB's district outlines; the final box of each region against
+  county outlines.
+- **Terms of use for the CalRecycle layer, checked 2026-11-21:** the layer states none. CalRecycle's
+  conditions of use treat information on its website as public domain unless marked otherwise, so
+  the outlines are used with credit. Written confirmation from CalRecycle is still to come
+  (`DATA_TERMS.md`).
 - The project name still says "Bay Area". The owner will decide on the name later; until then, new
   copy avoids naming a region in titles.
