@@ -26,20 +26,20 @@ def _build(tmp_path, scope=None):
 
 
 def _sonoma_under_review(tmp_path):
-    """Make Sonoma Central a screening site, tie one plume to it, and put one plume east of
-    every region."""
+    """Make Sonoma Central a screening site, tie one plume to it, and put one plume in the
+    North Valley (just east of the Bay Area box) and one east of every region."""
     interim = tmp_path / "interim"
     sites = gpd.read_parquet(interim / "sites.parquet")
     sites["tier"] = ["pilot", "screen"]
     sites.to_parquet(interim / "sites.parquet")
     plumes = pd.read_parquet(interim / "plumes_attributed.parquet")
-    extra = plumes.iloc[[0, 0]].copy()
-    extra["plume_id"] = ["e-sonoma", "e-east"]
-    extra["site_id"] = ["sonoma-central", None]
-    extra["attribution"] = ["buffer", "none"]
-    extra["distance_m"] = [120.0, None]
-    extra["origin_lon"] = [-122.75, -121.196]
-    extra["origin_lat"] = [38.30, 37.872]
+    extra = plumes.iloc[[0, 0, 0]].copy()
+    extra["plume_id"] = ["e-sonoma", "e-valley", "e-east"]
+    extra["site_id"] = ["sonoma-central", None, None]
+    extra["attribution"] = ["buffer", "none", "none"]
+    extra["distance_m"] = [120.0, None, None]
+    extra["origin_lon"] = [-122.75, -121.196, -119.9]
+    extra["origin_lat"] = [38.30, 37.872, 37.3]
     pd.concat([plumes, extra], ignore_index=True).to_parquet(interim / "plumes_attributed.parquet")
 
 
@@ -65,11 +65,16 @@ def test_region_of_a_county_and_of_a_point():
     project = config.load_project()
     assert project.region_of_county("Santa Clara") == "bay-area"
     assert project.region_of_county(" sonoma ") == "bay-area"
-    assert project.region_of_county("San Joaquin") is None
+    assert project.region_of_county("San Joaquin") == "north-valley"
+    assert project.region_of_county("Kern") is None
     assert project.region_of_county(None) is None
     assert project.region_of_county(float("nan")) is None
     assert project.region_at(-121.94, 37.46) == "bay-area"
-    assert project.region_at(-121.196, 37.872) is None  # just east of the Bay Area box
+    # The two boxes overlap. A point in both counts as the Bay Area, as it did before the
+    # North Valley was added, so the plumes the public map shows stay the same.
+    assert project.region_at(-121.29, 37.96) == "bay-area"  # Stockton
+    assert project.region_at(-121.196, 37.872) == "north-valley"  # just east of the Bay Area box
+    assert project.region_at(-119.9, 37.3) is None  # east of every region
 
 
 def test_with_only_pilots_every_row_is_in_scope(tmp_path):
@@ -104,6 +109,9 @@ def test_rows_of_a_site_under_review_are_out_and_its_plume_keeps_only_its_place(
     assert plumes.loc["e1", ["public_scope", "site_public"]].tolist() == [True, True]
     # In an allowed region, tied to a site under review: shown, but not its tie to the site
     assert plumes.loc["e-sonoma", ["public_scope", "site_public"]].tolist() == [True, False]
+    # In a region that is not on the allowlist: not shown
+    assert plumes.loc["e-valley", ["public_scope", "site_public"]].tolist() == [False, True]
+    assert plumes.loc["e-valley", "region"] == "north-valley"
     # In no region: not shown
     assert plumes.loc["e-east", ["public_scope", "site_public"]].tolist() == [False, True]
     assert plumes.loc["e-east", "region"] is None

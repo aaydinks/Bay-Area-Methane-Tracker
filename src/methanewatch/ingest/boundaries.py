@@ -5,7 +5,7 @@ Checked live on 2026-10-27, all public with no key:
 
 - US Census 2025 cartographic boundaries (1:500,000): US counties, California places.
 - US Census TIGER/Line 2025: California tracts, primary and secondary roads, and area
-  water for each of the nine Bay Area counties.
+  water for each of the project's counties.
 - CARB air districts, layer ``CaAirDistrict_PublicWeb``, filtered to ``DIS='BA'``. CARB's
   metadata dates these boundaries to March 2004, so the outline carries
   ``DISTRICT_CAVEAT`` wherever it is written.
@@ -84,7 +84,7 @@ def pull(
     client: httpx.Client | None = None,
 ) -> Path:
     """Download every boundary file into ``raw_root/boundaries/<pull_id>/`` (about 60 MB for
-    nine counties)."""
+    the nine Bay Area counties)."""
     urls = sources(county_fips, districts)
     manifest = PullManifest.start(
         "boundaries",

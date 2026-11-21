@@ -20,6 +20,21 @@ regions:
       - { name: Santa Clara, fips: "085" }
       - { name: Solano, fips: "095" }
       - { name: Sonoma, fips: "097" }
+  - id: north-valley
+    label: North Valley
+    # The five counties' extent in the Census 2025 county file, rounded outwards. Merced
+    # County ends at 120.0521°W, so the east edge sits just inside UTM zone 10N.
+    bbox: [-122.43, 36.74, -120.05, 38.93]
+    # No separate district outline is pulled for these counties: each site's district is
+    # read from the outlines of every district that meets the project's box
+    # (`mw ingest air-districts`), and stays unconfirmed until a person has checked it.
+    carb_districts: []
+    counties:
+      - { name: Merced, fips: "047" }
+      - { name: Sacramento, fips: "067" }
+      - { name: San Joaquin, fips: "077" }
+      - { name: Stanislaus, fips: "099" }
+      - { name: Yolo, fips: "113" }
 
 paths:
   registry: data/registry # hand-curated, committed

@@ -2,8 +2,11 @@
 
 ## Screening list: `swis_landfills.csv`
 
-Every SWIS site in the nine Bay Area counties that has a "Solid Waste Landfill" activity:
-36 sites (16 active, 19 closed, 1 closing), including all five pilots. Columns: SWIS
+Every SWIS site in the project's fourteen counties that has a "Solid Waste Landfill"
+activity: 62 sites (31 active, 29 closed, 1 closing, 1 planned), including all five pilots.
+36 are in the nine Bay Area counties and 26 in the five North Valley counties (Merced 2,
+Sacramento 7, San Joaquin 12, Stanislaus 3, Yolo 2), pulled 2026-11-21. The 36 Bay Area
+rows are the same as in the pull of 2026-10-18. Columns: SWIS
 number, name, county, site and landfill status, regulatory status, address, latitude and
 longitude, page URL. Rebuild with `mw ingest calrecycle` then
 `mw datasets build --only calrecycle`.
@@ -18,6 +21,10 @@ site registry as the Bay Area screening tier (`data/registry/sites.csv`). One la
 reports methane to EPA is not on this list: Davis Street Sanitary Landfill in San Leandro
 (SWIS 01-AA-0006, EPA facility 1003800), which CalRecycle records under the activity "Solid
 Waste Disposal Site". Fourteen closed, permitted Bay Area sites carry that activity.
+
+North Valley, 2026-11-21: of the 26 landfills, 20 are permitted and are proposed for the
+screening tier (`mw sites screen`); they are not in the registry until the list has been
+reviewed by hand. The other six, all in San Joaquin County, are unpermitted and are left out.
 
 ## Pilot reference points: `swis_pilot_sites.csv`
 

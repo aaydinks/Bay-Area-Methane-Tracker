@@ -10,9 +10,30 @@ swis_number,name,county,site_status,landfill_status,regulatory_status,address,la
 07-AC-0042,USS-Posco Industries Waste Mgmt Unit II,Contra Costa,Active,Active,Exempt,"900 Loveridge Rd Pittsburg, CA 94565",38.02633,-121.86496,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/250
 21-AA-0001,Redwood Landfill,Marin,Active,Active,Permitted,"8950 Redwood Highway Novato, CA 94945",38.16564,-122.56835,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1727
 21-AA-0002,West Marin Sanitary Landfill,Marin,Closed,Closed,Permitted,"Hwy 1; 1 Mi N Pt Reyes Station Point Reyes Station, CA 94956",38.09595,-122.78883,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1728
+24-AA-0001,Highway 59 Landfill,Merced,Active,Active,Permitted,"7040 N. Hwy 59 Merced, CA 95348",37.4038,-120.49826,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1863
+24-AA-0002,Billy Wright Disposal Site,Merced,Active,Active,Permitted,"17173 Billy Wright Road Los Banos, CA 93522",37.03866,-120.97099,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/1864
 28-AA-0001,American Canyon Sanitary Landfill,Napa,Closed,Closed,Permitted,"Western Terminus Of Eucalyptus Drive Napa, CA 94589",38.18056,-122.27556,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2014
 28-AA-0002,Clover Flat Resource Recovery Park,Napa,Active,Active,Permitted,"4380 Silverado Trail Road Calistoga, CA 94515",38.584,-122.534,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2015
 28-AA-0003,Berryessa Garbage Service Disposal Site,Napa,Closed,Closed,Permitted,"Steele Canyon Road Napa, CA 94558",38.452,-122.1829,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2016
+34-AA-0001,Sacramento County Landfill (Kiefer),Sacramento,Active,Active,Permitted,"12701 Kiefer Blvd Sloughhouse, CA 95683",38.51667,-121.18667,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2507
+34-AA-0006,Aerojet Rocketdyne Inc.,Sacramento,Closed,Closed,Permitted,"3 Mi S Folsom; 1/2 Mi S Hwy 50 Rancho Cordova, CA 95742",38.63467,-121.1765,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2512
+34-AA-0007,Dixon Pit Landfill,Sacramento,Closed,Closed,Permitted,"8973 Elk Grove - Florin Road Elk Grove, CA 95624",38.43333,-121.369,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2513
+34-AA-0018,Sacramento City Landfill,Sacramento,Closed,Closed,Permitted,"28th and `A` Streets Sacramento, CA 95816",38.58736,-121.45592,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2522
+34-AA-0020,L and D Landfill,Sacramento,Active,Active,Permitted,"8635 Fruitridge Road Sacramento, CA 95826",38.528,-121.378,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2524
+34-AA-0029,EchoWater Resource Recovery Facility - Closed Grit & Screenings Landfill,Sacramento,Closed,Closed,Permitted,"8521 Laguna Station Road Elk Grove, CA 95758",38.445,-121.46778,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/2527
+34-AA-0240,Aerojet Waste Consolidation Unit (AWCU),Sacramento,Planned,Planned,Permitted,"12353 White Rock Road Rancho Cordova, CA 95742",38.58146,-121.2982,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5677
+39-AA-0002,French Camp Landfill,San Joaquin,Closed,Closed,Permitted,"3335 Manthey Road At Downing Ave Stockton, CA 95206",37.91431,-121.29024,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3095
+39-AA-0003,Harney Lane Sanitary Landfill,San Joaquin,Closed,Closed,Permitted,"1/4 Mi E Of Jack Tone Road Lodi, CA 99999",38.0994,-121.1364,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3096
+39-AA-0004,Foothill Sanitary Landfill,San Joaquin,Active,Active,Permitted,"6484 North Waverly Road Linden, CA 95236",38.03778,-120.93722,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3097
+39-AA-0005,Corral Hollow Landfill,San Joaquin,Closed,Closed,Permitted,"31130 S. Corral Hollow Road & I-580 Tracy, CA 95376",37.67058,-121.45933,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3098
+39-AA-0015,"Forward Landfill, Inc.",San Joaquin,Active,Active,Permitted,"9999 S. Austin Road Manteca, CA 95336",37.87417,-121.18828,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3106
+39-AA-0022,North County Landfill & Recycling Center,San Joaquin,Active,Active,Permitted,"17720 East Harney Lane Lodi, CA 95240",38.097,-121.10194,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3113
+39-AA-0062,Dhandwar Sukhwinder Singh (IDS),San Joaquin,Active,Active,Unpermitted,"29692 S Corral Hollow Rd Tracy, CA 95377",37.68678,-121.4508,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5747
+39-AA-0063,29800 Corral Hollow Road LLC,San Joaquin,Active,Active,Unpermitted,"29800 S Corral Hollow Rd Tracy, CA 95377",37.68338,-121.44872,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5764
+39-AA-0064,Sukhit Sandhu (IDS),San Joaquin,Active,Active,Unpermitted,"31310 S Tracy Blvd. Tracy, CA 95377",37.66934,-121.4321,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5768
+39-AA-0065,Amanjit Sandhu and RR Group 13 LLC (IDS),San Joaquin,Active,Active,Unpermitted,"29292 S Tracy Blvd Tracy, CA 95377",37.6853,-121.431,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5769
+39-AA-0066,30010 S Corral Hollow Road ,San Joaquin,Active,Active,Unpermitted,"30010 S Corral Hollow Rd Tracy, CA 95377",37.67899,-121.4471,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5777
+39-AA-0067,Sohan Farms LLC,San Joaquin,Active,Active,Unpermitted,"30758 S Corral Hollow Rd Tracy, CA 95377",37.63687,-121.4044,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/5789
 41-AA-0002,Corinda Los Trancos Landfill ( Ox Mtn),San Mateo,Active,Active,Permitted,"2 Mi N-E Half Moon Bay Off Hwy 92 Half Moon Bay, CA 94019",37.50057,-122.41078,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3223
 41-AA-0008,Hillside Class III Disposal Site,San Mateo,Closed,Closed,Permitted,"#1 Sandfill Road (1500 Hillside Blvd) Colma, CA 94014",37.683,-122.444,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3228
 41-AA-0009,Burlingame Refuse Disposal Area,San Mateo,Closed,Closed,Permitted,"Airport Blvd Near Broadway Burlingame, CA 94010",37.59043,-122.35454,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3229
@@ -35,3 +56,8 @@ swis_number,name,county,site_status,landfill_status,regulatory_status,address,la
 49-AA-0002,Annapolis Landfill,Sonoma,Closed,Closed,Permitted,"33549 Annapolis Road Annapolis, CA 95412",38.70667,-123.33944,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3622
 49-AA-0004,Healdsburg Disposal Site,Sonoma,Closed,Closed,Permitted,"2 Mi N Healdburg, 166 Alexander Rd. Healdsburg, CA 95448",38.65028,-122.86472,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3624
 49-AA-0009,Casa Grande Site,Sonoma,Closed,Closed,Permitted,"West End Of Casa Grande Road Petaluma, CA 94954",38.22944,-122.60861,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3629
+50-AA-0001,Fink Road Landfill,Stanislaus,Active,Active,Permitted,"4000 Fink Road Crows Landing, CA 95313",37.38816,-121.13633,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3733
+50-AA-0002,Geer Road Landfill,Stanislaus,Closed,Closed,Permitted,"750 Geer Road Modesto, CA 95357",37.62609,-120.85,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3734
+50-AA-0003,Bonzi Sanitation Landfill,Stanislaus,Closed,Closed,Permitted,"2650 West Hatch Road Modesto, CA 95358",37.60566,-121.03684,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/3735
+57-AA-0001,Yolo County Central Landfill,Yolo,Active,Active,Permitted,County Road 28h &,38.59641,-121.6824,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/4033
+57-AA-0004,Univ Of Calif Davis Sanitary Landfill,Yolo,Closed,Closed,Permitted,West End Of UCD Campus On,38.53073,-121.8073,https://www2.calrecycle.ca.gov/SolidWaste/Site/Details/4036

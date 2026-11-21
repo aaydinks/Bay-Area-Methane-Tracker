@@ -231,10 +231,11 @@ def test_push_carries_the_stamp_into_the_database(test_dsn, tmp_path):
             plumes = rows(
                 conn,
                 "select plume_id, region, public_scope, site_public from public.plumes "
-                "where plume_id in ('e1', 'e-sonoma', 'e-east')",
+                "where plume_id in ('e1', 'e-sonoma', 'e-valley', 'e-east')",
             )
             assert {p[0]: p[1:] for p in plumes} == {
                 "e-east": (None, False, True),
+                "e-valley": ("north-valley", False, True),
                 "e-sonoma": ("bay-area", True, False),
                 "e1": ("bay-area", True, True),
             }

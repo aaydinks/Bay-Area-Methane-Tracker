@@ -4,7 +4,8 @@ to say which air district each site sits in (ADR 0018).
 Checked live on 2026-11-20. The same public layer as the Bay Area outline in
 ``boundaries.py`` (``CaAirDistrict_PublicWeb``, no login), asked for every district whose
 outline meets a box instead of for district codes, so no code has to be known in advance.
-Over the Bay Area region's box it returns ten districts.
+Over the Bay Area region's box it returns ten districts; over the box that also covers the
+North Valley (2026-11-21), seventeen.
 
 Two cautions:
 
