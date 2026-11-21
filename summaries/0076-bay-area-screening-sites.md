@@ -1,6 +1,6 @@
 # PR #76: The Bay Area screening sites join the site list
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/76)
+**Status:** merged 2026-11-21 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/76)
 
 ## In one sentence
 
