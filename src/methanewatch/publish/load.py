@@ -106,9 +106,15 @@ def _insert(
         expr = geometry.get(c, "%s")
         placeholders.append(expr)
     sql = f"insert into public.{table} ({', '.join(cols)}) values ({', '.join(placeholders)})"
-    # display_only defaults to false for snapshots written before ADR 0017, and the scope
-    # columns to "in scope" for snapshots written before ADR 0021.
-    defaults = {"publish_id": publish_id, "display_only": False, **pub.SCOPE_DEFAULTS}
+    # display_only defaults to false for snapshots written before ADR 0017, the scope columns
+    # to "in scope" for snapshots written before ADR 0021, and an air district to unconfirmed
+    # for snapshots written before sites carried one.
+    defaults = {
+        "publish_id": publish_id,
+        "display_only": False,
+        "air_district_confirmed": False,
+        **pub.SCOPE_DEFAULTS,
+    }
     cur.executemany(sql, _rows(df, cols, defaults))
     return len(df)
 

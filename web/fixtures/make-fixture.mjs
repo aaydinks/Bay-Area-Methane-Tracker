@@ -140,6 +140,7 @@ const sites = PUBS.flatMap((pub) => SITES.map((s) => ({
   tier: 'pilot', status: s.status, swis_number: s.swis, ghgrp_facility_id: s.ghgrp, polygon_source: 'provisional 500 m buffer around the CalRecycle SWIS point',
   provisional: true, area_km2: 0.785, lon: s.lon, lat: s.lat, outline_geojson: circle(s.lon, s.lat, 500),
   region: 'bay-area', public_scope: true,
+  air_district: 'Bay Area', air_district_confirmed: false, district_facility_id: null,
 })));
 
 const neighbours = PUBS.map((pub) => ({

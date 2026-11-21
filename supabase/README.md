@@ -26,12 +26,17 @@ browser never talks to the database.
     `site_public` and `region` on plumes, `region` on sites. The row-level rules and the five
     functions honour them, so a public publication can also hold sites that stay on the review
     copy. Everything defaults to in scope.
+  - `0009` site identifiers (ADR 0018): `air_district`, `air_district_confirmed` and
+    `district_facility_id` on sites, shown at the end of `v_sites`. A district read from CARB's
+    2004 outlines stays unconfirmed until a person has checked it.
 
 ## Rules
 
 - Nothing is applied to the live project without the owner's OK. Migrations are applied through the
   Supabase connector (which records them in the project's migration table) or, if the Supabase CLI is
-  installed, with `supabase db push`.
+  installed, with `supabase db push`. `0008` was applied a third way: the file itself, unchanged,
+  sent in one transaction over the project's database connection and recorded in the migration
+  table in that same transaction. Whichever way is used, the text applied must be the file's.
 - After every applied migration, run the Supabase security and performance advisors and fix what they
   report.
 - Rows from a source whose terms are not confirmed (Carbon Mapper today) carry `restricted = true`.

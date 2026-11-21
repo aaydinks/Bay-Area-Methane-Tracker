@@ -47,12 +47,7 @@ CSV_TABLES = ("overpasses", "detections", "plumes_attributed", "unmatched_plumes
 
 def _sites(project: ProjectConfig) -> dict[str, Any]:
     registry_dir = project.resolve(project.paths.registry)
-    sites = registry.build_registry(
-        registry_dir,
-        project.resolve(project.paths.interim),
-        region_bbox=project.bbox,
-        metric_crs=project.crs_metric,
-    )
+    sites = registry.build_project_registry(project)
     if sites.empty:
         raise FileNotFoundError("no site boundary polygons in data/registry/sites.geojson")
     sources = sites.get("polygon_source", pd.Series("", index=sites.index)).fillna("").str.lower()
@@ -60,6 +55,7 @@ def _sites(project: ProjectConfig) -> dict[str, Any]:
         "sites": len(sites),
         "missing_polygons": registry.missing_polygons(registry_dir),
         "provisional_outlines": sorted(sites.loc[sources.str.contains("provisional"), "site_id"]),
+        "air_district_notes": registry.district_notes(sites),
     }
 
 

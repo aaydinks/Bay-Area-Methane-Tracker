@@ -201,22 +201,16 @@ def sites_screen() -> None:
         if path is None or not path.exists():
             typer.secho(f"missing input; {hint}", fg=typer.colors.YELLOW, err=True)
             raise typer.Exit(code=2)
-    existing = registry.build_registry(
-        registry_dir,
-        project.resolve(project.paths.interim),
-        region_bbox=project.bbox,
-        metric_crs=project.crs_metric,
-    )
-    existing = gpd.GeoDataFrame(existing[["site_id", "geometry"]], crs="EPSG:4326")
-    pilots = pd.read_csv(datasets_dir / "swis_pilot_sites.csv", dtype=str)
-    pilots = pilots[pilots["site_id"].isin(existing["site_id"])]
+    built = registry.build_project_registry(project)
+    existing = gpd.GeoDataFrame(built[["site_id", "geometry"]], crs="EPSG:4326")
+    numbered = built[built["swis_number"] != ""]
     overrides_path = registry_dir / "screening_overrides.csv"
     proposal = screening.propose(
         pd.read_csv(datasets_dir / "swis_landfills.csv"),
         calrecycle_boundaries.outlines(boundary_file),
-        county_region={c.name: r.id for r in project.regions for c in r.counties},
+        county_region=project.county_region,
         existing=existing,
-        existing_swis=dict(zip(pilots["swis_number"], pilots["site_id"], strict=True)),
+        existing_swis=dict(zip(numbered["swis_number"], numbered["site_id"], strict=True)),
         boundaries_as_of=calrecycle_boundaries.DATA_AS_OF,
         overrides=pd.read_csv(overrides_path, dtype=str) if overrides_path.exists() else None,
         metric_crs=project.crs_metric,
@@ -250,16 +244,13 @@ def sites_build() -> None:
     if missing:
         typer.secho(f"no boundary polygon yet: {', '.join(missing)}", fg=typer.colors.YELLOW)
     try:
-        sites = registry.build_registry(
-            registry_dir,
-            project.resolve(project.paths.interim),
-            region_bbox=project.bbox,
-            metric_crs=project.crs_metric,
-        )
+        sites = registry.build_project_registry(project)
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"wrote {len(sites)} sites to data/interim/sites.parquet")
+    for note in registry.district_notes(sites):
+        typer.secho(note, fg=typer.colors.YELLOW)
 
 
 BBoxOpt = Annotated[
@@ -340,6 +331,16 @@ def ingest_calrecycle_boundaries() -> None:
 
     project = config.load_project()
     typer.echo(f"wrote {calrecycle_boundaries.pull(project.resolve(project.paths.raw))}")
+
+
+@ingest_app.command("air-districts")
+def ingest_air_districts() -> None:
+    """CARB's outlines of every air district that touches the project's regions (as of 2004;
+    a district read from them stays unconfirmed until checked)."""
+    from methanewatch.ingest import air_districts
+
+    project = config.load_project()
+    typer.echo(f"wrote {air_districts.pull(project.resolve(project.paths.raw), project.bbox)}")
 
 
 @ingest_app.command("boundaries")
@@ -777,7 +778,7 @@ def datasets_build(
         list[str] | None,
         typer.Option(
             help="emit, sentinel2, carbonmapper, ghgrp, calrecycle, census, boundaries, "
-            "sentinel2-crops, emit-files"
+            "air-districts, sentinel2-crops, emit-files"
         ),
     ] = None,
 ) -> None:
@@ -805,6 +806,7 @@ def datasets_build(
         "boundaries": lambda: datasets.build_boundaries(
             raw, root / "boundaries", list(project.county_fips), project.carb_districts
         ),
+        "air-districts": lambda: datasets.build_air_districts(raw, root / "boundaries"),
         "sentinel2-crops": lambda: datasets.build_sentinel2_crops(root, interim, sites),
         "emit-files": lambda: datasets.build_emit_files(raw, root, sites),
     }

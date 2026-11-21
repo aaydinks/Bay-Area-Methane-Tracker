@@ -55,6 +55,10 @@ def _write_inputs(tmp_path, *, bad_description=False, demo=False, cloud_detail=T
             "tier": "pilot",
             "status": ["active", "active"],
             "operator": [None, "Republic Services of Sonoma County"],
+            "swis_number": ["43-AN-0003", "49-AA-0001"],
+            "air_district": "Bay Area",
+            "air_district_confirmed": [False, True],
+            "district_facility_id": ["", "TEST-1"],
             "polygon_source": "provisional 500 m buffer",
             "notes": ["14 violations June 2023", "internal note"],  # never published
         },
@@ -256,6 +260,18 @@ def test_build_marks_restricted_rows_and_labels_results(tmp_path):
     )
     assert s.publication["provisional"] and not s.publication["simulated"]
     assert t["sites"]["provisional"].all() and "notes" not in t["sites"].columns
+    ids = t["sites"].set_index("site_id")
+    assert ids["swis_number"].to_dict() == {
+        "newby-island": "43-AN-0003",
+        "sonoma-central": "49-AA-0001",
+    }
+    assert (ids["air_district"] == "Bay Area").all()
+    assert ids["air_district_confirmed"].to_dict() == {
+        "newby-island": False,
+        "sonoma-central": True,
+    }
+    assert pd.isna(ids["district_facility_id"]["newby-island"])  # blank in the registry
+    assert ids["district_facility_id"]["sonoma-central"] == "TEST-1"
     assert t["passes"].set_index("instrument")["restricted"].to_dict() == {
         "emit": False,
         "tanager1": True,

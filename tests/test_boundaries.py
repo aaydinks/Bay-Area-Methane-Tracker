@@ -76,14 +76,14 @@ def test_district_from_recorded_carb_response():
 def test_carb_query_keeps_the_recorded_form_for_one_district():
     # The recorded fixture and every earlier pull used exactly this filter
     assert boundaries.carb_query(BA)["where"] == "DIS='BA'"
-    assert boundaries.carb_query(("BA", "SJV"))["where"] == "DIS IN ('BA','SJV')"
+    assert boundaries.carb_query(("BA", "SJU"))["where"] == "DIS IN ('BA','SJU')"
     with pytest.raises(ValueError, match="no CARB district codes"):
         boundaries.carb_query(())
 
 
 def test_district_rejects_an_answer_with_other_districts():
     with pytest.raises(ValueError, match="expected DIS"):
-        boundaries.district(FX / "carb_air_district_ba.geojson", ("BA", "SJV"))
+        boundaries.district(FX / "carb_air_district_ba.geojson", ("BA", "SJU"))
 
 
 def _county_zip(raw_pull: Path) -> None:
