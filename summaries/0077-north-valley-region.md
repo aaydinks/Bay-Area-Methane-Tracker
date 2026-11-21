@@ -1,6 +1,6 @@
 # PR #77: The project now looks at the North Valley
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/77)
+**Status:** merged 2026-11-21 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/77)
 
 ## In one sentence
 
