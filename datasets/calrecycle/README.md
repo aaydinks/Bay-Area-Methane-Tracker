@@ -22,9 +22,11 @@ reports methane to EPA is not on this list: Davis Street Sanitary Landfill in Sa
 (SWIS 01-AA-0006, EPA facility 1003800), which CalRecycle records under the activity "Solid
 Waste Disposal Site". Fourteen closed, permitted Bay Area sites carry that activity.
 
-North Valley, 2026-11-21: of the 26 landfills, 20 are permitted and are proposed for the
-screening tier (`mw sites screen`); they are not in the registry until the list has been
-reviewed by hand. The other six, all in San Joaquin County, are unpermitted and are left out.
+North Valley, 2026-11-21: of the 26 landfills, 20 are permitted. After a hand review, 19
+entered the site registry as the North Valley screening tier. The twentieth, the Aerojet
+Waste Consolidation Unit (34-AA-0240), is listed as planned and was left out
+(`data/registry/screening_overrides.csv`). The other six, all in San Joaquin County, are
+unpermitted and are left out by the rule.
 
 ## Pilot reference points: `swis_pilot_sites.csv`
 
