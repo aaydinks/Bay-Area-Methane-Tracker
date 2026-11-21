@@ -5,12 +5,13 @@ Hand-curated inputs. These are the only data files tracked in git.
 | File | Contents |
 |---|---|
 | `sites.csv` | One row per landfill: attributes, tier (`pilot` / `screen`), known neighbor sources |
-| `sites.geojson` | Boundary polygons, keyed by `site_id`; pilot sites also get `working_face` and `closed` parts. **For now every outline is a provisional 500 m circle** around the CalRecycle SWIS point, and `polygon_source` in `sites.csv` says so. Real outlines replace them under ADR 0018 |
+| `sites.geojson` | Boundary polygons, keyed by `site_id`; pilot sites also get `working_face` and `closed` parts. `polygon_source` in `sites.csv` says where each outline comes from. **The five pilots still have a provisional 500 m circle** around the CalRecycle SWIS point; real outlines replace them under ADR 0018. Of the 28 Bay Area screening sites, 14 have CalRecycle's drawn outline (data as of September 2021) and 14 a provisional 750 m circle |
 | `checks.csv` | Dated checks: Air District inspections and notices, operator repairs (with a `repair_kind`), CARB plume notices. **Every row cites a source document** (order, notice, monitoring report, operator log). An official title goes in `source_doc_title`; `description` is in the project's own words |
 | `operator_crosswalk.csv` | Maps `site_id` to EPA GHGRP and CARB reporting IDs |
 
 Blank fields in `sites.csv` are filled from permits and Air District records; do not fill them from memory.
 The screening tier is proposed by `mw sites screen` and enters this folder only after a hand review.
+The Bay Area screening rows were reviewed and added on 2026-11-21. Their names and ids are short forms chosen by hand; `notes` keeps the name CalRecycle uses. Their `city` is the city in CalRecycle's address (EPA's city for American Canyon). `operator`, `ghgrp_facility_id` and `neighbors` are blank until each is checked.
 
 ## Identifying columns in `sites.csv`
 

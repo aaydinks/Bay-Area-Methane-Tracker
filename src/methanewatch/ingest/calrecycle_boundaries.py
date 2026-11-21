@@ -8,8 +8,10 @@ Two cautions:
 
 - The layer reports its data as last edited on 2021-09-30, so an outline can be older than
   the site's current permit.
-- No terms of reuse were found on the layer. Check them before an outline from it is
-  committed to the registry.
+- The layer, its service and its catalogue entry state no terms of reuse (checked
+  2026-11-21). CalRecycle's conditions of use treat information on its website as public
+  domain unless marked otherwise, so outlines are used with credit; written confirmation
+  from CalRecycle is still to come (DATA_TERMS.md).
 """
 
 from __future__ import annotations
