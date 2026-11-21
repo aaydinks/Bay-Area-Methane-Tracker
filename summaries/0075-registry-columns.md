@@ -1,6 +1,6 @@
 # PR #75: Each site records its region, state site number and air district
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/75)
+**Status:** merged 2026-11-20 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/75)
 
 ## In one sentence
 
@@ -49,8 +49,9 @@ have to be written down per site:
 
 ## Still to do
 
-- The database change must be applied to the live database before this is merged. That needs the
-  project owner's go-ahead.
+- Done on 2026-11-20, with the project owner's go-ahead: the database change was applied to the live
+  database from the file itself. Read with the public key afterwards, every existing site field
+  and every count was unchanged.
 - Nobody has yet confirmed any site's air district with the district itself.
 - The website does not show the air district yet; that comes with the wording for several
   regulators.
