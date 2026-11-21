@@ -72,8 +72,23 @@ Two facts about the present state matter:
 - Dairies and other methane sources sit near Valley landfills. A plume that Carbon Mapper tags with
   a sector other than waste is marked ambiguous and never assigned to a landfill. That rule also
   touches the pilots, so it lands together with their new outlines and refit.
-- **Still to check:** the date of CARB's district outlines; the final box of each region against
-  county outlines.
+- **Still to check:** the date of CARB's district outlines.
+- **The North Valley box, set 2026-11-21:** `-122.43, 36.74, -120.05, 38.93`, the five counties'
+  extent in the Census 2025 county file, rounded outwards. Merced County ends at 120.0521°W, so
+  the box stops 0.05° short of the edge of UTM zone 10N. The Bay Area box was checked against the
+  same file and still covers its nine counties.
+- **What the final box returns, pulled 2026-11-21:** NASA EMIT, 457 scenes and 43 plume
+  complexes (NASA has added complexes since the 19th; the Bay Area box alone now has 17).
+  Carbon Mapper, 701 methane plumes since August 2022, 657 of them tagged as waste; 85 of the
+  701 lie outside the Bay Area box (57 waste, 17 livestock, 11 other or untagged). The 1,196
+  recorded above counted every date back to 2016 over a slightly larger box, whose southern strip
+  took in 156 plumes at one place in Monterey County; over the final box that count is 1,040. CalRecycle lists
+  26 landfills in the five counties, 20 of them permitted. EPA's 2023 list is unchanged: 17 and 6.
+- **The two boxes overlap.** The Bay Area box has always reached Sacramento, Stockton and Davis. A
+  site's region comes from its county, so the overlap never touches a site. A plume's region comes
+  from the boxes, and a plume in both counts as the Bay Area, as it did before, so the public map
+  shows the same plumes as before. Whether plumes in North Valley counties should leave the public
+  map until that region's review is the owner's call.
 - **Terms of use for the CalRecycle layer, checked 2026-11-21:** the layer states none. CalRecycle's
   conditions of use treat information on its website as public domain unless marked otherwise, so
   the outlines are used with credit. Written confirmation from CalRecycle is still to come

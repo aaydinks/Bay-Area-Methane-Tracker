@@ -6,7 +6,7 @@ Outlines for maps and for describing where a site sits. Nothing here is a model 
 |---|---|---|
 | `counties_2025.geojson` | US Census 2025 cartographic boundaries, 1:500,000 | The nine Bay Area counties: `GEOID`, `COUNTYFP`, `NAME`, outline. Simplified (108 KB) |
 | `air_district_bay_area.geojson` | CARB air districts, `DIS='BA'` | The Bay Area air district outline **as of March 2004; check against current BAAQMD**: `NAME`, `DIS`, `boundary_as_of`, `caveat`, outline. Not simplified (629 KB) |
-| `air_districts.geojson` | CARB air districts, every district whose outline meets the project's regions | Ten district outlines **as of March 2004**: `NAME`, `DIS`, `boundary_as_of`, outline. Not simplified (2.3 MB). The site registry reads this file to say which air district each landfill sits in; that answer stays unconfirmed until checked with the district |
+| `air_districts.geojson` | CARB air districts, every district whose outline meets the project's regions | Seventeen district outlines **as of March 2004**: `NAME`, `DIS`, `boundary_as_of`, outline. Not simplified (3.7 MB). The site registry reads this file to say which air district each landfill sits in; that answer stays unconfirmed until checked with the district |
 | `pulls/` | | Manifest of the download these were built from: every URL, the time, and a sha256 hash of each file |
 
 Both files are EPSG:4326, coordinates rounded to 6 decimals (about 0.1 m).
@@ -24,10 +24,13 @@ Both files are EPSG:4326, coordinates rounded to 6 decimals (about 0.1 m).
   `caveat = "check against current BAAQMD"`.
 
 - **Air districts for the registry.** The same CARB layer, asked for every district whose
-  outline meets the box around the project's regions (pulled 2026-11-20), so no district
-  code has to be known in advance. For the Bay Area region that is ten districts: Bay Area,
-  Northern Sonoma, Yolo-Solano, and seven that only touch the box (Feather River, Lake,
-  Mendocino, Monterey Bay Unified, Placer, Sacramento Metro, San Joaquin Valley Unified).
+  outline meets the box around the project's regions, so no district code has to be known
+  in advance. Pulled 2026-11-20 for the Bay Area box (ten districts) and again 2026-11-21
+  for the box that also covers the North Valley (seventeen). The first ten are Bay Area,
+  Northern Sonoma, Yolo-Solano, Sacramento Metro, San Joaquin Valley Unified, Feather River,
+  Lake, Mendocino, Monterey Bay Unified and Placer; their outlines are the same in both
+  pulls. The wider box adds seven that only touch its edges: Amador, Calaveras, Colusa,
+  El Dorado, Great Basin Unified, Mariposa and Tuolumne.
   The outlines do not overlap one another. Kept at full detail for the same reason as above.
   All five pilot sites lie wholly inside the Bay Area outline, at least 1.6 km from its edge.
 

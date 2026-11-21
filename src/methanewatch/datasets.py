@@ -288,7 +288,7 @@ def build_emit_files(raw: Path, root: Path, sites: gpd.GeoDataFrame, half_m: flo
 
 
 def build_calrecycle(raw: Path, out: Path) -> dict[str, int]:
-    """Screening list: every SWIS site in the nine counties with a landfill activity."""
+    """Screening list: every SWIS site in the project's counties with a landfill activity."""
     from methanewatch.ingest import calrecycle
 
     pulls = sorted((raw / "calrecycle").glob("calrecycle-*"))

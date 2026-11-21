@@ -1,0 +1,23 @@
+{
+  "endpoint": "https://gis.carb.arb.ca.gov/hosting/rest/services/California_Air_Resources_Board_Air_Districts_MIL1/MapServer/0/query",
+  "files": {
+    "carb_air_districts.geojson": "2fc70291189af9bad2d2d438cfed31f3bea94c099935854e9646bd0e637159e2"
+  },
+  "finished_at": "2026-11-21T22:16:32.291593+00:00",
+  "git_sha": "a5033dbf68178c48c65aecd461a7d5e518395a02",
+  "n_records": 17,
+  "params": {
+    "district_as_of": "2004-03",
+    "f": "geojson",
+    "geometry": "-123.64,36.74,-120.05,38.93",
+    "geometryType": "esriGeometryEnvelope",
+    "inSR": "4326",
+    "outFields": "NAME,DIS",
+    "outSR": "4326",
+    "spatialRel": "esriSpatialRelIntersects",
+    "where": "1=1"
+  },
+  "pull_id": "air-districts-20261121T221629Z",
+  "source": "air-districts",
+  "started_at": "2026-11-21T22:16:29.933459+00:00"
+}

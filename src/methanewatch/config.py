@@ -194,7 +194,11 @@ class ProjectConfig(_Strict):
         return None
 
     def region_at(self, lon: float, lat: float) -> str | None:
-        """The first region whose box holds the point; ``None`` outside every region."""
+        """The first region whose box holds the point; ``None`` outside every region.
+
+        Region boxes overlap (the Bay Area's reaches Sacramento and Stockton), so the order of
+        the list in ``project.yaml`` decides: a point in two boxes belongs to the earlier
+        region. This is a box test, not a county test."""
         for r in self.regions:
             west, south, east, north = r.bbox
             if west <= lon <= east and south <= lat <= north:

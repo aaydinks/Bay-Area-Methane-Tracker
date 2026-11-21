@@ -314,8 +314,8 @@ def ingest_emit(
 
 @ingest_app.command("calrecycle")
 def ingest_calrecycle() -> None:
-    """CalRecycle SWIS sites with a landfill activity in the project's counties (about 2 minutes
-    for nine counties)."""
+    """CalRecycle SWIS sites with a landfill activity in the project's counties (about 5 minutes
+    for fourteen counties)."""
     from methanewatch.ingest import calrecycle
 
     project = config.load_project()

@@ -12,7 +12,7 @@ built from: the endpoint, the query, the time, and a sha256 hash of each raw fil
 | [`sentinel2/`](sentinel2/) | ESA Copernicus Sentinel-2 Level-1C | Scene list, and small band crops around the pilot sites on plume days and reference days | Yes |
 | [`census/`](census/) | US Census 2020 blocks (TIGER/Line) | Block population for the nine Bay Area counties, block outlines near the pilot sites | Yes |
 | [`ghgrp/`](ghgrp/) | US EPA Greenhouse Gas Reporting Program | Operator-reported emissions for the crosswalked sites, Bay Area landfill list | Yes |
-| [`calrecycle/`](calrecycle/) | CalRecycle Solid Waste Information System | Reference points for the pilot sites; screening list of 36 Bay Area landfills | Yes |
+| [`calrecycle/`](calrecycle/) | CalRecycle Solid Waste Information System | Reference points for the pilot sites; list of 62 landfills in the fourteen counties (36 Bay Area, 26 North Valley) | Yes |
 | [`boundaries/`](boundaries/) | US Census 2025 cartographic boundaries; CARB air districts | Nine county outlines (simplified); Bay Area air district outline as of March 2004, check against current BAAQMD. Tracts, roads and water stay in `data/raw` | Yes |
 
 ## How it is built
@@ -65,6 +65,11 @@ The census block file is downloaded by hand once (see [`census/README.md`](censu
 - **Nine-county box** (`-123.64, 36.89, -121.20, 38.87`, the extent of Alameda, Contra
   Costa, Marin, Napa, San Francisco, San Mateo, Santa Clara, Solano and Sonoma counties
   from Census TIGERweb). Used for catalogs: EMIT, Carbon Mapper and census.
+- **Project box** (`-123.64, 36.74, -120.05, 38.93`), which covers both regions in
+  `config/project.yaml`: the nine Bay Area counties and the five North Valley counties
+  (Merced, Sacramento, San Joaquin, Stanislaus, Yolo). Since 2026-11-21 the scheduled
+  refresh asks EMIT and Carbon Mapper for this box. The EMIT files committed here were
+  last committed for the nine-county box.
 - **Pilot box** (`-122.8, 37.3, -121.8, 38.4`), around the five pilot sites. Used for
   Sentinel-2 scenes.
 - **Dates:** 2022-08-10 (EMIT's first methane scenes) to 2026-10-17.

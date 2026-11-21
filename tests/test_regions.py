@@ -33,8 +33,33 @@ def test_bay_area_region_matches_the_values_the_code_used_before():
     assert bay.carb_districts == ("BA",)
 
 
+FIVE = {
+    "047": "Merced",
+    "067": "Sacramento",
+    "077": "San Joaquin",
+    "099": "Stanislaus",
+    "113": "Yolo",
+}
+
+
+def test_north_valley_region_is_the_five_counties():
+    project = config.load_project()
+    assert [r.id for r in project.regions] == ["bay-area", "north-valley"]  # overlap: first wins
+    valley = project.regions[1]
+    assert {c.fips: c.name for c in valley.counties} == FIVE
+    # the five counties' extent in the Census 2025 county file, rounded outwards
+    west, south, east, north = valley.bbox
+    assert west <= -122.4220 and south <= 36.7404 and east >= -120.0521 and north >= 38.9259
+    assert east < config.UTM10_EAST_LON
+    assert valley.carb_districts == ()
+    assert project.bbox == (-123.64, 36.74, -120.05, 38.93)
+    assert project.county_fips == dict(sorted((NINE | FIVE).items()))
+    assert project.carb_districts == ("BA",)
+
+
 def test_project_box_and_counties_cover_every_region():
     raw = _raw()
+    raw["regions"] = raw["regions"][:1]
     raw["regions"].append(
         {
             "id": "north-valley",
