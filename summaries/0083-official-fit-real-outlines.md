@@ -1,6 +1,6 @@
 # PR #83: The fit on the real outlines becomes the official one
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/83)
+**Status:** merged 2026-11-22 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/83)
 
 ## In one sentence
 
