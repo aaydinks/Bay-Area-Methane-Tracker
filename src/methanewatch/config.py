@@ -47,6 +47,9 @@ class Paths(_Strict):
 class Attribution(_Strict):
     buffer_m: float = Field(gt=0)
     search_radius_km: float = Field(gt=0)
+    # Sector tags (a plume's ``ipcc_sector``) that mean landfill. A plume on or beside a site
+    # with any other tag is marked ambiguous and never assigned (decision record 0022).
+    waste_sectors: tuple[str, ...] = Field(min_length=1)
 
 
 class Coverage(_Strict):

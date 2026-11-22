@@ -54,6 +54,9 @@ ingest:
 attribution:
   buffer_m: 500 # plume origin within polygon + buffer -> attributed to the site
   search_radius_km: 5 # pull every plume within this distance of a site
+  # Carbon Mapper's sector tags that mean landfill. A plume on or beside a site that carries
+  # any other tag is marked ambiguous and never assigned; a plume with no tag is not (ADR 0022).
+  waste_sectors: ["Solid Waste (6A)"]
 
 coverage:
   min_coverage_frac: 0.8 # share of the site polygon inside the footprint
