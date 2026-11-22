@@ -406,6 +406,10 @@ def test_nasa_emit_complexes_are_listed_as_open_plumes(tmp_path):
     assert (near["lon"], near["lat"]) == pytest.approx((lon, lat), abs=1e-5)  # outline centroid
     assert pd.isna(near["q_kg_hr"]) and near["data_version"] == "002"
     assert far["attribution"] == "none" and pd.isna(far["overpass_id"]) and not far["restricted"]
+    # A plume tied to no site says nothing about how far the nearest listed site is: that site
+    # may be one the public website does not show yet.
+    assert near["distance_m"] == 0.0
+    assert pd.isna(far["site_id"]) and pd.isna(far["distance_m"])
     # Listed, not counted: a complex has no rate, so it does not mark its pass.
     emit = s.tables["passes"].set_index("instrument").loc["emit"]
     assert not emit["detected"] and emit["n_plumes"] == 0

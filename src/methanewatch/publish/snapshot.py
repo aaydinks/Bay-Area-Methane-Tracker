@@ -543,7 +543,9 @@ def build(
                 "q_sigma_kg_hr": pl["q_sigma_kg_hr"],
                 "site_id": pl["site_id"],
                 "attribution": pl["attribution"],
-                "distance_m": pl["distance_m"],
+                # A plume tied to no site would otherwise carry its distance to the nearest
+                # site on the list, which may be one the public website does not show yet.
+                "distance_m": pl["distance_m"].where(pl["site_id"].notna()),
                 "data_version": pl.get("data_version"),
                 "overpass_id": key.where(key.isin(known)),
                 "restricted": pl["source"].isin(restricted_sources),
