@@ -1,6 +1,6 @@
 # PR #78: The North Valley landfills join the site list
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/78)
+**Status:** merged 2026-11-21 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/78)
 
 ## In one sentence
 
