@@ -1,6 +1,6 @@
 # PR #80: Saved satellite windows follow a landfill when its outline changes
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/80)
+**Status:** merged 2026-11-22 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/80)
 
 ## In one sentence
 
