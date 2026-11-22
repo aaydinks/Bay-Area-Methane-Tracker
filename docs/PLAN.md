@@ -202,7 +202,7 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 | data_version | str | e.g. EMIT v2 only; v1 is decommissioned |
 | site_id | str? | after attribution |
 | attribution | enum | `inside`, `buffer`, `ambiguous`, `nearby`, `none` |
-| distance_m | float | origin to polygon edge (0 if inside) |
+| distance_m | float | origin to polygon edge (0 if inside); published only for a plume tied to a site |
 | pull_id | str | → provenance |
 
 ### 4.4 `detections` (model input, built by joining 4.2 + 4.3)
