@@ -25,6 +25,11 @@ def full(value=4):
     return np.full((N, N), value, np.uint8)
 
 
+def around(x, y):
+    """The window a real fetch would cut around (x, y) on the test tile's grid."""
+    return np.array(sc.snapped_bounds(ULX, ULY, x, y))
+
+
 def scored(scl):
     rs, cs = sc.scored_slice()
     return scl[rs, cs]
@@ -99,7 +104,7 @@ def window13(path, scl):
         dn=np.zeros((13, N, N), np.uint16),
         valid=np.ones((N, N), bool),
         scl=scl,
-        bounds=np.array([ULX, ULY - 6000, ULX + 6000, ULY]),
+        bounds=np.array([-3000.0, -3000.0, 3000.0, 3000.0]),  # around the passes' (0, 0)
         consts={"quantification": 10000.0},
         scl_source={"collection": "sentinel-2-c1-l2a", "item": "w13", "href": "h"},
     )
@@ -142,6 +147,40 @@ def test_run_reuses_caches_and_lists_what_has_no_share(tmp_path, monkeypatch):
     assert "Remote end closed" in out.loc["e.SAFE", "error"]
     assert (out["valid_frac"] == 0.4).all()  # the tile figure is kept
     assert new == [scl.cache_file(pull, "s", "c.SAFE")]  # no-match passes are not cached
+
+
+def test_a_window_cut_around_another_centre_is_read_again(tmp_path, monkeypatch):
+    # A site's outline was replaced and its centroid moved 400 m: the cached windows were cut
+    # around the old centroid, so they are not the windows these passes ask for.
+    moved = np.array([-3000.0, -2600.0, 3000.0, 3400.0])
+    old = tmp_path / "s2scl-20261101T000000Z"
+    scl.SclWindow(full(9), moved, {"item": "stale"}).save(scl.cache_file(old, "s", "a.SAFE"))
+    windows = tmp_path / "s2windows-20261107T000000Z"
+    w13 = window13(sc.cache_file(windows, "s", "b.SAFE"), full(8))
+    with np.load(w13) as z:
+        np.savez_compressed(w13, **{**dict(z), "bounds": moved})
+    asked = []
+
+    def fetch(uri, x, y, client):
+        asked.append(uri)
+        return scl.SclWindow(full(), np.array([-3000.0, -3000.0, 3000.0, 3000.0]), {"item": uri})
+
+    monkeypatch.setattr(scl, "fetch", fetch)
+    pull = tmp_path / "s2scl-20261122T000000Z"
+    out, new = scl.run(passes("a.SAFE", "b.SAFE"), [old], [windows], pull, client=object())
+    assert sorted(asked) == ["a.SAFE", "b.SAFE"] and (out["fetch"] == "new").all()
+    assert (out["valid_frac_site"] == 1.0).all()  # the new windows' share, not the stale ones'
+    # The next run finds the new windows and asks for nothing.
+    asked.clear()
+    out, new = scl.run(passes("a.SAFE", "b.SAFE"), [old, pull], [windows], tmp_path / "next")
+    assert asked == [] and new == [] and (out["fetch"] == "cached").all()
+
+
+def test_centred_allows_only_the_snap_to_the_60_m_grid():
+    x, y = 505017.3, 4193981.9
+    assert scl.centred(np.array(sc.snapped_bounds(ULX, ULY, x, y)), x, y)
+    assert not scl.centred(np.array(sc.snapped_bounds(ULX, ULY, x + 60, y)), x, y)
+    assert not scl.centred(np.array(sc.snapped_bounds(ULX, ULY, x, y - 60)), x, y)
 
 
 def test_more_than_one_percent_no_data_gives_no_share():
@@ -223,7 +262,7 @@ def test_pull_covers_every_sentinel2_site_day_from_the_footprints(tmp_path, monk
 
     def fetch(uri, x, y, client):
         seen.append(uri)
-        return scl.SclWindow(full(), np.zeros(4), {"item": uri})
+        return scl.SclWindow(full(), around(x, y), {"item": uri})
 
     monkeypatch.setattr(scl, "fetch", fetch)
     counts = scl.pull(project, workers=1, client=object())

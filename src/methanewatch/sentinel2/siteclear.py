@@ -21,6 +21,10 @@ tile figure, and that is marked.
 Windows are cached under ``data/raw/s2scl/<pull>/``. The 13-band windows already under
 ``data/raw/s2windows/`` are reused when their SCL covers the scored area. A pass with no L2A
 match is not cached, so a later run asks Earth Search again.
+
+A cached window is reused only while it is the window the pass asks for. The cache is filed by
+site and scene, so when a site's outline changes and its centroid moves, the windows cut around
+the old centroid are read again around the new one.
 """
 
 from __future__ import annotations
@@ -76,6 +80,17 @@ def _vsi(href: str) -> str:
 
 def cache_file(root: Path, site_id: str, product_uri: str) -> Path:
     return root / site_id / f"{product_uri.removesuffix('.SAFE')}.npz"
+
+
+def centred(bounds: np.ndarray, x: float, y: float) -> bool:
+    """Whether ``bounds`` is the window ``sitecloud.snapped_bounds`` cuts around (x, y).
+
+    Snapping to the 60 m grid moves a window by at most half a grid step on each axis, so a
+    window whose centre is further than that from (x, y) was cut around another point.
+    """
+    left, bottom, right, top = (float(v) for v in bounds)
+    half = sc.GRID_M / 2
+    return abs((left + right) / 2 - x) <= half and abs((bottom + top) / 2 - y) <= half
 
 
 def share(scl: np.ndarray) -> dict:
@@ -136,8 +151,9 @@ def run(
     """Sen2Cor's share for every pass of ``sitecloud.pass_table``.
 
     SCL windows under ``pull_dir`` or ``cache_roots`` (newest pull first) are not read again,
-    nor are 13-band windows under ``window_roots`` whose SCL covers the scored area. New
-    windows are written under ``pull_dir``. Earth Search is opened only if a pass needs it.
+    nor are 13-band windows under ``window_roots`` whose SCL covers the scored area, as long
+    as they were cut around the pass's own centre (``centred``). New windows are written
+    under ``pull_dir``. Earth Search is opened only if a pass needs it.
     Returns one row per pass and the new files.
     """
     lock = threading.Lock()
@@ -157,12 +173,18 @@ def run(
         for root in [pull_dir, *sorted(cache_roots, reverse=True)]:
             p = cache_file(root, r.site_id, r.product_uri)
             if p.exists():
-                return SclWindow.load(p), p, "cached", None
+                w = SclWindow.load(p)
+                if centred(w.bounds, r.x, r.y):
+                    return w, p, "cached", None
         for root in sorted(window_roots, reverse=True):
             p = sc.cache_file(root, r.site_id, r.product_uri)
             if p.exists():
                 w = _from_window13(p)
-                if w is not None and share(w.scl)["scl_nodata_share"] <= sc.MAX_NODATA_SHARE:
+                if (
+                    w is not None
+                    and centred(w.bounds, r.x, r.y)
+                    and share(w.scl)["scl_nodata_share"] <= sc.MAX_NODATA_SHARE
+                ):
                     return w, p, "window", None
         try:
             w = fetch(r.product_uri, r.x, r.y, catalogue())
