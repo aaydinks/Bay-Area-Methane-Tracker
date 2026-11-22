@@ -11,8 +11,9 @@ something other than solid waste, is now marked "ambiguous" and not counted for 
 
 A plume counts for a landfill when it starts on the landfill's outline or within 500 m. The only
 guard against counting a neighbour's plume was a hand-written list of neighbouring sources. That
-list exists for one landfill. With 52 sites, and dairies and other methane sources close to several
-North Valley landfills, a second guard was needed.
+list names neighbours for one landfill, and none of them has been drawn on the map yet, so the
+guard was not working anywhere. With 52 sites, and dairies and other methane sources close to
+several North Valley landfills, a second guard was needed.
 
 Carbon Mapper already labels each plume with the kind of source it believes produced it. The
 project carried that label and did not use it.
