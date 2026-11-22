@@ -1,9 +1,9 @@
 site_id,name,city,county,region,tier,status,operator,swis_number,air_district,district_facility_id,ghgrp_facility_id,polygon_source,neighbors,notes
-newby-island,Newby Island Landfill,San Jose (near Milpitas),Santa Clara,bay-area,pilot,,,43-AN-0003,,,,provisional 500 m buffer around CalRecycle SWIS point,compost facility; energy facility; wastewater plant,Hearing Board abatement order
-acme-fill,Acme Fill,Martinez,Contra Costa,bay-area,pilot,,,07-AA-0002,,,,provisional 500 m buffer around CalRecycle SWIS point,,Air District lawsuit; 2023 surface leaks at 23x and 31x the limit
-sonoma-central,Sonoma Central Landfill,Petaluma,Sonoma,bay-area,pilot,,,49-AA-0001,,,,provisional 500 m buffer around CalRecycle SWIS point,,$159000 fine; 14 violations June 2023 with dated repairs
+newby-island,Newby Island Landfill,San Jose (near Milpitas),Santa Clara,bay-area,pilot,,,43-AN-0003,,,,CalRecycle LandfillBoundaries layer (drawn from permit maps; data as of 2021-09),compost facility; energy facility; wastewater plant,Hearing Board abatement order
+acme-fill,Acme Fill,Martinez,Contra Costa,bay-area,pilot,,,07-AA-0002,,,,CalRecycle LandfillBoundaries layer (drawn from permit maps; data as of 2021-09),,Air District lawsuit; 2023 surface leaks at 23x and 31x the limit
+sonoma-central,Sonoma Central Landfill,Petaluma,Sonoma,bay-area,pilot,,,49-AA-0001,,,,CalRecycle LandfillBoundaries layer (drawn from permit maps; data as of 2021-09),,$159000 fine; 14 violations June 2023 with dated repairs
 shoreline,Shoreline Landfill,Mountain View,Santa Clara,bay-area,pilot,closed,City of Mountain View,43-AA-0006,,,,provisional 500 m buffer around CalRecycle SWIS point,,semiannual monitoring reports
-potrero-hills,Potrero Hills Landfill,Suisun City,Solano,bay-area,pilot,,,48-AA-0075,,,,provisional 500 m buffer around CalRecycle SWIS point,,aircraft methane survey on record
+potrero-hills,Potrero Hills Landfill,Suisun City,Solano,bay-area,pilot,,,48-AA-0075,,,,CalRecycle LandfillBoundaries layer (drawn from permit maps; data as of 2021-09),,aircraft methane survey on record
 all-purpose,All Purpose Landfill,Santa Clara,Santa Clara,bay-area,screen,closed,,43-AO-0001,,,,provisional 750 m buffer around CalRecycle SWIS point,,CalRecycle lists it as: All Purpose Landfill
 altamont,Altamont Landfill,Livermore,Alameda,bay-area,screen,active,,01-AA-0009,,,,CalRecycle LandfillBoundaries layer (drawn from permit maps; data as of 2021-09),,CalRecycle lists it as: Altamont Landfill & Resource Recovery
 american-canyon,American Canyon Landfill,American Canyon,Napa,bay-area,screen,closed,,28-AA-0001,,,,provisional 750 m buffer around CalRecycle SWIS point,,CalRecycle lists it as: American Canyon Sanitary Landfill
