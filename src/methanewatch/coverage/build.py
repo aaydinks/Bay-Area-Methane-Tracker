@@ -78,6 +78,7 @@ def build(project: ProjectConfig) -> dict[str, int]:
             buffer_m=project.attribution.buffer_m,
             search_radius_m=project.attribution.search_radius_km * 1000,
             metric_crs=project.crs_metric,
+            waste_sectors=project.attribution.waste_sectors,
         )
     detections, unmatched = build_detections(overpasses, plumes)
 

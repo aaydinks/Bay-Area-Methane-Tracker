@@ -271,6 +271,7 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 **2d. Attribution (`attribution.py`)**
 - `inside`: origin within polygon. `buffer`: within polygon + 500 m and no other registry/neighbor polygon is closer. `ambiguous`: within the buffer of two candidates, or a known neighbor is closer. `nearby`: within 5 km but outside the buffer.
 - Only `inside` and `buffer` feed the model. `ambiguous` plumes are listed on the dashboard, never assigned to a site.
+- A plume on or beside a site that its source tags with a sector other than waste is also `ambiguous` (ADR 0022). A plume with no tag follows the distance rule alone.
 
 **2e. Operator reports (`ingest/ghgrp.py`)**: EPA GHGRP subpart HH (landfills), via the FLIGHT export or the Envirofacts API. The project plan notes the exact steps are unverified, so confirm them in week 8. Map facilities to sites through `operator_crosswalk.csv`.
 

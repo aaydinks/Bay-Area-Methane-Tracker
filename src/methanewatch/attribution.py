@@ -2,11 +2,14 @@
 
 All geometries are in the metric CRS (``crs_metric`` in project.yaml).
 Only ``inside`` and ``buffer`` plumes feed the model; ``ambiguous`` plumes are
-listed on the dashboard and never assigned.
+listed on the dashboard and never assigned. A plume is ambiguous when another
+source lies as close as the landfill, or when its own source tagged it with a
+sector other than waste (decision record 0022).
 """
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Literal
 
@@ -66,8 +69,14 @@ def attribute_plumes(
     buffer_m: float,
     search_radius_m: float,
     metric_crs: str,
+    waste_sectors: Collection[str] | None = None,
 ) -> pd.DataFrame:
-    """Fill ``site_id``, ``attribution`` and ``distance_m`` for every plume origin."""
+    """Fill ``site_id``, ``attribution`` and ``distance_m`` for every plume origin.
+
+    With ``waste_sectors``, a plume on or beside a landfill whose ``ipcc_sector`` names another
+    sector is marked ``ambiguous`` (decision record 0022). A plume with no sector tag, or from a
+    source that gives none, follows the distance rule alone.
+    """
     site_geoms = dict(zip(sites["site_id"], sites.to_crs(metric_crs).geometry, strict=True))
     nb = neighbors.to_crs(metric_crs) if len(neighbors) else neighbors
     key = "name" if "name" in nb else "site_id"
@@ -79,8 +88,14 @@ def attribute_plumes(
         classify(o, site_geoms, neighbor_geoms, buffer_m=buffer_m, search_radius_m=search_radius_m)
         for o in origins
     ]
-    return plumes.assign(
+    out = plumes.assign(
         site_id=[r.site_id for r in res],
         attribution=[r.label for r in res],
         distance_m=[r.distance_m for r in res],
     )
+    if waste_sectors is not None and "ipcc_sector" in out:
+        tag = out["ipcc_sector"].fillna("").astype(str).str.strip()
+        other = (tag != "") & ~tag.isin(list(waste_sectors))
+        counted = out["attribution"].isin(["inside", "buffer"])
+        out.loc[other & counted, "attribution"] = "ambiguous"
+    return out
