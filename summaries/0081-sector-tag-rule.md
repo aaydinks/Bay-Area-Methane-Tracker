@@ -1,6 +1,6 @@
 # PR #81: A plume tagged as another kind of source no longer counts for a landfill
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/81)
+**Status:** merged 2026-11-22 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/81)
 
 ## In one sentence
 
