@@ -1,6 +1,6 @@
 # PR #79: A plume with no site no longer carries a distance
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/79)
+**Status:** merged 2026-11-21 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/79)
 
 ## In one sentence
 
