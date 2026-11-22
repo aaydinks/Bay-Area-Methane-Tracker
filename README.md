@@ -79,7 +79,7 @@ when every step ran and 2 when it stopped, and writes the step, the reason and e
 for review and commit.
 
 The run never fits the model. Its snapshot carries the estimates of the official fit, the checked run named in
-`publish.official_model_run` in `config/project.yaml` (now `fit-20261107T010105Z`), but only while that fit's
+`publish.official_model_run` in `config/project.yaml` (now `fit-20261122T211406Z`), but only while that fit's
 detections (`data/processed/runs/<run>-detections.parquet`) still equal the refreshed ones for the sites and
 instruments it used. Instruments the fit left out, such as Sentinel-2 until its plume search runs, and sites it
 does not cover, such as one added to the registry later, are counted in the manifest and not compared. A site

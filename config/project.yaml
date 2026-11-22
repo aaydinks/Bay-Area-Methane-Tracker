@@ -99,7 +99,7 @@ publish:
   # The checked fit whose estimates `mw scheduled-run` carries into review copies (a run in
   # data/processed/runs). Change it only after a new fit has been checked; a scheduled run
   # leaves review alone while the refreshed detections differ from this fit's.
-  official_model_run: fit-20261107T010105Z
+  official_model_run: fit-20261122T211406Z
   # Optional second fit for sites the official fit does not cover (for example the screening
   # tier). A site's estimate comes from the official fit when that fit has the site, otherwise
   # from this run, marked provisional; with neither, the site has no estimate. Unset: only the
