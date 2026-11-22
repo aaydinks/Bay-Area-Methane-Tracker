@@ -1,6 +1,6 @@
 # PR #82: Four studied landfills get their real outlines
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/82)
+**Status:** merged 2026-11-22 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/82)
 
 ## In one sentence
 
