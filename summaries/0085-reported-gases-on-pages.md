@@ -1,6 +1,6 @@
 # PR #85: Each landfill's page shows the gases reported to EPA
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/85)
+**Status:** merged 2026-11-23 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/85)
 
 ## In one sentence
 
