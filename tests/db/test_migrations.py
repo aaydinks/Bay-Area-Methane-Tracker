@@ -266,8 +266,116 @@ def test_restricted_defaults_to_true_on_source_tables(db):
         order by 1
         """,
     )
-    assert [t for t, _ in defaults] == ["check_results", "passes", "plumes", "site_estimates"]
+    assert [t for t, _ in defaults] == [
+        "check_results",
+        "passes",
+        "plumes",
+        "site_estimates",
+        "site_metrics",
+    ]
     assert all(d == "true" for _, d in defaults)
+
+
+MEASURES_SQL = """
+insert into public.metric_catalogue
+  (publish_id, metric_id, label, unit, kind, source, caveat, sort_order) values
+  ('pub-public', 'epa_landfill_ch4', 'Methane from the landfill', 't CO2e', 'reported', 'ghgrp',
+   'Calculated by the operator.', 1),
+  ('pub-public', 'cm_co2_plumes', 'CO2 plumes seen', 'plumes', 'observed', 'carbonmapper',
+   null, 2),
+  ('pub-draft', 'epa_landfill_ch4', 'Methane from the landfill', 't CO2e', 'reported', 'ghgrp',
+   null, 1);
+
+insert into public.site_metrics
+  (publish_id, site_id, metric_id, period, source, value, unit, kind, confirmed, restricted,
+   display_only) values
+  ('pub-public', 'newby-island', 'epa_landfill_ch4', '2023', 'ghgrp', 198862.5, 't CO2e',
+   'reported', true, false, false),
+  ('pub-public', 'newby-island', 'cm_co2_plumes', '2025', 'carbonmapper', 2, 'plumes',
+   'observed', true, true, true),
+  ('pub-draft', 'newby-island', 'epa_landfill_ch4', '2023', 'ghgrp', 1, 't CO2e',
+   'reported', true, false, false);
+"""
+
+
+def test_anon_reads_open_measures_of_public_publications_only(db):
+    # Migration 0010 (ADR 0019). A display-only measure stays hidden until a step serves it.
+    with db.transaction(force_rollback=True):
+        run_script(db, MEASURES_SQL)
+        with as_role(db, "anon"):
+            measures = rows(
+                db, "select publish_id, metric_id, period, value from public.site_metrics"
+            )
+            catalogue = rows(
+                db,
+                "select publish_id, metric_id, caveat from public.metric_catalogue "
+                "order by sort_order",
+            )
+        everything = rows(db, "select count(*) from public.site_metrics")
+    assert measures == [("pub-public", "epa_landfill_ch4", "2023", 198862.5)]
+    assert catalogue == [
+        ("pub-public", "epa_landfill_ch4", "Calculated by the operator."),
+        ("pub-public", "cm_co2_plumes", None),
+    ]
+    assert everything == [(3,)]
+
+
+def test_a_measure_defaults_to_restricted_and_unconfirmed(db):
+    with db.transaction(force_rollback=True):
+        run_script(db, MEASURES_SQL)
+        db.execute(
+            "insert into public.site_metrics (publish_id, site_id, metric_id, period, source, "
+            "value_text, unit, kind) values ('pub-public', 'newby-island', 'epa_landfill_ch4', "
+            "'2022', 'ghgrp', 'see report', 't CO2e', 'reported')"
+        )
+        got = rows(
+            db,
+            "select restricted, display_only, confirmed, public_scope from public.site_metrics "
+            "where period = '2022'",
+        )
+        with as_role(db, "anon"):
+            seen = rows(db, "select count(*) from public.site_metrics where period = '2022'")
+    assert got == [(True, False, False, True)]
+    assert seen == [(0,)]
+
+
+def test_a_measure_needs_a_catalogue_entry_and_a_value(db):
+    with db.transaction(force_rollback=True):
+        run_script(db, MEASURES_SQL)
+        with pytest.raises(errors.ForeignKeyViolation), db.transaction():
+            db.execute(
+                "insert into public.site_metrics (publish_id, site_id, metric_id, period, "
+                "source, value, unit, kind) values ('pub-public', 'newby-island', 'not_listed', "
+                "'2023', 'ghgrp', 1, 't', 'reported')"
+            )
+        with pytest.raises(errors.CheckViolation), db.transaction():
+            db.execute(
+                "insert into public.site_metrics (publish_id, site_id, metric_id, period, "
+                "source, unit, kind) values ('pub-public', 'newby-island', 'epa_landfill_ch4', "
+                "'2021', 'ghgrp', 't CO2e', 'reported')"
+            )
+        with pytest.raises(errors.CheckViolation), db.transaction():
+            db.execute(
+                "insert into public.metric_catalogue (publish_id, metric_id, label, unit, kind, "
+                "source, sort_order) values ('pub-public', 'x', 'X', 't', 'estimated', 'ghgrp', 9)"
+            )
+
+
+def test_measures_go_with_their_publication(db):
+    with db.transaction(force_rollback=True):
+        run_script(db, MEASURES_SQL)
+        db.execute("delete from public.publications where publish_id = 'pub-draft'")
+        left = rows(db, "select distinct publish_id from public.site_metrics")
+        left += rows(db, "select distinct publish_id from public.metric_catalogue")
+    assert left == [("pub-public",), ("pub-public",)]
+
+
+def test_anon_cannot_write_measures(db):
+    for table in ("site_metrics", "metric_catalogue"):
+        with as_role(db, "anon"), pytest.raises(errors.InsufficientPrivilege):
+            db.execute(f"delete from public.{table}")
+        with as_role(db, "authenticated"), pytest.raises(errors.InsufficientPrivilege):
+            db.execute(f"select count(*) from public.{table}")
 
 
 def test_public_views_show_display_only_rows_reduced(db):

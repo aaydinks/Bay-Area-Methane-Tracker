@@ -161,6 +161,17 @@ def config_check() -> None:
         f"tiers {', '.join(scope.tiers) or 'none'})"
     )
 
+    metrics = config.load_metrics()
+    unknown = metrics.unknown_sources(config.load_data_terms())
+    if unknown:
+        typer.secho(
+            f"metrics.yaml names sources that data_terms.yaml does not have: {unknown}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    typer.echo(f"metrics:     ok ({len(metrics.measures)} measures)")
+
     pending = [f"instruments.{n}.pod" for n in instruments.unconfirmed()]
     pending += [
         f"impact.{k}"
@@ -363,7 +374,8 @@ def ingest_boundaries() -> None:
 
 @ingest_app.command("ghgrp")
 def ingest_ghgrp(year: Annotated[int, typer.Option(help="Facility-list year")] = 2023) -> None:
-    """EPA GHGRP subpart HH facilities and operator-reported methane for crosswalked sites."""
+    """EPA GHGRP subpart HH facilities, and for crosswalked sites the operator-reported methane
+    and every gas they reported (-> data/interim/site_metrics/ghgrp.parquet)."""
     from methanewatch.ingest import pipeline
 
     counts = pipeline.ingest_ghgrp(config.load_project(), year)
@@ -884,7 +896,7 @@ def publish_build(
             allow_simulated=allow_simulated,
             notes=notes,
         )
-    except (snap.SimulatedRunError, snap.WordingError) as exc:
+    except (snap.SimulatedRunError, snap.WordingError, snap.MeasureError) as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
     out = s.write(_publications_dir())

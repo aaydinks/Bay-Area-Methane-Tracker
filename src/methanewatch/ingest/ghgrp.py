@@ -1,10 +1,14 @@
-"""EPA GHGRP subpart HH (municipal landfills) operator-reported methane (PLAN 5, phase 2e).
+"""EPA GHGRP operator-reported figures: landfill methane (subpart HH, PLAN 5, phase 2e) and
+every gas a matched facility reports (ADR 0019).
 
 Source: EPA Envirofacts REST API (public, no key), tables
 ``pub_dim_facility`` and ``pub_facts_subp_ghg_emission``. Emissions are
 published in t CO2e, so methane tonnes depend on the GWP EPA applied for the
 reporting year (``config/impact.yaml: ghgrp_gwp_ch4``; unconfirmed until
 checked against EPA's documentation). See docs/decisions/0007-public-sources.md.
+
+The per-gas rows of ``normalize_gases`` are kept in t CO2e exactly as EPA publishes them, so
+they need no conversion factor.
 """
 
 from __future__ import annotations
@@ -21,8 +25,24 @@ from methanewatch import schemas
 from methanewatch.provenance import PullManifest
 
 BASE = "https://data.epa.gov/efservice"
-SUBPART_HH = 31
+# Codes from Envirofacts' own lookup tables (pub_dim_subpart, pub_dim_ghg), checked 2026-11-23
+SUBPART_C = 1  # stationary combustion
+SUBPART_HH = 31  # municipal landfills
+GAS_CO2 = 1
 GAS_CH4 = 2
+GAS_N2O = 3
+GAS_BIOGENIC_CO2 = 8
+
+SOURCE = "ghgrp"  # the key of this source in config/data_terms.yaml
+UNIT = "t CO2e"
+# (subpart, gas) -> the measure in config/metrics.yaml that holds it
+GAS_MEASURES = {
+    (SUBPART_HH, GAS_CH4): "epa_landfill_ch4",
+    (SUBPART_C, GAS_BIOGENIC_CO2): "epa_combustion_biogenic_co2",
+    (SUBPART_C, GAS_CO2): "epa_combustion_co2",
+    (SUBPART_C, GAS_CH4): "epa_combustion_ch4",
+    (SUBPART_C, GAS_N2O): "epa_combustion_n2o",
+}
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=2, max=30))
@@ -65,19 +85,26 @@ def pull_reports(facility_ids: list[str], raw_root: Path) -> Path:
     return pull_dir
 
 
+def _rows(pull_dir: Path, crosswalk: pd.DataFrame) -> pd.DataFrame:
+    """Every downloaded row of a pull, with the ``site_id`` its facility is matched to."""
+    files = [p for p in sorted(pull_dir.glob("*.json")) if p.name != "manifest.json"]
+    rows = [r for p in files for r in json.loads(p.read_text())]
+    df = pd.DataFrame(
+        rows, columns=["facility_id", "sub_part_id", "co2e_emission", "gas_id", "year"]
+    )
+    xw = crosswalk.dropna(subset=["ghgrp_facility_id"]).astype({"ghgrp_facility_id": str})
+    df["facility_id"] = df["facility_id"].astype(str)
+    return df.merge(
+        xw[["site_id", "ghgrp_facility_id"]], left_on="facility_id", right_on="ghgrp_facility_id"
+    )
+
+
 def normalize(
     pull_dir: Path, crosswalk: pd.DataFrame, gwp_by_year: dict[int, float]
 ) -> pd.DataFrame:
     """Rows for subpart HH methane, mapped to ``site_id`` via the crosswalk."""
-    files = [p for p in sorted(pull_dir.glob("*.json")) if p.name != "manifest.json"]
-    rows = [r for p in files for r in json.loads(p.read_text())]
-    df = pd.DataFrame(rows)
+    df = _rows(pull_dir, crosswalk)
     df = df[(df["sub_part_id"] == SUBPART_HH) & (df["gas_id"] == GAS_CH4)].copy()
-    xw = crosswalk.dropna(subset=["ghgrp_facility_id"]).astype({"ghgrp_facility_id": str})
-    df["facility_id"] = df["facility_id"].astype(str)
-    df = df.merge(
-        xw[["site_id", "ghgrp_facility_id"]], left_on="facility_id", right_on="ghgrp_facility_id"
-    )
     # Years without a configured GWP are left out rather than converted with a guess.
     df = df[df["year"].isin(gwp_by_year)]
     df["reported_co2e_t"] = df["co2e_emission"].astype(float)
@@ -100,3 +127,44 @@ def normalize(
         ]
     ]
     return schemas.operator_reports.validate(out.reset_index(drop=True))
+
+
+def normalize_gases(pull_dir: Path, crosswalk: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Every gas each matched facility reported, as ``site_metrics`` rows (ADR 0019).
+
+    One row per site, measure and year, in t CO2e exactly as EPA publishes it; nothing is
+    converted. A year in which a facility filed no combustion report has no combustion rows,
+    which the pages read as "not reported", never as zero.
+
+    Returns the rows and a count of the downloaded rows left out because their subpart and
+    gas have no measure in ``GAS_MEASURES``, so nothing is dropped without being reported.
+    """
+    df = _rows(pull_dir, crosswalk)
+    key = list(zip(df["sub_part_id"], df["gas_id"], strict=True))
+    df["metric_id"] = [GAS_MEASURES.get(k) for k in key]
+    left_out = (
+        df[df["metric_id"].isna()]
+        .groupby(["sub_part_id", "gas_id"])
+        .size()
+        .rename("rows")
+        .reset_index()
+    )
+    df = df[df["metric_id"].notna()]
+    out = pd.DataFrame(
+        {
+            "site_id": df["site_id"],
+            "metric_id": df["metric_id"],
+            "period": df["year"].astype(int).astype(str),
+            "source": SOURCE,
+            "value": df["co2e_emission"].astype(float),
+            "value_text": None,
+            "unit": UNIT,
+            "kind": "reported",
+            # EPA's published figure for a facility matched by hand in the crosswalk
+            "confirmed": True,
+            "source_id": df["facility_id"],
+            "url": BASE + "/pub_facts_subp_ghg_emission/facility_id/=/" + df["facility_id"],
+            "pull_id": pull_dir.name,
+        }
+    ).sort_values(["site_id", "metric_id", "period"])
+    return schemas.site_metrics.validate(out.reset_index(drop=True)), left_out

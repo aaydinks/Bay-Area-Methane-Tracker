@@ -1,0 +1,58 @@
+# The catalogue of measures shown beside the methane estimate (ADR 0019).
+#
+# Every row of the `site_metrics` table names one id from this file. The catalogue is published
+# with each copy as `metric_catalogue`, in this order, so the labels and caveats below are page
+# text and go through the wording check.
+#
+#   label    what the page calls the measure
+#   unit     the unit the source publishes it in; nothing is converted
+#   kind     reported (an operator or agency says so), observed (the project counted it in
+#            public data) or context (describes the surroundings, never the landfill)
+#   source   a key of config/data_terms.yaml, which decides whether rows may be shown
+#   caveat   the sentence shown beside the measure
+#
+# A new measure is an entry here and an ingest step that writes rows for it under
+# data/interim/site_metrics/. A row whose id is not listed here stops `mw publish build`.
+measures:
+  # EPA Greenhouse Gas Reporting Program, per gas, in t CO2e as EPA publishes it. Subpart and
+  # gas codes checked against Envirofacts (pub_dim_subpart, pub_dim_ghg) on 2026-11-23:
+  # subpart HH (municipal landfills) is id 31, subpart C (stationary combustion) is id 1;
+  # gases are 1 CO2, 2 CH4, 3 N2O, 8 biogenic CO2.
+  epa_landfill_ch4:
+    label: "Methane from the landfill"
+    unit: "t CO2e"
+    kind: reported
+    source: ghgrp
+    caveat: >-
+      Calculated by the operator with EPA's method, not measured. EPA publishes it as tonnes of
+      CO2 equivalent.
+  epa_combustion_biogenic_co2:
+    label: "Biogenic CO2 from burning fuel on site"
+    unit: "t CO2e"
+    kind: reported
+    source: ghgrp
+    # EPA treats CO2 from burning landfill gas as biogenic (40 CFR 98.33(e), Table C-1;
+    # checked 2026-11-23).
+    caveat: >-
+      CO2 from burning landfill gas is counted here. Filed only by sites that report stationary
+      combustion to EPA.
+  epa_combustion_co2:
+    label: "Other CO2 from burning fuel on site"
+    unit: "t CO2e"
+    kind: reported
+    source: ghgrp
+    caveat: >-
+      CO2 from fuel that EPA does not count as biogenic. Filed only by sites that report
+      stationary combustion to EPA.
+  epa_combustion_ch4:
+    label: "Methane from burning fuel on site"
+    unit: "t CO2e"
+    kind: reported
+    source: ghgrp
+    caveat: "Filed only by sites that report stationary combustion to EPA."
+  epa_combustion_n2o:
+    label: "Nitrous oxide from burning fuel on site"
+    unit: "t CO2e"
+    kind: reported
+    source: ghgrp
+    caveat: "Filed only by sites that report stationary combustion to EPA."

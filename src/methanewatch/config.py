@@ -459,6 +459,31 @@ class DataTermsConfig(_Strict):
         return [i for n, t in self.sources.items() if t.display_only for i in t.instruments]
 
 
+# --- metrics.yaml -----------------------------------------------------------
+
+MetricKind = Literal["reported", "observed", "context"]
+
+
+class Measure(_Strict):
+    """One measure shown beside the methane estimate (ADR 0019)."""
+
+    label: str = Field(min_length=1)
+    unit: str = Field(min_length=1)
+    kind: MetricKind
+    source: str = Field(min_length=1)
+    caveat: str | None = None
+
+
+class MetricsConfig(_Strict):
+    """The catalogue of measures, in the order the pages list them."""
+
+    measures: dict[str, Measure]
+
+    def unknown_sources(self, terms: DataTermsConfig) -> list[str]:
+        """Sources no entry of ``data_terms.yaml`` covers; their rows could never be shown."""
+        return sorted({m.source for m in self.measures.values()} - set(terms.sources))
+
+
 # --- loaders ----------------------------------------------------------------
 
 
@@ -526,3 +551,8 @@ def load_public_scope(config_dir: Path = CONFIG_DIR) -> PublicScope:
 @lru_cache
 def load_data_terms(config_dir: Path = CONFIG_DIR) -> DataTermsConfig:
     return DataTermsConfig.model_validate(_read("data_terms.yaml", config_dir))
+
+
+@lru_cache
+def load_metrics(config_dir: Path = CONFIG_DIR) -> MetricsConfig:
+    return MetricsConfig.model_validate(_read("metrics.yaml", config_dir))

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from methanewatch.config import load_data_terms, load_impact
+from methanewatch.config import load_data_terms, load_impact, load_metrics
 from methanewatch.publish import load
 from methanewatch.publish import snapshot as snap
 from tests.db.conftest import as_role, rows, run_script
 from tests.test_publish_snapshot import _project, _write_inputs
+from tests.test_site_metrics import _rows as measure_rows
+from tests.test_site_metrics import _write as write_measures
 
 psycopg = pytest.importorskip("psycopg")
 
@@ -119,6 +121,66 @@ def test_public_visibility_hides_restricted_rows_from_anon(clean, tmp_path):
             assert rows(conn, "select credit_line from public.data_terms where source = 'ghgrp'")[
                 0
             ][0].startswith("US EPA")
+
+
+def test_push_loads_the_measures_and_their_catalogue(clean, tmp_path):
+    _write_inputs(tmp_path)
+    write_measures(tmp_path, measure_rows())
+    s = snap.build(
+        _project(tmp_path),
+        load_data_terms(),
+        load_impact(),
+        model_run_id="model-1",
+        check_run_id="repairs-1",
+        publish_id="pub-m",
+    )
+    counts = load.push(s, clean)
+    assert counts["site_metrics"] == 3
+    assert counts["metric_catalogue"] == len(load_metrics().measures)
+    load.set_visibility(clean, "pub-m", "public")
+    with psycopg.connect(clean) as conn:
+        with as_role(conn, "anon"):
+            got = rows(
+                conn,
+                "select m.site_id, c.label, m.period, m.value, m.unit, m.source_id "
+                "from public.site_metrics m join public.metric_catalogue c "
+                "on c.publish_id = m.publish_id and c.metric_id = m.metric_id "
+                "order by m.site_id, c.sort_order",
+            )
+        assert rows(
+            conn,
+            "select distinct restricted, display_only, confirmed, public_scope "
+            "from public.site_metrics",
+        ) == [(False, False, True, True)]
+    labels = load_metrics().measures
+    assert got == [
+        ("newby-island", labels["epa_landfill_ch4"].label, "2023", 198862.5, "t CO2e", "1006179"),
+        (
+            "newby-island",
+            labels["epa_combustion_biogenic_co2"].label,
+            "2023",
+            10379.0,
+            "t CO2e",
+            "1006179",
+        ),
+        (
+            "sonoma-central",
+            labels["epa_landfill_ch4"].label,
+            "2023",
+            107440.25,
+            "t CO2e",
+            "1004123",
+        ),
+    ]
+
+
+def test_a_snapshot_written_before_the_measures_table_still_loads(clean, tmp_path):
+    s = _snapshot(tmp_path, "pub-before")
+    del s.tables["site_metrics"], s.tables["metric_catalogue"]
+    counts = load.push(s, clean)
+    assert counts["site_metrics"] == 0 and counts["metric_catalogue"] == 0
+    with psycopg.connect(clean) as conn:
+        assert rows(conn, "select count(*) from public.metric_catalogue") == [(0,)]
 
 
 @pytest.mark.parametrize("written_before", [False, True])
