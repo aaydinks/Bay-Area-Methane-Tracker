@@ -108,3 +108,25 @@ test('the map and site pages lead with one sentence and keep the notices', async
   await expect(page.locator('.headline-figure')).toContainText('tonnes a year');
   await expect(page.locator('[data-testid="model-instruments"]')).toBeHidden();
 });
+
+test('reported figures show a gap as "not reported", never as zero', async ({ page }) => {
+  // In the fixture, Potrero Hills has a landfill figure for 2023 and one combustion figure for
+  // 2018, so each year has one measure with no figure; Shoreline has nothing on file.
+  await page.goto('/sites/potrero-hills/');
+  const section = page.locator('#reported');
+  await section.locator('summary').click();
+  const rows = section.locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toHaveText(/2023\s*30,862\s*not reported/);
+  await expect(rows.nth(1)).toHaveText(/2018\s*not reported\s*412/);
+  await expect(section.locator('caption')).toContainText('It does not mean zero');
+  await expect(section).toContainText('Not reported for this landfill in any year: Biogenic CO2');
+  const results = await new AxeBuilder({ page }).include('#reported').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
+
+  await page.goto('/sites/shoreline/');
+  const empty = page.locator('#reported');
+  await empty.locator('summary').click();
+  await expect(empty.locator('table')).toHaveCount(0);
+  await expect(empty).toContainText('No figures from this source are on file for this landfill');
+});

@@ -60,7 +60,10 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
 - `src/layouts/Base.astro`: header with the framing, banners (sample data, simulated, no data
   yet, provisional, Carbon Mapper held back), footer with credits and run ids. One light theme:
   white, black, red and a light green, set as tokens at the top of `src/styles/global.css`.
-- `src/components/`: badges, tags, ranges, empty states.
+- `src/components/`: badges, tags, ranges, empty states, and `ReportedMeasures.astro`, the table
+  of figures an operator or agency reported for a landfill. Its labels and caveats come from the
+  published catalogue (`config/metrics.yaml`); a year with no figure reads "not reported". The
+  section is left out for a copy published before the measures existed.
 - `src/pages/`: home, map, updates, checks, landfills, methods, how to read, data, 404.
 - `src/lib/data.ts`: the typed snapshot and the helpers pages use; `database.types.ts` is
   generated from the live schema.

@@ -182,6 +182,37 @@ const operator_reports = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, site_id: 'sonoma-central', year: 2023, source: 'GHGRP', reported_ch4_t: 987.6, reported_co2e_t: 24690, gwp_used: 25, gwp_confirmed: false, facility_id: '1004123', url: 'https://enviro.epa.gov/' },
 ]);
 
+// Measures beside the methane estimate (ADR 0019): the catalogue as config/metrics.yaml words it,
+// and made-up figures. Sonoma Central reports every year; Potrero Hills has one old combustion
+// figure, so its recent years read "not reported"; Shoreline and Acme Fill have nothing on file.
+const EPA_CAVEAT = 'Filed only by sites that report stationary combustion to EPA.';
+const CATALOGUE = [
+  { metric_id: 'epa_landfill_ch4', label: 'Methane from the landfill', caveat: "Calculated by the operator with EPA's method, not measured. EPA publishes it as tonnes of CO2 equivalent." },
+  { metric_id: 'epa_combustion_biogenic_co2', label: 'Biogenic CO2 from burning fuel on site', caveat: `CO2 from burning landfill gas is counted here. ${EPA_CAVEAT}` },
+  { metric_id: 'epa_combustion_co2', label: 'Other CO2 from burning fuel on site', caveat: `CO2 from fuel that EPA does not count as biogenic. ${EPA_CAVEAT}` },
+  { metric_id: 'epa_combustion_ch4', label: 'Methane from burning fuel on site', caveat: EPA_CAVEAT },
+  { metric_id: 'epa_combustion_n2o', label: 'Nitrous oxide from burning fuel on site', caveat: EPA_CAVEAT },
+];
+const metric_catalogue = PUBS.flatMap((pub) => CATALOGUE.map((m, i) => ({
+  publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
+})));
+const MEASURES = [
+  ['newby-island', '1006179', 'epa_landfill_ch4', '2022', 58640],
+  ['newby-island', '1006179', 'epa_landfill_ch4', '2023', 55555],
+  ['sonoma-central', '1004123', 'epa_landfill_ch4', '2022', 25100],
+  ['sonoma-central', '1004123', 'epa_landfill_ch4', '2023', 24690],
+  ['sonoma-central', '1004123', 'epa_combustion_biogenic_co2', '2022', 9800],
+  ['sonoma-central', '1004123', 'epa_combustion_biogenic_co2', '2023', 10200],
+  ['sonoma-central', '1004123', 'epa_combustion_ch4', '2023', 15.5],
+  ['sonoma-central', '1004123', 'epa_combustion_n2o', '2023', 36.2],
+  ['potrero-hills', '1007345', 'epa_landfill_ch4', '2023', 30862],
+  ['potrero-hills', '1007345', 'epa_combustion_co2', '2018', 412],
+];
+const site_metrics = PUBS.flatMap((pub) => MEASURES.map(([site_id, facility, metric_id, period, value]) => ({
+  publish_id: pub.publish_id, site_id, metric_id, period, source: 'ghgrp', value, value_text: null, unit: 't CO2e', kind: 'reported',
+  confirmed: true, source_id: facility, url: 'https://enviro.epa.gov/', restricted: false, display_only: false, public_scope: true,
+})));
+
 const population = PUBS.flatMap((pub) => SITES.flatMap((s, i) => [1, 3, 5].map((r) => ({
   publish_id: pub.publish_id, site_id: s.site_id, radius_km: r, residents: (i + 1) * 1000 * r * r, label: 'residents nearby (context only)',
 }))));
@@ -1039,6 +1070,8 @@ const snapshot = {
   operator_reports,
   population,
   site_features,
+  site_metrics,
+  metric_catalogue,
   validation_results,
   update_log,
 };
