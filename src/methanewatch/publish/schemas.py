@@ -1,4 +1,5 @@
-"""Shapes of the published tables, matching ``supabase/migrations/0002_tables.sql``.
+"""Shapes of the published tables, matching ``supabase/migrations/0002_tables.sql`` and the
+migrations that add to it.
 
 Every snapshot table is validated against these before it is written or loaded.
 """
@@ -234,6 +235,49 @@ population = pa.DataFrameSchema(
     coerce=True,
 )
 
+# Measures beside the methane estimate (ADR 0019). ``restricted`` and ``display_only`` follow
+# the source's terms, as they do for plumes.
+site_metrics = pa.DataFrameSchema(
+    {
+        "site_id": pa.Column(str),
+        "metric_id": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "period": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "source": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "value": pa.Column(float, nullable=True),
+        "value_text": pa.Column(str, nullable=True),
+        "unit": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "kind": pa.Column(str, pa.Check.isin(base.METRIC_KINDS)),
+        "confirmed": pa.Column(bool),
+        "source_id": pa.Column(str, nullable=True),
+        "url": pa.Column(str, nullable=True),
+        "restricted": pa.Column(bool),
+        "display_only": pa.Column(bool),
+    },
+    checks=pa.Check(
+        lambda df: df["value"].notna() | df["value_text"].notna(),
+        error="a measure needs a number or a text value",
+    ),
+    unique=["site_id", "metric_id", "period", "source"],
+    strict=False,
+    coerce=True,
+)
+
+# The catalogue of measures (config/metrics.yaml) as each publication carries it, so a page
+# shows the labels its figures were published with.
+metric_catalogue = pa.DataFrameSchema(
+    {
+        "metric_id": pa.Column(str, pa.Check.str_length(min_value=1), unique=True),
+        "label": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "unit": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "kind": pa.Column(str, pa.Check.isin(base.METRIC_KINDS)),
+        "source": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "caveat": pa.Column(str, nullable=True),
+        "sort_order": pa.Column(int, pa.Check.ge(1), unique=True),
+    },
+    strict=False,
+    coerce=True,
+)
+
 site_features = pa.DataFrameSchema(
     {
         "site_id": pa.Column(str, unique=True),
@@ -291,6 +335,7 @@ SCOPE_COLUMNS = {
     "operator_reports": ["public_scope"],
     "population_context": ["public_scope"],
     "site_features": ["public_scope"],
+    "site_metrics": ["public_scope"],
     "update_log": ["public_scope"],
 }
 SCOPE_DEFAULTS = {"region": None, "public_scope": True, "site_public": True}
@@ -306,6 +351,8 @@ TABLES = {
     "operator_reports": operator_reports,
     "population": population,
     "site_features": site_features,
+    "site_metrics": site_metrics,
+    "metric_catalogue": metric_catalogue,
     "validation_results": validation_results,
     "update_log": update_log,
 }
@@ -318,6 +365,8 @@ TEXT_COLUMNS = {
     "check_results": ["plain_reading", "reason"],
     "site_estimates": ["insufficient_reason"],
     "population": ["label"],
+    "site_metrics": ["value_text", "unit"],
+    "metric_catalogue": ["label", "unit", "caveat"],
     "validation_results": ["note"],
     "update_log": ["text"],
 }

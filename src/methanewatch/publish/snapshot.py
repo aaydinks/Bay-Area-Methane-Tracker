@@ -1,9 +1,10 @@
 """Assemble one publication from the pipeline's outputs.
 
 A snapshot is everything the website needs for one run: sites, passes, plumes, estimates,
-checks and their labelled results, operator figures, residents nearby, the method checks and
-the run manifests. It is written to ``data/processed/publications/<publish_id>/`` as Parquet
-tables plus ``manifest.json``, validated against ``publish.schemas`` and the wording check.
+checks and their labelled results, operator figures, residents nearby, the other measures and
+their catalogue, the method checks and the run manifests. It is written to
+``data/processed/publications/<publish_id>/`` as Parquet tables plus ``manifest.json``,
+validated against ``publish.schemas`` and the wording check.
 
 Estimates can come from two fits side by side. A site's row comes from the model run (the
 official fit) when that run has the site, otherwise from the screening run when one is given,
@@ -23,9 +24,11 @@ import pandas as pd
 from methanewatch.config import (
     DataTermsConfig,
     ImpactConfig,
+    MetricsConfig,
     ModelConfig,
     ProjectConfig,
     PublicScope,
+    load_metrics,
     load_model,
     load_public_scope,
 )
@@ -46,6 +49,10 @@ class SimulatedRunError(ValueError):
 
 class WordingError(ValueError):
     """A text field contains a banned phrase."""
+
+
+class MeasureError(ValueError):
+    """A measure row does not agree with the catalogue in ``config/metrics.yaml``."""
 
 
 @dataclass
@@ -206,6 +213,7 @@ SITE_KEYED = {
     "operator_reports": "site_id",
     "population": "site_id",
     "site_features": "site_id",
+    "site_metrics": "site_id",
 }
 
 
@@ -258,6 +266,58 @@ def stamp_public_scope(
         public_scope=pd.Series([w in scope.regions for w in where], index=plumes.index, dtype=bool),
         site_public=(plumes["site_id"].isna() | plumes["site_id"].isin(allowed)).astype(bool),
     )
+
+
+def catalogue_table(metrics: MetricsConfig) -> pd.DataFrame:
+    """The catalogue of measures as a published table, in the order of the config file."""
+    rows = [
+        {
+            "metric_id": metric_id,
+            "label": m.label,
+            "unit": m.unit,
+            "kind": m.kind,
+            "source": m.source,
+            "caveat": m.caveat,
+            "sort_order": i,
+        }
+        for i, (metric_id, m) in enumerate(metrics.measures.items(), start=1)
+    ]
+    return pd.DataFrame(rows, columns=list(pub.metric_catalogue.columns))
+
+
+def measure_rows(
+    interim: Path, metrics: MetricsConfig, terms: DataTermsConfig, site_ids: set[str]
+) -> pd.DataFrame:
+    """Every measure the ingest steps wrote under ``interim/site_metrics/`` (ADR 0019).
+
+    Each source writes its own file. A row must name a measure in the catalogue and agree with
+    its unit, kind and source, or the build stops: the catalogue is what the pages label a
+    figure with. A row follows its source's terms, and a source the terms do not list is
+    restricted. Rows for a site that is not in the registry are left out.
+    """
+    columns = list(pub.site_metrics.columns)
+    folder = interim / "site_metrics"
+    files = sorted(folder.glob("*.parquet")) if folder.exists() else []
+    if not files:
+        return pd.DataFrame(columns=columns)
+    rows = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    rows = rows[rows["site_id"].isin(site_ids)]
+    unknown = sorted(set(rows["metric_id"]) - set(metrics.measures))
+    if unknown:
+        raise MeasureError(f"measures not in config/metrics.yaml: {unknown}")
+    problems = []
+    for column in ("unit", "kind", "source"):
+        catalogue = {m: getattr(entry, column) for m, entry in metrics.measures.items()}
+        expected = rows["metric_id"].map(catalogue)
+        for metric_id in sorted(set(rows.loc[rows[column] != expected, "metric_id"])):
+            problems.append(f"{metric_id}: {column} differs from the catalogue")
+    if problems:
+        raise MeasureError("; ".join(problems))
+    open_sources = {n for n, term in terms.sources.items() if not term.restricted}
+    return rows.assign(
+        restricted=~rows["source"].isin(open_sources),
+        display_only=rows["source"].isin(set(terms.display_only_sources())),
+    )[columns].reset_index(drop=True)
 
 
 def latest_refresh(interim: Path) -> dict | None:
@@ -348,12 +408,14 @@ def build(
     notes: str | None = None,
     model: ModelConfig | None = None,
     scope: PublicScope | None = None,
+    metrics: MetricsConfig | None = None,
 ) -> Snapshot:
     """The snapshot for one run. Raises on a simulated run or a wording hit.
 
     ``screening_run_id`` names a second fit whose estimates fill in the sites ``model_run_id``
     does not have, marked provisional. Without it the snapshot holds the model run's rows only.
     """
+    metrics = metrics or load_metrics()
     interim = project.resolve(project.paths.interim)
     processed = project.resolve(project.paths.processed)
     registry = project.resolve(project.paths.registry)
@@ -645,6 +707,10 @@ def build(
         if len(feats) and "closed" in feats
         else pd.DataFrame(columns=list(pub.site_features.columns))
     )
+
+    # --- measures beside the methane estimate (ADR 0019) ---------------------------------
+    tables["site_metrics"] = measure_rows(interim, metrics, terms, set(tables["sites"]["site_id"]))
+    tables["metric_catalogue"] = catalogue_table(metrics)
 
     # --- method checks -------------------------------------------------------------------
     tables["validation_results"] = pd.DataFrame(

@@ -233,6 +233,14 @@ One row per (site, instrument, observation day), not per scene. Same-day repeat 
 
 `pull_id, source, endpoint, params_json, started_at, finished_at, n_records, sha256, file_paths, git_sha`.
 
+### 4.11 `site_metrics` and its catalogue (§16.3, ADR 0019)
+
+`site_id, metric_id, period, source, value, value_text, unit, kind (reported|observed|context), confirmed, source_id, url, pull_id`. One row per site, measure, period and source. Each ingest step writes its own file under `data/interim/site_metrics/`.
+
+- **The catalogue is `config/metrics.yaml`:** `metric_id → label, unit, kind, source, caveat`. It is published with each copy as `metric_catalogue`. A row whose measure is not in the catalogue, or whose unit, kind or source differs from it, stops `mw publish build`.
+- **Figures stay in the unit the source publishes.** EPA's gases are in t CO2e and are not converted.
+- **A missing row means not reported, never zero.**
+
 ---
 
 ## 5. Module specs by build phase

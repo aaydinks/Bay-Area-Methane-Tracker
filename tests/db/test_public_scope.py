@@ -97,6 +97,18 @@ insert into public.site_features
   ('pub-scope', 'open-site', false, true, true),
   ('pub-scope', 'held-site', false, true, false);
 
+insert into public.metric_catalogue
+  (publish_id, metric_id, label, unit, kind, source, sort_order) values
+  ('pub-scope', 'epa_landfill_ch4', 'Methane from the landfill', 't CO2e', 'reported', 'ghgrp', 1);
+
+insert into public.site_metrics
+  (publish_id, site_id, metric_id, period, source, value, unit, kind, confirmed, restricted,
+   public_scope) values
+  ('pub-scope', 'open-site', 'epa_landfill_ch4', '2023', 'ghgrp', 100, 't CO2e', 'reported',
+   true, false, true),
+  ('pub-scope', 'held-site', 'epa_landfill_ch4', '2023', 'ghgrp', 200, 't CO2e', 'reported',
+   true, false, false);
+
 insert into public.update_log (publish_id, item_order, kind, site_id, text, public_scope) values
   ('pub-scope', 0, 'new-plumes', 'open-site', '1 new plume near Open Landfill.', true),
   ('pub-scope', 1, 'new-plumes', 'held-site', '1 new plume near Held Landfill.', false),
@@ -122,6 +134,7 @@ SITE_READS = {
     "operator_reports": "site_id",
     "population_context": "site_id",
     "site_features": "site_id",
+    "site_metrics": "site_id",
 }
 
 
@@ -191,7 +204,7 @@ def test_scope_columns_default_to_in_scope(db):
         "from information_schema.columns where table_schema = 'public' "
         "and column_name in ('public_scope', 'site_public') and table_name not like 'v\\_%'",
     )
-    assert len(got) == 12  # eleven tables carry public_scope; plumes also carries site_public
+    assert len(got) == 13  # twelve tables carry public_scope; plumes also carries site_public
     assert all(default == "true" and nullable == "NO" for _, _, default, nullable in got)
 
 

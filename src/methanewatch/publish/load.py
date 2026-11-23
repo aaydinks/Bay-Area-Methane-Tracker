@@ -307,6 +307,20 @@ def push(snapshot: Snapshot, dsn: str, *, compare_with: str = "review") -> dict[
             list(pub.site_features.columns),
             pid,
         )
+        # A snapshot written before the measures table existed has neither of these. The
+        # catalogue goes first: each measure row refers to its entry.
+        catalogue = snapshot.tables.get("metric_catalogue")
+        counts["metric_catalogue"] = (
+            _insert(cur, "metric_catalogue", catalogue, list(pub.metric_catalogue.columns), pid)
+            if catalogue is not None
+            else 0
+        )
+        metric_rows = snapshot.tables.get("site_metrics")
+        counts["site_metrics"] = (
+            _insert(cur, "site_metrics", metric_rows, list(pub.site_metrics.columns), pid)
+            if metric_rows is not None
+            else 0
+        )
         vr = snapshot.tables["validation_results"].copy()
         if len(vr):
             vr["metrics"] = vr["metrics"].map(
@@ -371,6 +385,8 @@ CONTENT_TABLES = (
     "operator_reports",
     "population_context",
     "site_features",
+    "site_metrics",
+    "metric_catalogue",
     "validation_results",
     "update_log",
 )
