@@ -20,6 +20,8 @@ export type CheckWithResult = Views['v_checks_with_results']['Row'] & { result_h
 export type OperatorReport = Tables['operator_reports']['Row'];
 export type Population = Tables['population_context']['Row'];
 export type SiteFeature = Tables['site_features']['Row'];
+export type SiteMetric = Tables['site_metrics']['Row'];
+export type MetricEntry = Tables['metric_catalogue']['Row'];
 export type ValidationResult = Tables['validation_results']['Row'];
 export type UpdateLogItem = Tables['update_log']['Row'];
 export type Boundary = Views['v_boundaries']['Row'];
@@ -51,6 +53,8 @@ export interface Snapshot {
   operator_reports: OperatorReport[];
   population: Population[];
   site_features: SiteFeature[];
+  site_metrics?: SiteMetric[];
+  metric_catalogue?: MetricEntry[];
   validation_results: ValidationResult[];
 }
 
@@ -138,6 +142,54 @@ export function modelInstruments(): { used: string[]; leftOut: LeftOut[] } {
 
 export function operatorReportsFor(siteId: string): OperatorReport[] {
   return snapshot.operator_reports.filter((o) => o.site_id === siteId).sort((a, b) => a.year - b.year);
+}
+
+// ---- measures beside the methane estimate (ADR 0019) ----------------------------------------
+
+const catalogue = [...(snapshot.metric_catalogue ?? [])].sort((x, y) => x.sort_order - y.sort_order);
+
+// A copy published before the measures existed carries no catalogue, and its pages show no
+// measures section at all: an empty table there would read as "nothing was reported".
+export const hasMeasures = catalogue.length > 0;
+
+export interface MeasureGroup {
+  source: string;
+  sourceName: string;
+  /** Measures with at least one figure for the site, in catalogue order. */
+  columns: MetricEntry[];
+  /** Measures the catalogue lists for this source that have no figure for the site. */
+  missing: MetricEntry[];
+  /** Periods with any figure, newest first. */
+  periods: string[];
+  /** The one unit every column shares, or null when they differ. */
+  unit: string | null;
+  url: string | null;
+  cell: (period: string, metricId: string) => SiteMetric | undefined;
+}
+
+/** Reported figures for a site, one group per source. A measure or a year without a row is
+ *  "not reported"; it is never shown as zero. */
+export function reportedMeasuresFor(siteId: string): MeasureGroup[] {
+  const reported = catalogue.filter((m) => m.kind === 'reported');
+  const rows = (snapshot.site_metrics ?? []).filter((r) => r.site_id === siteId);
+  return [...new Set(reported.map((m) => m.source))].map((source) => {
+    const entries = reported.filter((m) => m.source === source);
+    const ids = new Set(entries.map((m) => m.metric_id));
+    const mine = rows.filter((r) => r.source === source && ids.has(r.metric_id));
+    const byKey = new Map(mine.map((r) => [`${r.period}|${r.metric_id}`, r]));
+    const columns = entries.filter((m) => mine.some((r) => r.metric_id === m.metric_id));
+    const units = new Set(columns.map((m) => m.unit));
+    return {
+      source,
+      sourceName: snapshot.data_terms.find((d) => d.source === source)?.display_name ?? source,
+      columns,
+      missing: entries.filter((m) => !columns.includes(m)),
+      periods: [...new Set(mine.map((r) => r.period))].sort().reverse(),
+      unit: units.size === 1 ? [...units][0] : null,
+      url: mine.find((r) => r.url)?.url ?? null,
+      cell: (period: string, metricId: string) => byKey.get(`${period}|${metricId}`),
+    };
+  });
 }
 
 export function populationFor(siteId: string): Population[] {

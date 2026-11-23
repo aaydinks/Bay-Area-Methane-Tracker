@@ -1,0 +1,61 @@
+---
+// Figures an operator or agency reported for one landfill (ADR 0019), one table per source:
+// a row for each year, a column for each measure with any figure. A year or a measure with no
+// figure reads "not reported", never zero. Labels and caveats come from the published catalogue.
+import TableWrap from './TableWrap.astro';
+import { reportedMeasuresFor } from '../lib/data';
+import { listText, num } from '../lib/format';
+
+interface Props { siteId: string }
+const { siteId } = Astro.props;
+const groups = reportedMeasuresFor(siteId);
+---
+{groups.map((g) => (
+  <div data-testid="reported-measures" data-source={g.source}>
+    <h3>{g.sourceName}</h3>
+    {g.periods.length ? (
+      <>
+        <TableWrap label={`Figures reported to ${g.sourceName}`}>
+          <table>
+            <caption>
+              As published by the source{g.unit ? `, in ${g.unit}` : ''}. "Not reported" means no figure was filed for that year. It does not mean zero.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Year</th>
+                {g.columns.map((m) => <th scope="col" class="num">{m.label}{g.unit ? '' : ` (${m.unit})`}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {g.periods.map((period) => (
+                <tr>
+                  <th scope="row">{period}</th>
+                  {g.columns.map((m) => {
+                    const cell = g.cell(period, m.metric_id);
+                    return cell
+                      ? <td class="num">{cell.value != null ? num(cell.value) : cell.value_text}</td>
+                      : <td class="num muted">not reported</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+        <ul class="muted">
+          {g.columns.filter((m) => m.caveat).map((m) => <li>{m.label}: {m.caveat}</li>)}
+        </ul>
+        {g.missing.length > 0 && (
+          <p class="muted">Not reported for this landfill in any year: {listText(g.missing.map((m) => m.label))}.</p>
+        )}
+        {g.url && <p class="muted"><a href={g.url}>Source records</a></p>}
+      </>
+    ) : (
+      <p class="muted">No figures from this source are on file for this landfill. Either it does not report there, or its record has not been matched to this landfill yet.</p>
+    )}
+  </div>
+))}
+
+<style>
+  /* Measure names are long: let the column headings wrap so five columns fit a desktop page. */
+  th[scope="col"] { white-space: normal; min-width: 6.5rem; max-width: 11rem; vertical-align: bottom; }
+</style>

@@ -6,10 +6,11 @@ import Base from '../../layouts/Base.astro';
 import CheckTypeTag from '../../components/CheckTypeTag.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import Range from '../../components/Range.astro';
+import ReportedMeasures from '../../components/ReportedMeasures.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
 import {
-  checksFor, estimateFor, featuresFor, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
+  checksFor, estimateFor, featuresFor, hasMeasures, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
   passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, sites, type Site, usableEstimate,
 } from '../../lib/data';
 import { date, listText, num, pct } from '../../lib/format';
@@ -152,6 +153,13 @@ const plain = hasEstimate && estimate
         <EmptyState title="No operator-reported figures" expected={EXPECTED.operator} />
       )}
     </details>
+
+    {hasMeasures && (
+      <details class="more" id="reported">
+        <summary>Gases and other figures reported for this landfill</summary>
+        <ReportedMeasures siteId={id} />
+      </details>
+    )}
 
     <details class="more">
       <summary>About the site and its surroundings</summary>

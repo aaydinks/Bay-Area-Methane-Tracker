@@ -162,6 +162,15 @@ for (const r of (await csvRows('plumes.csv')) ?? []) {
 for (const r of (await csvRows('passes_monthly.csv')) ?? []) {
   if (r.restricted === 'true') problems.push('data/passes_monthly.csv: a restricted month reached the download');
 }
+// Measures (ADR 0019): the download holds exactly the open rows, each for a site the build lists.
+const openMeasures = (snapshot.site_metrics ?? []).filter((r) => r.restricted !== true).length;
+const measuresCsv = await csvRows('site_measures.csv');
+if (measuresCsv && measuresCsv.length !== openMeasures) {
+  problems.push(`data/site_measures.csv: ${measuresCsv.length} rows, but only ${openMeasures} measures are open`);
+}
+for (const r of measuresCsv ?? []) {
+  if (!openSites.has(r.site_id)) problems.push(`data/site_measures.csv: a row about ${r.site_id}, which is outside the public scope`);
+}
 
 if (problems.length) {
   console.error(`check-public-output: ${problems.length} problem(s); the public build is not safe to publish`);

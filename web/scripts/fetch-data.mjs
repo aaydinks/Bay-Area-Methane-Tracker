@@ -15,7 +15,7 @@
 // Output: src/data/snapshot.json (imported by the pages) and public/data/*.geojson (for the map).
 // Both are written at build time and never committed.
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +63,9 @@ const SOURCES = {
   operator_reports: { view: 'operator_reports', order: ['site_id', 'year', 'source'] },
   population: { view: 'population_context', order: ['site_id', 'radius_km'] },
   site_features: { view: 'site_features', order: ['site_id'] },
+  // Measures beside the methane estimate and their catalogue (ADR 0019)
+  site_metrics: { view: 'site_metrics', order: ['site_id', 'metric_id', 'period', 'source'] },
+  metric_catalogue: { view: 'metric_catalogue', order: ['sort_order'] },
   validation_results: { view: 'validation_results', order: ['gate', 'report_id'] },
 };
 
@@ -149,6 +152,9 @@ function applyPublicRules(name, allRows) {
     return shown.map((r) => (r.restricted ? asDot(r, order.get(r)) : r));
   }
   if (RESTRICTABLE.has(name)) return rows.filter(isShown);
+  // A restricted measure is never shown in public, display-only or not: no measure has a
+  // reduced public form yet, and the database hides these rows from the publishable key too.
+  if (name === 'site_metrics') return rows.filter((r) => r.restricted !== true);
   if (name === 'checks') return rows.map(blankRestrictedResult);
   return rows;
 }
@@ -212,8 +218,8 @@ async function fromFixture() {
   if (held) {
     if (!fx.sites.some((s) => s.site_id === held)) fail(`FIXTURE_HELD_SITE: no site "${held}" in the fixture`);
     fx.sites = fx.sites.map((s) => (s.site_id === held ? { ...s, tier: 'screen', public_scope: false } : s));
-    for (const name of ['passes', 'site_estimates', 'checks', 'check_results', 'operator_reports', 'population', 'site_features', 'update_log']) {
-      fx[name] = fx[name].map((r) => (r.site_id === held ? { ...r, public_scope: false } : r));
+    for (const name of ['passes', 'site_estimates', 'checks', 'check_results', 'operator_reports', 'population', 'site_features', 'site_metrics', 'update_log']) {
+      fx[name] = (fx[name] ?? []).map((r) => (r.site_id === held ? { ...r, public_scope: false } : r));
     }
     fx.neighbours = fx.neighbours.map((n) => (n.nearest_site_id === held ? { ...n, public_scope: false } : n));
     fx.plumes = fx.plumes.map((p) => (p.site_id === held ? { ...p, site_public: false } : p));
@@ -238,6 +244,8 @@ async function fromFixture() {
     operator_reports: inPub(fx.operator_reports),
     population: inPub(fx.population),
     site_features: inPub(fx.site_features),
+    site_metrics: inPub(fx.site_metrics ?? []),
+    metric_catalogue: inPub(fx.metric_catalogue ?? []),
     validation_results: inPub(fx.validation_results),
   };
   const visibleIds = new Set(fx.publications.filter((p) => VISIBLE.includes(p.visibility)).map((p) => p.publish_id));
@@ -390,6 +398,7 @@ function csv(rows, columns) {
   return [columns.join(','), ...rows.map((r) => columns.map((c) => esc(r[c])).join(','))].join('\n') + '\n';
 }
 
+const measureLabel = new Map(tables.metric_catalogue.map((m) => [m.metric_id, m.label]));
 const DOWNLOADS = {
   'sites.csv': { rows: tables.sites, columns: ['site_id', 'name', 'city', 'county', 'operator', 'tier', 'status', 'swis_number', 'ghgrp_facility_id', 'polygon_source', 'provisional', 'area_km2', 'lon', 'lat'] },
   'passes_monthly.csv': { rows: tables.pass_months, columns: ['site_id', 'instrument', 'month', 'n_passes', 'n_usable', 'n_detected', 'restricted'] },
@@ -397,6 +406,11 @@ const DOWNLOADS = {
   'site_estimates.csv': { rows: tables.site_estimates, columns: ['site_id', 'period', 'model_run_id', 'n_usable_overpasses', 'n_detections', 'f_med', 'f_lo', 'f_hi', 'qbar_kg_hr_med', 'qbar_kg_hr_lo', 'qbar_kg_hr_hi', 'e_t_yr_med', 'e_t_yr_lo', 'e_t_yr_hi', 'status', 'provisional'] },
   'checks.csv': { rows: tables.checks, columns: ['check_id', 'site_id', 'check_type', 'repair_kind', 'date_start', 'date_end', 'date_confidence', 'description', 'source_doc', 'source_doc_title', 'source_url', 'source_page', 'call', 'change_pct_med', 'change_pct_lo', 'change_pct_hi', 'de_t_yr_med', 'de_t_yr_lo', 'de_t_yr_hi', 'p_decrease', 'mde_pct', 'n_before', 'n_after', 'evidence', 'size', 'colour', 'plain_reading'] },
   'operator_reports.csv': { rows: tables.operator_reports, columns: ['site_id', 'year', 'source', 'reported_ch4_t', 'reported_co2e_t', 'gwp_used', 'gwp_confirmed', 'facility_id', 'url'] },
+  // Only for a copy that carries the catalogue: one published before the measures existed gets no
+  // empty file, which would read as "nothing was reported".
+  ...(tables.metric_catalogue.length ? {
+    'site_measures.csv': { rows: tables.site_metrics.map((r) => ({ ...r, label: measureLabel.get(r.metric_id) ?? null })), columns: ['site_id', 'metric_id', 'label', 'period', 'value', 'value_text', 'unit', 'kind', 'source', 'source_id', 'url', 'confirmed'] },
+  } : {}),
   'validation_results.csv': { rows: tables.validation_results, columns: ['report_id', 'gate', 'run_id', 'result', 'metrics', 'superseded', 'note', 'created_at'] },
 };
 function downloadable(name, rows) {
@@ -407,6 +421,8 @@ function downloadable(name, rows) {
   }
   return rows.filter((r) => r.restricted !== true);
 }
+// A file left in public/data by an earlier local build must not ride along with this one.
+if (!('site_measures.csv' in DOWNLOADS)) await rm(path.join(publicDir, 'site_measures.csv'), { force: true });
 const downloads = [];
 for (const [name, spec] of Object.entries(DOWNLOADS)) {
   const { columns } = spec;

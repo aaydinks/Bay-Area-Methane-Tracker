@@ -55,6 +55,7 @@ export type Database = {
           de_t_yr_lo: number | null
           de_t_yr_med: number | null
           diag_ok: boolean | null
+          display_only: boolean
           effect_hi: number | null
           effect_lo: number | null
           effect_med: number | null
@@ -65,6 +66,7 @@ export type Database = {
           p_decrease: number | null
           plain_reading: string
           provisional: boolean
+          public_scope: boolean
           publish_id: string
           reason: string | null
           restricted: boolean
@@ -84,6 +86,7 @@ export type Database = {
           de_t_yr_lo?: number | null
           de_t_yr_med?: number | null
           diag_ok?: boolean | null
+          display_only?: boolean
           effect_hi?: number | null
           effect_lo?: number | null
           effect_med?: number | null
@@ -94,6 +97,7 @@ export type Database = {
           p_decrease?: number | null
           plain_reading: string
           provisional?: boolean
+          public_scope?: boolean
           publish_id: string
           reason?: string | null
           restricted?: boolean
@@ -113,6 +117,7 @@ export type Database = {
           de_t_yr_lo?: number | null
           de_t_yr_med?: number | null
           diag_ok?: boolean | null
+          display_only?: boolean
           effect_hi?: number | null
           effect_lo?: number | null
           effect_med?: number | null
@@ -123,6 +128,7 @@ export type Database = {
           p_decrease?: number | null
           plain_reading?: string
           provisional?: boolean
+          public_scope?: boolean
           publish_id?: string
           reason?: string | null
           restricted?: boolean
@@ -162,6 +168,7 @@ export type Database = {
           date_start: string
           description: string
           entered_on: string | null
+          public_scope: boolean
           publish_id: string
           repair_kind: string | null
           site_id: string
@@ -178,6 +185,7 @@ export type Database = {
           date_start: string
           description: string
           entered_on?: string | null
+          public_scope?: boolean
           publish_id: string
           repair_kind?: string | null
           site_id: string
@@ -194,6 +202,7 @@ export type Database = {
           date_start?: string
           description?: string
           entered_on?: string | null
+          public_scope?: boolean
           publish_id?: string
           repair_kind?: string | null
           site_id?: string
@@ -232,8 +241,8 @@ export type Database = {
           confirmed: boolean
           credit_line: string | null
           derived_publishable: boolean
-          display_publishable: boolean
           display_name: string
+          display_publishable: boolean
           raw_publishable: boolean
           source: string
           terms_url: string | null
@@ -243,8 +252,8 @@ export type Database = {
           confirmed?: boolean
           credit_line?: string | null
           derived_publishable?: boolean
-          display_publishable?: boolean
           display_name: string
+          display_publishable?: boolean
           raw_publishable?: boolean
           source: string
           terms_url?: string | null
@@ -254,13 +263,68 @@ export type Database = {
           confirmed?: boolean
           credit_line?: string | null
           derived_publishable?: boolean
-          display_publishable?: boolean
           display_name?: string
+          display_publishable?: boolean
           raw_publishable?: boolean
           source?: string
           terms_url?: string | null
         }
         Relationships: []
+      }
+      metric_catalogue: {
+        Row: {
+          caveat: string | null
+          kind: string
+          label: string
+          metric_id: string
+          publish_id: string
+          sort_order: number
+          source: string
+          unit: string
+        }
+        Insert: {
+          caveat?: string | null
+          kind: string
+          label: string
+          metric_id: string
+          publish_id: string
+          sort_order: number
+          source: string
+          unit: string
+        }
+        Update: {
+          caveat?: string | null
+          kind?: string
+          label?: string
+          metric_id?: string
+          publish_id?: string
+          sort_order?: number
+          source?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_catalogue_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["publish_id"]
+          },
+          {
+            foreignKeyName: "metric_catalogue_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_publication"
+            referencedColumns: ["publish_id"]
+          },
+          {
+            foreignKeyName: "metric_catalogue_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_review_publication"
+            referencedColumns: ["publish_id"]
+          },
+        ]
       }
       neighbours: {
         Row: {
@@ -270,6 +334,7 @@ export type Database = {
           name: string
           nearest_site_id: string | null
           neighbour_id: string
+          public_scope: boolean
           publish_id: string
           source: string | null
         }
@@ -280,6 +345,7 @@ export type Database = {
           name: string
           nearest_site_id?: string | null
           neighbour_id: string
+          public_scope?: boolean
           publish_id: string
           source?: string | null
         }
@@ -290,6 +356,7 @@ export type Database = {
           name?: string
           nearest_site_id?: string | null
           neighbour_id?: string
+          public_scope?: boolean
           publish_id?: string
           source?: string | null
         }
@@ -322,6 +389,7 @@ export type Database = {
           facility_id: string
           gwp_confirmed: boolean
           gwp_used: number | null
+          public_scope: boolean
           publish_id: string
           reported_ch4_t: number
           reported_co2e_t: number | null
@@ -334,6 +402,7 @@ export type Database = {
           facility_id: string
           gwp_confirmed?: boolean
           gwp_used?: number | null
+          public_scope?: boolean
           publish_id: string
           reported_ch4_t: number
           reported_co2e_t?: number | null
@@ -346,6 +415,7 @@ export type Database = {
           facility_id?: string
           gwp_confirmed?: boolean
           gwp_used?: number | null
+          public_scope?: boolean
           publish_id?: string
           reported_ch4_t?: number
           reported_co2e_t?: number | null
@@ -384,9 +454,11 @@ export type Database = {
           coverage_frac: number | null
           coverage_source: string | null
           detected: boolean
+          display_only: boolean
           instrument: string
           n_plumes: number
           overpass_id: string
+          public_scope: boolean
           publish_id: string
           q_obs_kg_hr: number | null
           restricted: boolean
@@ -401,9 +473,11 @@ export type Database = {
           coverage_frac?: number | null
           coverage_source?: string | null
           detected?: boolean
+          display_only?: boolean
           instrument: string
           n_plumes?: number
           overpass_id: string
+          public_scope?: boolean
           publish_id: string
           q_obs_kg_hr?: number | null
           restricted?: boolean
@@ -418,9 +492,11 @@ export type Database = {
           coverage_frac?: number | null
           coverage_source?: string | null
           detected?: boolean
+          display_only?: boolean
           instrument?: string
           n_plumes?: number
           overpass_id?: string
+          public_scope?: boolean
           publish_id?: string
           q_obs_kg_hr?: number | null
           restricted?: boolean
@@ -459,6 +535,7 @@ export type Database = {
           acquired_utc: string
           attribution: string
           data_version: string | null
+          display_only: boolean
           distance_m: number | null
           geom: unknown
           instrument: string
@@ -467,17 +544,21 @@ export type Database = {
           new_in_update: boolean
           overpass_id: string | null
           plume_id: string
+          public_scope: boolean
           publish_id: string
           q_kg_hr: number | null
           q_sigma_kg_hr: number | null
+          region: string | null
           restricted: boolean
           site_id: string | null
+          site_public: boolean
           source: string
         }
         Insert: {
           acquired_utc: string
           attribution: string
           data_version?: string | null
+          display_only?: boolean
           distance_m?: number | null
           geom?: unknown
           instrument: string
@@ -486,17 +567,21 @@ export type Database = {
           new_in_update?: boolean
           overpass_id?: string | null
           plume_id: string
+          public_scope?: boolean
           publish_id: string
           q_kg_hr?: number | null
           q_sigma_kg_hr?: number | null
+          region?: string | null
           restricted?: boolean
           site_id?: string | null
+          site_public?: boolean
           source: string
         }
         Update: {
           acquired_utc?: string
           attribution?: string
           data_version?: string | null
+          display_only?: boolean
           distance_m?: number | null
           geom?: unknown
           instrument?: string
@@ -505,11 +590,14 @@ export type Database = {
           new_in_update?: boolean
           overpass_id?: string | null
           plume_id?: string
+          public_scope?: boolean
           publish_id?: string
           q_kg_hr?: number | null
           q_sigma_kg_hr?: number | null
+          region?: string | null
           restricted?: boolean
           site_id?: string | null
+          site_public?: boolean
           source?: string
         }
         Relationships: [
@@ -539,6 +627,7 @@ export type Database = {
       population_context: {
         Row: {
           label: string
+          public_scope: boolean
           publish_id: string
           radius_km: number
           residents: number
@@ -546,6 +635,7 @@ export type Database = {
         }
         Insert: {
           label: string
+          public_scope?: boolean
           publish_id: string
           radius_km: number
           residents: number
@@ -553,6 +643,7 @@ export type Database = {
         }
         Update: {
           label?: string
+          public_scope?: boolean
           publish_id?: string
           radius_km?: number
           residents?: number
@@ -668,6 +759,7 @@ export type Database = {
       }
       site_estimates: {
         Row: {
+          display_only: boolean
           divergences: number | null
           e_t_yr_hi: number | null
           e_t_yr_lo: number | null
@@ -682,6 +774,7 @@ export type Database = {
           n_usable_overpasses: number
           period: string
           provisional: boolean
+          public_scope: boolean
           publish_id: string
           qbar_kg_hr_hi: number | null
           qbar_kg_hr_lo: number | null
@@ -692,6 +785,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          display_only?: boolean
           divergences?: number | null
           e_t_yr_hi?: number | null
           e_t_yr_lo?: number | null
@@ -706,6 +800,7 @@ export type Database = {
           n_usable_overpasses: number
           period?: string
           provisional?: boolean
+          public_scope?: boolean
           publish_id: string
           qbar_kg_hr_hi?: number | null
           qbar_kg_hr_lo?: number | null
@@ -716,6 +811,7 @@ export type Database = {
           status: string
         }
         Update: {
+          display_only?: boolean
           divergences?: number | null
           e_t_yr_hi?: number | null
           e_t_yr_lo?: number | null
@@ -730,6 +826,7 @@ export type Database = {
           n_usable_overpasses?: number
           period?: string
           provisional?: boolean
+          public_scope?: boolean
           publish_id?: string
           qbar_kg_hr_hi?: number | null
           qbar_kg_hr_lo?: number | null
@@ -769,6 +866,7 @@ export type Database = {
           closed: boolean
           dist_neighbor_m: number | null
           ghgrp_reporter: boolean
+          public_scope: boolean
           publish_id: string
           site_id: string
         }
@@ -777,6 +875,7 @@ export type Database = {
           closed: boolean
           dist_neighbor_m?: number | null
           ghgrp_reporter: boolean
+          public_scope?: boolean
           publish_id: string
           site_id: string
         }
@@ -785,6 +884,7 @@ export type Database = {
           closed?: boolean
           dist_neighbor_m?: number | null
           ghgrp_reporter?: boolean
+          public_scope?: boolean
           publish_id?: string
           site_id?: string
         }
@@ -812,53 +912,151 @@ export type Database = {
           },
         ]
       }
+      site_metrics: {
+        Row: {
+          confirmed: boolean
+          display_only: boolean
+          kind: string
+          metric_id: string
+          period: string
+          public_scope: boolean
+          publish_id: string
+          restricted: boolean
+          site_id: string
+          source: string
+          source_id: string | null
+          unit: string
+          url: string | null
+          value: number | null
+          value_text: string | null
+        }
+        Insert: {
+          confirmed?: boolean
+          display_only?: boolean
+          kind: string
+          metric_id: string
+          period: string
+          public_scope?: boolean
+          publish_id: string
+          restricted?: boolean
+          site_id: string
+          source: string
+          source_id?: string | null
+          unit: string
+          url?: string | null
+          value?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          confirmed?: boolean
+          display_only?: boolean
+          kind?: string
+          metric_id?: string
+          period?: string
+          public_scope?: boolean
+          publish_id?: string
+          restricted?: boolean
+          site_id?: string
+          source?: string
+          source_id?: string | null
+          unit?: string
+          url?: string | null
+          value?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_metrics_in_catalogue"
+            columns: ["publish_id", "metric_id"]
+            isOneToOne: false
+            referencedRelation: "metric_catalogue"
+            referencedColumns: ["publish_id", "metric_id"]
+          },
+          {
+            foreignKeyName: "site_metrics_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["publish_id"]
+          },
+          {
+            foreignKeyName: "site_metrics_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_publication"
+            referencedColumns: ["publish_id"]
+          },
+          {
+            foreignKeyName: "site_metrics_publish_id_fkey"
+            columns: ["publish_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_review_publication"
+            referencedColumns: ["publish_id"]
+          },
+        ]
+      }
       sites: {
         Row: {
+          air_district: string | null
+          air_district_confirmed: boolean
           area_km2: number | null
           centroid: unknown
           city: string | null
           county: string | null
+          district_facility_id: string | null
           ghgrp_facility_id: string | null
           name: string
           operator: string | null
           outline: unknown
           polygon_source: string | null
           provisional: boolean
+          public_scope: boolean
           publish_id: string
+          region: string | null
           site_id: string
           status: string | null
           swis_number: string | null
           tier: string | null
         }
         Insert: {
+          air_district?: string | null
+          air_district_confirmed?: boolean
           area_km2?: number | null
           centroid?: unknown
           city?: string | null
           county?: string | null
+          district_facility_id?: string | null
           ghgrp_facility_id?: string | null
           name: string
           operator?: string | null
           outline?: unknown
           polygon_source?: string | null
           provisional?: boolean
+          public_scope?: boolean
           publish_id: string
+          region?: string | null
           site_id: string
           status?: string | null
           swis_number?: string | null
           tier?: string | null
         }
         Update: {
+          air_district?: string | null
+          air_district_confirmed?: boolean
           area_km2?: number | null
           centroid?: unknown
           city?: string | null
           county?: string | null
+          district_facility_id?: string | null
           ghgrp_facility_id?: string | null
           name?: string
           operator?: string | null
           outline?: unknown
           polygon_source?: string | null
           provisional?: boolean
+          public_scope?: boolean
           publish_id?: string
+          region?: string | null
           site_id?: string
           status?: string | null
           swis_number?: string | null
@@ -895,6 +1093,7 @@ export type Database = {
           event_date: string | null
           item_order: number
           kind: string
+          public_scope: boolean
           publish_id: string
           site_id: string | null
           text: string
@@ -905,6 +1104,7 @@ export type Database = {
           event_date?: string | null
           item_order: number
           kind: string
+          public_scope?: boolean
           publish_id: string
           site_id?: string | null
           text: string
@@ -915,6 +1115,7 @@ export type Database = {
           event_date?: string | null
           item_order?: number
           kind?: string
+          public_scope?: boolean
           publish_id?: string
           site_id?: string | null
           text?: string
@@ -1311,11 +1512,14 @@ export type Database = {
           new_in_update: boolean | null
           overpass_id: string | null
           plume_id: string | null
+          public_scope: boolean | null
           publish_id: string | null
           q_kg_hr: number | null
           q_sigma_kg_hr: number | null
+          region: string | null
           restricted: boolean | null
           site_id: string | null
+          site_public: boolean | null
           source: string | null
         }
         Insert: {
@@ -1329,11 +1533,14 @@ export type Database = {
           new_in_update?: boolean | null
           overpass_id?: string | null
           plume_id?: string | null
+          public_scope?: boolean | null
           publish_id?: string | null
           q_kg_hr?: number | null
           q_sigma_kg_hr?: number | null
+          region?: string | null
           restricted?: boolean | null
           site_id?: string | null
+          site_public?: boolean | null
           source?: string | null
         }
         Update: {
@@ -1347,11 +1554,14 @@ export type Database = {
           new_in_update?: boolean | null
           overpass_id?: string | null
           plume_id?: string | null
+          public_scope?: boolean | null
           publish_id?: string | null
           q_kg_hr?: number | null
           q_sigma_kg_hr?: number | null
+          region?: string | null
           restricted?: boolean | null
           site_id?: string | null
+          site_public?: boolean | null
           source?: string | null
         }
         Relationships: [
@@ -1378,11 +1588,134 @@ export type Database = {
           },
         ]
       }
+      v_public_checks_with_results: {
+        Row: {
+          call: string | null
+          change_pct_hi: number | null
+          change_pct_lo: number | null
+          change_pct_med: number | null
+          check_id: string | null
+          check_run_id: string | null
+          check_type: string | null
+          colour: string | null
+          controls: string | null
+          date_confidence: string | null
+          date_end: string | null
+          date_start: string | null
+          de_t_yr_hi: number | null
+          de_t_yr_lo: number | null
+          de_t_yr_med: number | null
+          description: string | null
+          diag_ok: boolean | null
+          display_only: boolean | null
+          effect_hi: number | null
+          effect_lo: number | null
+          effect_med: number | null
+          evidence: string | null
+          mde_pct: number | null
+          n_after: number | null
+          n_before: number | null
+          p_decrease: number | null
+          plain_reading: string | null
+          provisional: boolean | null
+          publish_id: string | null
+          reason: string | null
+          repair_kind: string | null
+          restricted: boolean | null
+          site_id: string | null
+          size: string | null
+          source_doc: string | null
+          source_doc_title: string | null
+          source_page: string | null
+          source_url: string | null
+        }
+        Relationships: []
+      }
+      v_public_pass_months: {
+        Row: {
+          display_only: boolean | null
+          instrument: string | null
+          month: string | null
+          n_detected: number | null
+          n_passes: number | null
+          n_usable: number | null
+          publish_id: string | null
+          restricted: boolean | null
+          site_id: string | null
+        }
+        Relationships: []
+      }
+      v_public_plume_days: {
+        Row: {
+          includes_display_only: boolean | null
+          includes_restricted: boolean | null
+          plume_days: number | null
+          plume_days_per_usable_pass: number | null
+          publish_id: string | null
+          site_id: string | null
+          usable_passes: number | null
+        }
+        Relationships: []
+      }
+      v_public_plumes: {
+        Row: {
+          acquired_utc: string | null
+          attribution: string | null
+          data_version: string | null
+          display_only: boolean | null
+          distance_m: number | null
+          instrument: string | null
+          lat: number | null
+          lon: number | null
+          new_in_update: boolean | null
+          overpass_id: string | null
+          plume_id: string | null
+          publish_id: string | null
+          q_kg_hr: number | null
+          q_sigma_kg_hr: number | null
+          region: string | null
+          restricted: boolean | null
+          site_id: string | null
+          source: string | null
+        }
+        Relationships: []
+      }
+      v_public_site_estimates: {
+        Row: {
+          display_only: boolean | null
+          divergences: number | null
+          e_t_yr_hi: number | null
+          e_t_yr_lo: number | null
+          e_t_yr_med: number | null
+          ess_bulk_min: number | null
+          f_hi: number | null
+          f_lo: number | null
+          f_med: number | null
+          insufficient_reason: string | null
+          model_run_id: string | null
+          n_detections: number | null
+          n_usable_overpasses: number | null
+          period: string | null
+          provisional: boolean | null
+          publish_id: string | null
+          qbar_kg_hr_hi: number | null
+          qbar_kg_hr_lo: number | null
+          qbar_kg_hr_med: number | null
+          restricted: boolean | null
+          rhat_max: number | null
+          site_id: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
       v_sites: {
         Row: {
+          air_district: string | null
+          air_district_confirmed: boolean | null
           area_km2: number | null
           city: string | null
           county: string | null
+          district_facility_id: string | null
           ghgrp_facility_id: string | null
           lat: number | null
           lon: number | null
@@ -1391,16 +1724,21 @@ export type Database = {
           outline_geojson: Json | null
           polygon_source: string | null
           provisional: boolean | null
+          public_scope: boolean | null
           publish_id: string | null
+          region: string | null
           site_id: string | null
           status: string | null
           swis_number: string | null
           tier: string | null
         }
         Insert: {
+          air_district?: string | null
+          air_district_confirmed?: boolean | null
           area_km2?: number | null
           city?: string | null
           county?: string | null
+          district_facility_id?: string | null
           ghgrp_facility_id?: string | null
           lat?: never
           lon?: never
@@ -1409,16 +1747,21 @@ export type Database = {
           outline_geojson?: never
           polygon_source?: string | null
           provisional?: boolean | null
+          public_scope?: boolean | null
           publish_id?: string | null
+          region?: string | null
           site_id?: string | null
           status?: string | null
           swis_number?: string | null
           tier?: string | null
         }
         Update: {
+          air_district?: string | null
+          air_district_confirmed?: boolean | null
           area_km2?: number | null
           city?: string | null
           county?: string | null
+          district_facility_id?: string | null
           ghgrp_facility_id?: string | null
           lat?: never
           lon?: never
@@ -1427,7 +1770,9 @@ export type Database = {
           outline_geojson?: never
           polygon_source?: string | null
           provisional?: boolean | null
+          public_scope?: boolean | null
           publish_id?: string | null
+          region?: string | null
           site_id?: string | null
           status?: string | null
           swis_number?: string | null
@@ -1459,7 +1804,133 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      public_checks_with_results: {
+        Args: never
+        Returns: {
+          call: string
+          change_pct_hi: number
+          change_pct_lo: number
+          change_pct_med: number
+          check_id: string
+          check_run_id: string
+          check_type: string
+          colour: string
+          controls: string
+          date_confidence: string
+          date_end: string
+          date_start: string
+          de_t_yr_hi: number
+          de_t_yr_lo: number
+          de_t_yr_med: number
+          description: string
+          diag_ok: boolean
+          display_only: boolean
+          effect_hi: number
+          effect_lo: number
+          effect_med: number
+          evidence: string
+          mde_pct: number
+          n_after: number
+          n_before: number
+          p_decrease: number
+          plain_reading: string
+          provisional: boolean
+          publish_id: string
+          reason: string
+          repair_kind: string
+          restricted: boolean
+          site_id: string
+          size: string
+          source_doc: string
+          source_doc_title: string
+          source_page: string
+          source_url: string
+        }[]
+      }
+      public_pass_months: {
+        Args: never
+        Returns: {
+          display_only: boolean
+          instrument: string
+          month: string
+          n_detected: number
+          n_passes: number
+          n_usable: number
+          publish_id: string
+          restricted: boolean
+          site_id: string
+        }[]
+      }
+      public_plume_days: {
+        Args: never
+        Returns: {
+          includes_display_only: boolean
+          includes_restricted: boolean
+          plume_days: number
+          plume_days_per_usable_pass: number
+          publish_id: string
+          site_id: string
+          usable_passes: number
+        }[]
+      }
+      public_plumes: {
+        Args: never
+        Returns: {
+          acquired_utc: string
+          attribution: string
+          data_version: string
+          display_only: boolean
+          distance_m: number
+          instrument: string
+          lat: number
+          lon: number
+          new_in_update: boolean
+          overpass_id: string
+          plume_id: string
+          publish_id: string
+          q_kg_hr: number
+          q_sigma_kg_hr: number
+          region: string
+          restricted: boolean
+          site_id: string
+          source: string
+        }[]
+      }
+      public_site_estimates: {
+        Args: never
+        Returns: {
+          display_only: boolean
+          divergences: number | null
+          e_t_yr_hi: number | null
+          e_t_yr_lo: number | null
+          e_t_yr_med: number | null
+          ess_bulk_min: number | null
+          f_hi: number | null
+          f_lo: number | null
+          f_med: number | null
+          insufficient_reason: string | null
+          model_run_id: string
+          n_detections: number
+          n_usable_overpasses: number
+          period: string
+          provisional: boolean
+          public_scope: boolean
+          publish_id: string
+          qbar_kg_hr_hi: number | null
+          qbar_kg_hr_lo: number | null
+          qbar_kg_hr_med: number | null
+          restricted: boolean
+          rhat_max: number | null
+          site_id: string
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_estimates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never
