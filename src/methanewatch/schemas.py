@@ -181,6 +181,34 @@ operator_reports = pa.DataFrameSchema(
     coerce=True,
 )
 
+# Measures beside the methane estimate (ADR 0019): one row per site, measure, period and
+# source. ``kind`` says whose statement a figure is: reported by an operator or agency,
+# observed by the project in public data, or context about the surroundings.
+METRIC_KINDS = ["reported", "observed", "context"]
+
+site_metrics = pa.DataFrameSchema(
+    {
+        "site_id": pa.Column(str),
+        "metric_id": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "period": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "source": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "value": pa.Column(float, nullable=True),
+        "value_text": pa.Column(str, nullable=True),
+        "unit": pa.Column(str, pa.Check.str_length(min_value=1)),
+        "kind": pa.Column(str, pa.Check.isin(METRIC_KINDS)),
+        "confirmed": pa.Column(bool),
+        "source_id": pa.Column(str, nullable=True),
+        "url": pa.Column(str, nullable=True),
+    },
+    checks=pa.Check(
+        lambda df: df["value"].notna() | df["value_text"].notna(),
+        error="a measure needs a number or a text value",
+    ),
+    unique=["site_id", "metric_id", "period", "source"],
+    strict=False,
+    coerce=True,
+)
+
 site_estimates = pa.DataFrameSchema(
     {
         "site_id": pa.Column(str),

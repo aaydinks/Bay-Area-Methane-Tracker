@@ -7,8 +7,10 @@
   ``interim/footprints/carbonmapper.parquet``; plumes with rates ->
   ``interim/plumes/carbonmapper.parquet``. Built from every finished pull: one
   row per scene, and one row per plume at its most recently modified version.
-- GHGRP: Bay Area subpart HH facilities -> ``interim/ghgrp_facilities_<year>.csv``;
-  reports for crosswalked sites -> ``interim/operator_reports.parquet``.
+- GHGRP: subpart HH facilities in the project's counties ->
+  ``interim/ghgrp_facilities_<year>.csv``; reports for crosswalked sites ->
+  ``interim/operator_reports.parquet``, and every gas they reported ->
+  ``interim/site_metrics/ghgrp.parquet``.
 
 Footprint tables are rebuilt from every raw pull of that source, deduplicated by
 scene, so repeated or overlapping pulls are safe.
@@ -139,4 +141,13 @@ def ingest_ghgrp(project: ProjectConfig, year: int) -> dict[str, int]:
     pull_dir = ghgrp.pull_reports(ids, raw)
     reports = ghgrp.normalize(pull_dir, crosswalk, load_impact().ghgrp_gwp_ch4.by_year())
     reports.to_parquet(interim / "operator_reports.parquet")
-    return {"facilities_in_regions": len(facilities), "operator_rows": len(reports)}
+    # Every gas the matched facilities reported, for the measures table (ADR 0019)
+    gases, left_out = ghgrp.normalize_gases(pull_dir, crosswalk)
+    (interim / "site_metrics").mkdir(exist_ok=True)
+    gases.to_parquet(interim / "site_metrics" / "ghgrp.parquet")
+    return {
+        "facilities_in_regions": len(facilities),
+        "operator_rows": len(reports),
+        "gas_rows": len(gases),
+        "gas_rows_left_out": int(left_out["rows"].sum()),
+    }

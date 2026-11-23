@@ -67,6 +67,70 @@ def test_ghgrp_normalize_converts_with_configured_gwp(tmp_path):
     assert set(out.index) <= set(gwp)
 
 
+def _ghgrp_pull(tmp_path, *facility_ids):
+    pull = tmp_path / "ghgrp-x"
+    pull.mkdir()
+    for fid in facility_ids:
+        (pull / f"{fid}.json").write_text((FX / f"ghgrp_{fid}.json").read_text())
+    (pull / "manifest.json").write_text(json.dumps({"pull_id": "ghgrp-x"}))
+    return pull
+
+
+def test_ghgrp_gases_are_kept_as_epa_publishes_them(tmp_path):
+    # Kiefer Landfill's rows, recorded from Envirofacts on 2026-11-23. ADR 0019 records its
+    # 2023 biogenic CO2 as 40,518 t CO2e (PLAN 16.6, the check for step 12).
+    pull = _ghgrp_pull(tmp_path, "1004037")
+    xw = pd.DataFrame({"site_id": ["kiefer"], "ghgrp_facility_id": ["1004037"]})
+    out, left_out = ghgrp.normalize_gases(pull, xw)
+    assert len(left_out) == 0
+    assert (out["site_id"] == "kiefer").all() and (out["source_id"] == "1004037").all()
+    assert set(out["unit"]) == {"t CO2e"} and set(out["kind"]) == {"reported"}
+    assert set(out["source"]) == {"ghgrp"} and out["confirmed"].all()
+    assert out["value_text"].isna().all() and (out["pull_id"] == "ghgrp-x").all()
+    y2023 = out[out["period"] == "2023"].set_index("metric_id")["value"].to_dict()
+    assert y2023 == {
+        "epa_landfill_ch4": 194423.0,
+        "epa_combustion_biogenic_co2": 40518.0,
+        "epa_combustion_ch4": 62.25,
+        "epa_combustion_n2o": 146.02,
+    }
+    # One row per measure and year, and the landfill figure equals the methane comparison's
+    assert not out.duplicated(["site_id", "metric_id", "period", "source"]).any()
+    reports = ghgrp.normalize(pull, xw, load_impact().ghgrp_gwp_ch4.by_year()).set_index("year")
+    landfill = out[out["metric_id"] == "epa_landfill_ch4"].set_index("period")["value"]
+    assert landfill["2023"] == reports.loc[2023, "reported_co2e_t"]
+
+
+def test_ghgrp_site_without_a_combustion_report_gets_no_combustion_rows(tmp_path):
+    # Newby Island files the landfill report only: no combustion rows, and no zeros in their place
+    pull = _ghgrp_pull(tmp_path, "1006179")
+    xw = pd.DataFrame({"site_id": ["newby-island"], "ghgrp_facility_id": ["1006179"]})
+    out, _ = ghgrp.normalize_gases(pull, xw)
+    assert set(out["metric_id"]) == {"epa_landfill_ch4"}
+    assert out.set_index("period").loc["2023", "value"] == pytest.approx(198862.5)
+
+
+def test_ghgrp_rows_with_no_measure_are_counted_not_dropped_silently(tmp_path):
+    pull = _ghgrp_pull(tmp_path, "1006179")
+    rows = json.loads((pull / "1006179.json").read_text())
+    # Subpart D (electricity generation, id 2) has no measure in the catalogue
+    rows.append({**rows[0], "sub_part_id": 2, "gas_id": 1, "co2e_emission": 5.0})
+    (pull / "1006179.json").write_text(json.dumps(rows))
+    xw = pd.DataFrame({"site_id": ["newby-island"], "ghgrp_facility_id": ["1006179"]})
+    out, left_out = ghgrp.normalize_gases(pull, xw)
+    assert left_out.to_dict("records") == [{"sub_part_id": 2, "gas_id": 1, "rows": 1}]
+    assert set(out["metric_id"]) == {"epa_landfill_ch4"}
+
+
+def test_ghgrp_gases_skip_a_facility_that_is_not_in_the_crosswalk(tmp_path):
+    pull = _ghgrp_pull(tmp_path, "1004037", "1006179")
+    xw = pd.DataFrame(
+        {"site_id": ["newby-island", "acme-fill"], "ghgrp_facility_id": ["1006179", None]}
+    )
+    out, _ = ghgrp.normalize_gases(pull, xw)
+    assert set(out["site_id"]) == {"newby-island"}
+
+
 def test_ghgrp_facility_fixture_has_pilots():
     fac = pd.read_csv(FX / "ghgrp_facilities_2023.csv")
     assert {1006179, 1007345, 1004123} <= set(fac["facility_id"])
