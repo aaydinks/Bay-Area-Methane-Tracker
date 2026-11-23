@@ -1,6 +1,6 @@
 # PR #84: A place for measures beside the methane estimate, starting with EPA's gases
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/84)
+**Status:** merged 2026-11-23 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/84)
 
 ## In one sentence
 
@@ -36,7 +36,8 @@ methane row was kept; the rest was thrown away.
   same banned-words check as the pages.
 - **A database change (migration 0010).** Two new tables with the same access rules as the rest:
   the public key reads only rows of public copies, for landfills on the public list, from sources
-  whose terms allow it. Nothing existing is changed.
+  whose terms allow it. Nothing existing is changed. It was applied to the live database on
+  Nov 23, 2026, before this was merged.
 
 Nothing on the website changes with this step. No page reads the new tables yet; the section
 that shows them comes next.
@@ -59,8 +60,6 @@ that shows them comes next.
 
 ## Still to do
 
-- Apply migration 0010 to the live database before this is merged (owner's go-ahead). Until
-  then the twice-weekly run on `main` is unaffected, because `main` does not write these tables.
 - Show the measures on each landfill's page, with "not reported" where a report is missing.
 - Match the 47 screening landfills to their EPA records by hand, so their gases can be added.
 - The EPA download is a manual step (`mw ingest ghgrp`), not part of the twice-weekly run. EPA
