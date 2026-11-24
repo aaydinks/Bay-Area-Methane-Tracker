@@ -19,6 +19,9 @@
 }
 .step-choice label.is-on { background: var(--green); border-color: var(--green-line); }
 .step-choice input { margin: 0; }
+/* The region choice above the map: the same pills, with its name in front. */
+.region-choice { align-items: center; }
+.region-choice legend { float: left; padding: 0; margin-right: 0.5rem; font-size: 0.95rem; color: var(--muted); }
 .timeline-slider { width: 100%; margin: 0; }
 .timeline-label { margin: 0; font-size: 1.15rem; }
 .timeline-label strong { font-weight: 700; }

@@ -18,10 +18,23 @@ export const NAV = [
   { href: '/data/', label: 'Data' },
 ] as const;
 
+// Region names as config/project.yaml gives them; tests/test_web_regions.py keeps the two in step.
+// The order here is the order the pages list them in.
+export const REGION: Record<string, string> = {
+  'bay-area': 'Bay Area',
+  'north-valley': 'North Valley',
+};
+
+// How closely a landfill is followed (the registry's tier).
+export const TIER: Record<string, string> = {
+  pilot: 'Studied in depth',
+  screen: 'Screened',
+};
+
 export const EXPECTED = {
   publication: 'Nothing has been published yet. The first data update is expected in November 2026.',
   estimates:
-    'Estimates appear after the first model fit on real data, which needs the detection curves for each instrument to be confirmed.',
+    'An estimate appears once a landfill is part of a model fit and has enough usable passes for one.',
   checks:
     'Results appear as dated records arrive from the Air District and operators. Requests were filed in October 2026 and responses can take 45 days or more.',
   plumes: 'Plume and pass counts appear with the first published data update.',

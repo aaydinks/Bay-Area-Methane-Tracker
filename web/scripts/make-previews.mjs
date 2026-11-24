@@ -48,7 +48,7 @@ const files = [];
 
 files.push(['default.png', card({
   title: 'Landfill methane, seen from above',
-  headline: p ? `${snapshot.sites.length} landfills · ${snapshot.pass_months.reduce((n, r) => n + (r.n_usable ?? 0), 0)} usable passes` : 'Five Bay Area landfills',
+  headline: p ? `${snapshot.sites.length} landfills · ${snapshot.pass_months.reduce((n, r) => n + (r.n_usable ?? 0), 0)} usable passes` : 'Landfill methane from public data',
   detail: 'How often each site leaks, whether repairs were followed by a drop, and how satellites compare with reported figures.',
   footer: `${through} · ${framing}`,
 })]);

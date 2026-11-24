@@ -1,7 +1,9 @@
 // The published snapshot the whole site is built from. Written by scripts/fetch-data.mjs at
 // build time; pages import this module and never query anything at run time.
 
+import { REGION } from '../config';
 import type { Database } from './database.types';
+import { countWord, listText } from './format';
 import snapshotJson from '../data/snapshot.json';
 
 type Views = Database['public']['Views'];
@@ -66,6 +68,30 @@ export const isFixture = meta.data_source === 'fixture';
 export const hasPublication = publication !== null;
 
 export const sites = [...snapshot.sites].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+
+// ---- regions and tiers (ADR 0018) -----------------------------------------------------------
+// Every count and place name on the pages comes from the sites this build holds, so a public
+// build names only the regions it shows.
+
+export const regionLabel = (id: string | null | undefined): string => (id ? (REGION[id] ?? id) : '');
+
+/** Regions with at least one landfill in this build, in the order config.ts lists them. */
+export const regionIds: string[] = [
+  ...Object.keys(REGION),
+  ...[...new Set(snapshot.sites.map((s) => s.region ?? ''))].filter((r) => r && !(r in REGION)).sort(),
+].filter((id) => snapshot.sites.some((s) => s.region === id));
+
+/** "the Bay Area and the North Valley", or an empty string before the first update. */
+export const regionsText = listText(regionIds.map((id) => `the ${regionLabel(id)}`));
+
+/** "five landfills in the Bay Area": how many of them, and where. */
+export function landfillsText(n: number): string {
+  return `${countWord(n)} ${n === 1 ? 'landfill' : 'landfills'}${regionsText ? ` in ${regionsText}` : ''}`;
+}
+
+/** The landfills studied in depth; the rest are screened with the same public data. */
+export const isStudied = (s: Site): boolean => s.tier === 'pilot';
+export const studiedSites = sites.filter(isStudied);
 
 export function siteById(siteId: string): Site | undefined {
   return snapshot.sites.find((s) => s.site_id === siteId);

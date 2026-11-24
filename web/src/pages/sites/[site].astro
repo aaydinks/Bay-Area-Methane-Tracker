@@ -8,10 +8,10 @@ import EmptyState from '../../components/EmptyState.astro';
 import Range from '../../components/Range.astro';
 import ReportedMeasures from '../../components/ReportedMeasures.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
-import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT } from '../../config';
+import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT, TIER } from '../../config';
 import {
-  checksFor, estimateFor, featuresFor, hasMeasures, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
-  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, sites, type Site, usableEstimate,
+  checksFor, estimateFor, featuresFor, hasMeasures, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
+  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, regionIds, regionLabel, sites, type Site, usableEstimate,
 } from '../../lib/data';
 import { date, listText, num, pct } from '../../lib/format';
 
@@ -45,7 +45,16 @@ const plain = hasEstimate && estimate
   ? `A plume was seen in ${num(estimate.n_detections)} of the ${num(estimate.n_usable_overpasses)} clear looks used for the estimate below.`
   : estimate
     ? 'There is not enough data for an estimate yet; the reason is below.'
-    : 'There is no estimate for this landfill in this update.';
+    : isStudied(site)
+      ? 'There is no estimate for this landfill in this update.'
+      : 'This landfill is screened: its passes and plumes are counted below, and it has no estimate yet.';
+// A screened landfill with no estimate is not one with too little data: no model fit has
+// included it yet, and the page says so.
+const noEstimate = estimate
+  ? { title: 'Insufficient data', text: estimate.insufficient_reason ? `${estimate.insufficient_reason}. ${EXPECTED.estimates}` : EXPECTED.estimates }
+  : isStudied(site)
+    ? { title: 'No estimate yet', text: EXPECTED.estimates }
+    : { title: 'No estimate yet', text: 'This landfill is screened with the same public data as the others, but it is not yet part of a model fit. That says nothing about how much methane it gives off.' };
 ---
 <Base title={site.name ?? id} description={`What satellites and aircraft have seen of methane at ${site.name}, with an estimate and its range.`} kind="site" image={`/og/${id}.png`}>
   <h1>{site.name}</h1>
@@ -60,7 +69,7 @@ const plain = hasEstimate && estimate
         <p class="muted">Methane above what the instruments can detect, in daytime and clear skies. It is not the landfill's total.</p>
       </div>
     ) : (
-      <EmptyState title="Insufficient data" expected={estimate?.insufficient_reason ? `${estimate.insufficient_reason}. ${EXPECTED.estimates}` : EXPECTED.estimates} />
+      <EmptyState title={noEstimate.title} expected={noEstimate.text} />
     )}
   </section>
 
@@ -166,6 +175,8 @@ const plain = hasEstimate && estimate
       <dl class="facts">
         {site.operator && <><dt>Operator</dt><dd>{site.operator}</dd></>}
         {site.status && <><dt>Status</dt><dd>{site.status}</dd></>}
+        {regionIds.length > 1 && site.region && <><dt>Region</dt><dd>{regionLabel(site.region)}</dd></>}
+        {site.tier && TIER[site.tier] && <><dt>Coverage</dt><dd>{TIER[site.tier]}</dd></>}
         <dt>Outline</dt><dd>{site.provisional ? `Provisional (${site.polygon_source ?? 'placeholder'})` : site.polygon_source ?? 'traced'}</dd>
         {site.swis_number && <><dt>CalRecycle SWIS</dt><dd>{site.swis_number}</dd></>}
         {site.ghgrp_facility_id && <><dt>EPA GHGRP facility</dt><dd>{site.ghgrp_facility_id}</dd></>}

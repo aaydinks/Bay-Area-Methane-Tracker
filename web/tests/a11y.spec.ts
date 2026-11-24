@@ -9,6 +9,7 @@ const routes = [
   '/checks/',
   '/sites/',
   '/sites/newby-island/',
+  '/sites/kiefer/',
   '/methods/',
   '/methods/cloud-model/',
   '/how-to-read/',
@@ -37,19 +38,71 @@ test('the home page carries the retrospective framing', async ({ page }) => {
   await expect(page.locator('body')).toContainText(/screening indication/i);
 });
 
-test('a site marked insufficient data is listed apart, never ranked, even with a median', async ({ page }) => {
+test('a site marked insufficient data shows no figure and is never ranked, even with a median', async ({ page }) => {
   // In the fixture, Acme Fill carries a median but its 90% range is too wide for an estimate.
   await page.goto('/sites/');
   const ranked = page.locator('section[aria-labelledby="ranked"]');
-  const thin = page.locator('section[aria-labelledby="thin"]');
   await expect(ranked).toContainText('Newby Island');
   await expect(ranked).not.toContainText('Acme');
-  await expect(thin).toContainText('Acme Fill');
-  await expect(thin).toContainText('too wide');
+  const row = page.locator('.sites-table tbody tr', { hasText: 'Acme Fill' });
+  await expect(row).toContainText('Not enough data yet');
+  await expect(row).toContainText('too wide');
+  await expect(row).not.toContainText('t/yr');
+  // Sorting by the estimate, either way, keeps every landfill without one after the ranked ones.
+  const names = () => page.locator('.sites-table tbody tr th a').allTextContents();
+  const sort = page.locator('.sites-table th button', { hasText: 'Estimate' });
+  expect((await names()).slice(0, 2)).toEqual(['Newby Island Landfill', 'Potrero Hills Landfill']);
+  await sort.click();
+  await expect(page.locator('.sites-table th[aria-sort="ascending"]')).toContainText('Estimate');
+  expect((await names()).slice(0, 3)).toEqual(['Potrero Hills Landfill', 'Newby Island Landfill', 'Acme Fill']);
   await page.goto('/');
   const card = page.locator('.site-card', { hasText: 'Acme Fill' });
   await expect(card).toContainText('Not enough data yet');
   await expect(card).not.toContainText(/t\/yr|tonnes/);
+});
+
+test('the landfills table filters by region and by how closely a landfill is followed', async ({ page }) => {
+  // The review fixture holds five landfills studied in depth and four screened, in two regions.
+  await page.goto('/sites/');
+  await expect(page.locator('main .lede')).toHaveText('Nine landfills in the Bay Area and the North Valley: five studied in depth, the rest screened with the same public data.');
+  const rows = page.locator('.sites-table tbody tr');
+  const count = page.locator('.sites-count');
+  await expect(rows).toHaveCount(9);
+  await expect(count).toHaveText('9 of 9 landfills shown, 2 with an estimate.');
+  await page.locator('.sites-filters label', { hasText: 'Region' }).locator('select').selectOption({ label: 'North Valley' });
+  await expect(rows).toHaveCount(2);
+  await expect(count).toHaveText('2 of 9 landfills shown, 0 with an estimate.');
+  await expect(rows.first()).toContainText('No estimate yet');
+  await page.locator('.sites-filters label', { hasText: 'Region' }).locator('select').selectOption({ label: 'All regions' });
+  await page.locator('.sites-filters label', { hasText: 'Show' }).locator('select').selectOption({ label: 'Studied in depth' });
+  await expect(rows).toHaveCount(5);
+  await page.locator('.sites-table th button', { hasText: 'Plume days' }).click();
+  await expect(page.locator('.sites-table th[aria-sort="descending"]')).toContainText('Plume days');
+  await expect(rows.first()).toContainText('Newby Island');
+  // A phone gets the same landfills as a list, with no sideways scroll of the page.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('.sites-table')).toBeHidden();
+  await expect(page.locator('.sites-cards li')).toHaveCount(5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('the home page counts its landfills from the data and shows cards for those studied in depth', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.hero .lede')).toHaveText('A look back at what satellites have seen of methane coming from nine landfills in the Bay Area and the North Valley.');
+  await expect(page.locator('#landfills')).toHaveText('The five landfills studied in depth');
+  await expect(page.locator('.site-card')).toHaveCount(5);
+  await expect(page.locator('.site-card', { hasText: 'Kiefer' })).toHaveCount(0);
+  await expect(page.locator('[data-testid="screened-note"]')).toContainText('Four more landfills are screened with the same public data.');
+});
+
+test('a screened landfill says it has no estimate yet, and why', async ({ page }) => {
+  await page.goto('/sites/kiefer/');
+  await expect(page.locator('main .lede')).toContainText('This landfill is screened');
+  const estimate = page.locator('section[aria-labelledby="estimate"]');
+  await expect(estimate).toContainText('No estimate yet');
+  await expect(estimate).toContainText('not yet part of a model fit');
+  await expect(estimate).not.toContainText('Insufficient data');
+  await expect(page.locator('.headline-figure')).toHaveCount(0);
 });
 
 test('the site stays light when the system asks for dark', async ({ page }) => {
@@ -73,6 +126,14 @@ test('the map steps through plumes month by month', async ({ page }) => {
   if (await load.isVisible()) await load.click({ timeout: 3000 }).catch(() => undefined);
   const label = page.locator('.timeline-label');
   await expect(label).toContainText(/All dates, \w{3} \d{4} to \w{3} \d{4} · \d+ plumes? seen, \d+ traced to the landfills/);
+  // One region at a time: its landfills only, and the plumes that go with them. The counts
+  // come from the data, so this holds whether or not the basemap has loaded.
+  const everywhere = await label.textContent();
+  await page.getByLabel('North Valley', { exact: true }).check();
+  await expect(label).toContainText(/All dates, \w{3} \d{4} to \w{3} \d{4} · \d+ plumes? seen, \d+ traced to the landfills/);
+  await expect(label).not.toHaveText(everywhere ?? '');
+  await page.getByLabel('All regions', { exact: true }).check();
+  await expect(label).toHaveText(everywhere ?? '');
   await page.getByLabel('By month').check();
   const slider = page.locator('.timeline-slider');
   await expect(slider).toBeVisible();

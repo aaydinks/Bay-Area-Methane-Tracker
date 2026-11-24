@@ -41,3 +41,15 @@ export function shortSha(sha: string | null | undefined): string {
 export function listText(items: string[]): string {
   return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' }).format(items);
 }
+
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+
+/** The same text with its first letter in upper case, to open a sentence. */
+export function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** A count for running text: a word below ten, figures from ten up. */
+export function countWord(n: number): string {
+  return Number.isInteger(n) && n >= 0 && n < WORDS.length ? WORDS[n] : n.toLocaleString('en-US');
+}

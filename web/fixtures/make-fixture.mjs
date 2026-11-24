@@ -25,6 +25,16 @@ const SITES = [
   { site_id: 'potrero-hills', name: 'Potrero Hills Landfill', city: 'Suisun City', county: 'Solano', lat: 38.21188, lon: -121.98081, status: 'active', swis: null, ghgrp: '1007345' },
 ];
 
+// Screening landfills (ADR 0018, 0021): on the review update only, in both regions, outside the
+// public scope. They have passes and plumes but no estimate, operator report or measure yet.
+const SCREEN_SITES = [
+  { site_id: 'altamont', name: 'Altamont Landfill', city: 'Livermore', county: 'Alameda', region: 'bay-area', lat: 37.75762, lon: -121.64948, status: 'active', swis: '01-AA-0009', ghgrp: null, detect: 0.2 },
+  { site_id: 'keller-canyon', name: 'Keller Canyon Landfill', city: 'Bay Point', county: 'Contra Costa', region: 'bay-area', lat: 37.99224, lon: -121.9365, status: 'active', swis: '07-AA-0032', ghgrp: null },
+  { site_id: 'forward', name: 'Forward Landfill', city: 'Manteca', county: 'San Joaquin', region: 'north-valley', lat: 37.87802, lon: -121.19074, status: 'active', swis: '39-AA-0015', ghgrp: null, detect: 0.1 },
+  { site_id: 'kiefer', name: 'Kiefer Landfill', city: 'Sloughhouse', county: 'Sacramento', region: 'north-valley', lat: 38.51796, lon: -121.18595, status: 'active', swis: '34-AA-0001', ghgrp: null, detect: 0.3 },
+];
+const REVIEW = 'fixture-review-0002';
+
 function circle(lon, lat, metres, n = 32) {
   const dLat = metres / 111320;
   const dLon = metres / (111320 * Math.cos((lat * Math.PI) / 180));
@@ -89,11 +99,14 @@ function months(from, to) {
   return out;
 }
 
-function passesAndPlumes(pub, through) {
+function passesAndPlumes(pub, through, siteList = SITES) {
   const passes = [];
   const plumes = [];
-  for (const s of SITES) {
+  for (const s of siteList) {
+    const screen = siteList !== SITES;
     for (const inst of INSTRUMENTS) {
+      // Sentinel-2 passes are built for the landfills studied in depth only.
+      if (screen && inst.instrument === 'sentinel2') continue;
       for (const month of months(inst.start, through)) {
         const n = pick(inst.perMonth);
         const days = new Set();
@@ -103,7 +116,7 @@ function passesAndPlumes(pub, through) {
           days.add(day);
           const acquired = `${month}-${String(day).padStart(2, '0')}T18:30:00Z`;
           const usable = rand() > 0.35;
-          const detected = usable && rand() < (inst.detectRate[s.site_id] ?? 0.02);
+          const detected = usable && rand() < (inst.detectRate[s.site_id] ?? (inst.instrument === 'emit' ? undefined : s.detect) ?? 0.02);
           const overpass_id = `${s.site_id}:${inst.instrument}:${acquired.slice(0, 10)}`;
           const q = detected ? Math.round(300 + rand() * 2500) : null;
           // Which figure valid_frac holds (ADR 0014). The public update was built before the
@@ -117,6 +130,7 @@ function passesAndPlumes(pub, through) {
             publish_id: pub.publish_id, overpass_id, site_id: s.site_id, instrument: inst.instrument, acquired_utc: acquired,
             usable, coverage_frac: usable ? 0.95 : 0.6, valid_frac: usable ? 0.9 : 0.4, ...cloud, coverage_source: inst.instrument === 'emit' ? 'cmr-granule' : inst.instrument === 'sentinel2' ? 's2-scene' : 'stac-footprint',
             detected, q_obs_kg_hr: q, n_plumes: detected ? 1 : 0, restricted: inst.restricted,
+            ...(screen ? { public_scope: false } : {}),
           });
           if (detected) {
             plumes.push({
@@ -124,7 +138,7 @@ function passesAndPlumes(pub, through) {
               acquired_utc: acquired, lon: +(s.lon + (rand() - 0.5) * 0.006).toFixed(5), lat: +(s.lat + (rand() - 0.5) * 0.006).toFixed(5),
               q_kg_hr: inst.instrument === 'emit' ? null : q, q_sigma_kg_hr: inst.instrument === 'emit' ? null : Math.round(q * 0.3), site_id: s.site_id,
               attribution: rand() < 0.85 ? 'inside' : 'buffer', distance_m: 0, data_version: 'fixture', overpass_id, restricted: inst.restricted,
-              region: 'bay-area', public_scope: true, site_public: true,
+              region: s.region ?? 'bay-area', public_scope: (s.region ?? 'bay-area') === 'bay-area', site_public: !screen,
               new_in_update: pub.publish_id === 'fixture-review-0002' && acquired > '2026-09-01',
             });
           }
@@ -142,6 +156,13 @@ const sites = PUBS.flatMap((pub) => SITES.map((s) => ({
   region: 'bay-area', public_scope: true,
   air_district: 'Bay Area', air_district_confirmed: false, district_facility_id: null,
 })));
+sites.push(...SCREEN_SITES.map((s) => ({
+  publish_id: REVIEW, site_id: s.site_id, name: s.name, city: s.city, county: s.county, operator: null,
+  tier: 'screen', status: s.status, swis_number: s.swis, ghgrp_facility_id: s.ghgrp, polygon_source: 'CalRecycle LandfillBoundaries layer',
+  provisional: false, area_km2: 1.767, lon: s.lon, lat: s.lat, outline_geojson: circle(s.lon, s.lat, 750),
+  region: s.region, public_scope: false,
+  air_district: null, air_district_confirmed: false, district_facility_id: null,
+})));
 
 const neighbours = PUBS.map((pub) => ({
   publish_id: pub.publish_id, neighbour_id: 'fx-compost-1', name: 'Sample compost facility (fixture)', kind: 'compost',
@@ -151,6 +172,10 @@ const neighbours = PUBS.map((pub) => ({
 const gen1 = passesAndPlumes(PUBS[0], '2026-08');
 seed = 20261030;
 const gen2 = passesAndPlumes({ ...PUBS[1], sen2cor: true }, '2026-09');
+// The screening landfills come from their own seed, after the rest, so adding or changing one
+// leaves every other sample row as it was.
+seed = 20261123;
+const gen3 = passesAndPlumes({ ...PUBS[1], sen2cor: true }, '2026-09', SCREEN_SITES);
 // The review update's refresh ran after Sentinel-2 passes moved to Sen2Cor's share over each
 // site (ADR 0014); the public one ran before. The cloud model page reads which from the manifest.
 RUNS.find((r) => r.run_id === 'fixture-refresh-2').manifest.steps = {
@@ -219,6 +244,9 @@ const population = PUBS.flatMap((pub) => SITES.flatMap((s, i) => [1, 3, 5].map((
 
 const site_features = PUBS.flatMap((pub) => SITES.map((s) => ({
   publish_id: pub.publish_id, site_id: s.site_id, closed: s.status === 'closed', area_km2: 0.785, ghgrp_reporter: Boolean(s.ghgrp), dist_neighbor_m: s.site_id === 'newby-island' ? 1800 : null,
+})));
+site_features.push(...SCREEN_SITES.map((s) => ({
+  publish_id: REVIEW, site_id: s.site_id, closed: false, area_km2: 1.767, ghgrp_reporter: false, dist_neighbor_m: null, public_scope: false,
 })));
 
 // The Sentinel-2 cloud model's held-out test (ADR 0013), copied from what `mw publish` reads in
@@ -1062,8 +1090,8 @@ const snapshot = {
   boundaries: [],
   sites,
   neighbours,
-  passes: [...gen1.passes, ...gen2.passes],
-  plumes: [...gen1.plumes, ...gen2.plumes],
+  passes: [...gen1.passes, ...gen2.passes, ...gen3.passes],
+  plumes: [...gen1.plumes, ...gen2.plumes, ...gen3.plumes],
   site_estimates,
   checks,
   check_results,
