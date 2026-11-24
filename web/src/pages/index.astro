@@ -4,7 +4,8 @@ import Base from '../layouts/Base.astro';
 import BayHero from '../components/BayHero.astro';
 import EmptyState from '../components/EmptyState.astro';
 import { EXPECTED, SITE_NAME } from '../config';
-import { estimateFor, hasPublication, sites, usableEstimate } from '../lib/data';
+import { estimateFor, hasPublication, landfillsText, sites, studiedSites, usableEstimate } from '../lib/data';
+import { countWord, sentence } from '../lib/format';
 import imagery from '../assets/imagery/imagery.json';
 
 // Aerial close-ups, one per landfill, made by scripts/make-imagery.py.
@@ -14,32 +15,36 @@ const photoFor = (id: string) => photos[`../assets/imagery/${id}.jpg`]?.default;
 // Three steps in everyday words. The terms the other pages use (passes, the detection floor,
 // 90% ranges) are explained on How to read and Methods, not here.
 const STEPS = [
-  { art: 'pass', title: 'Satellites take pictures', text: 'Satellites and aircraft photograph the Bay Area from above, each on its own schedule.' },
+  { art: 'pass', title: 'Satellites take pictures', text: 'Satellites and aircraft photograph the landfills from above, each on its own schedule.' },
   { art: 'plume', title: 'We look for methane', text: 'Each picture of a landfill is checked for a cloud of methane. Pictures that show none count too.' },
   { art: 'range', title: 'We estimate, with a range', text: 'From all the pictures together, we estimate how often each landfill gave off methane, roughly how much, and how sure we can be.' },
 ];
 
-// The home cards carry no figure: a site page shows the estimate with its range and what it
-// leaves out. A site marked insufficient data is only ever named as such.
-const cards = sites.map((s) => {
+// The home cards are the landfills studied in depth; every landfill is on the Landfills page.
+// A card carries no figure: a site page shows the estimate with its range and what it leaves
+// out. A site marked insufficient data is only ever named as such.
+const cards = studiedSites.map((s) => {
   const id = s.site_id ?? '';
   const status = usableEstimate(id)
     ? 'Estimate available'
     : estimateFor(id)?.status === 'insufficient_data' ? 'Not enough data yet' : 'No estimate yet';
   return { id, name: s.name ?? id, place: s.city ?? '', status, photo: photoFor(id) };
 });
+// Counts and places come from the landfills in this build, never from fixed text.
+const others = sites.length - cards.length;
+const from = sites.length ? landfillsText(sites.length) : 'landfills';
 ---
 <Base title={SITE_NAME} kind="home">
   <section class="hero" aria-labelledby="mission">
     <div class="hero-text">
       <h1 id="mission" class="hero-title">Bay Area Methane Watch</h1>
-      <p class="lede">A look back at what satellites have seen of methane coming from five Bay Area landfills.</p>
+      <p class="lede">A look back at what satellites have seen of methane coming from {from}.</p>
       <p class="hero-actions">
-        <a class="button primary" href="/sites/">See the five landfills</a>
+        <a class="button primary" href="/sites/">See the landfills</a>
         <a class="quiet-link" href="/map/">or explore the map</a>
       </p>
     </div>
-    <BayHero sites={sites} />
+    <BayHero sites={studiedSites} />
   </section>
 
   <section aria-labelledby="method">
@@ -84,7 +89,7 @@ const cards = sites.map((s) => {
 
   {hasPublication ? (
     <section aria-labelledby="landfills">
-      <h2 id="landfills">The five landfills</h2>
+      <h2 id="landfills">{cards.length ? `The ${countWord(cards.length)} landfills studied in depth` : 'The landfills'}</h2>
       <ul class="site-cards">
         {cards.map((c) => (
           <li class="site-card">
@@ -99,7 +104,13 @@ const cards = sites.map((s) => {
           </li>
         ))}
       </ul>
-      <p class="credit">Aerial photos: {imagery.credits.sites}</p>
+      {others > 0 && (
+        <p class="more" data-testid="screened-note">
+          {sentence(countWord(others))} more {others === 1 ? 'landfill is' : 'landfills are'} screened with the same public data.
+          {' '}<a href="/sites/">See all {countWord(sites.length)} landfills</a>
+        </p>
+      )}
+      {cards.some((c) => c.photo) && <p class="credit">Aerial photos: {imagery.credits.sites}</p>}
     </section>
   ) : (
     <EmptyState title="No results yet" expected={EXPECTED.publication}>

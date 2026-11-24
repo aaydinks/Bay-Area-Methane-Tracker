@@ -7,8 +7,11 @@ import TableWrap from '../components/TableWrap.astro';
 import MapLoader from '../islands/MapLoader';
 import type { SiteSummary } from '../islands/MethaneMap';
 import { CHECK_TYPE, EXPECTED, RESULT, type ResultColour } from '../config';
-import { estimateFor, hasPublication, latestCheckFor, plumeDaysFor, sites, snapshot, totals, usableEstimate } from '../lib/data';
+import { estimateFor, hasPublication, latestCheckFor, plumeDaysFor, regionIds, regionLabel, regionsText, sites, snapshot, totals, usableEstimate } from '../lib/data';
 import { num } from '../lib/format';
+
+const regions = regionIds.map((id) => ({ id, label: regionLabel(id) }));
+const manyRegions = regions.length > 1;
 
 const summaries: SiteSummary[] = sites
   .filter((s) => s.lon != null && s.lat != null)
@@ -25,6 +28,7 @@ const summaries: SiteSummary[] = sites
       href: `/sites/${id}/`,
       lon: s.lon as number,
       lat: s.lat as number,
+      region: s.region ?? '',
       provisional: Boolean(s.provisional),
       status: s.status ?? null,
       usable_passes: pd?.usable_passes ?? 0,
@@ -45,11 +49,11 @@ const summaries: SiteSummary[] = sites
   });
 const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter(Boolean))] as string[];
 ---
-<Base title="Map" description="Where satellites and aircraft saw methane plumes near Bay Area landfills, month by month." kind="map">
+<Base title="Map" description={`Where satellites and aircraft saw methane plumes near landfills${regionsText ? ` in ${regionsText}` : ''}, month by month.`} kind="map">
   <h1>Map</h1>
-  <p class="lede">Each red dot is a methane plume a satellite or aircraft saw over the Bay Area, and the number on each landfill counts the plumes traced to it. Press play to step through them month by month.</p>
+  <p class="lede">Each red dot is a methane plume a satellite or aircraft saw, and the number on each landfill counts the plumes traced to it. Press play to step through them month by month.</p>
   {hasPublication ? (
-    <MapLoader client:only="react" sites={summaries} availableSources={availableSources} />
+    <MapLoader client:only="react" sites={summaries} availableSources={availableSources} regions={regions} />
   ) : (
     <EmptyState title="No passes or plumes yet" expected={EXPECTED.plumes} />
   )}
@@ -57,6 +61,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
     <summary>About this map</summary>
     <p>Plumes are shown where they started, as dots and as a heat map. The grey ring at each landfill grows with the number of usable passes: times a satellite or aircraft had a clear look at the site. Read the dots against those passes, since a site that was observed more often has more chances to show a plume.</p>
     <p>The marker at each landfill shows the latest dated record there. Its shape gives the type of record and its colour only the statistical result; grey means no check on record. A plume counts for a landfill only when it starts inside the site's outline or within 500 m of it. Plumes that start near another methane source are drawn as open circles and never assigned to the landfill. Many other dots start away from these landfills.</p>
+    {manyRegions && <p>Choosing a region frames its landfills and leaves out the rest. A plume traced to a landfill goes with that landfill's region; any other plume goes with the region it lies in.</p>}
     <p>This map is a screening indication of where to look, not a finding about any site. Basemap: OpenFreeMap, data from OpenStreetMap contributors.</p>
   </details>
   <details class="more" id="table-view">
@@ -68,6 +73,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
         <thead>
           <tr>
             <th scope="col">Landfill</th>
+            {manyRegions && <th scope="col">Region</th>}
             <th scope="col" class="num">Usable passes</th>
             <th scope="col" class="num">Plume days</th>
             <th scope="col" class="num">Plume days per usable pass</th>
@@ -82,6 +88,7 @@ const availableSources = [...new Set(snapshot.plumes.map((p) => p.source).filter
             return (
               <tr>
                 <th scope="row"><a href={`/sites/${s.site_id}/`}>{s.name}</a></th>
+                {manyRegions && <td>{regionLabel(s.region)}</td>}
                 <td class="num">{num(pd?.usable_passes)}</td>
                 <td class="num">{num(pd?.plume_days)}</td>
                 <td class="num">{pd?.plume_days_per_usable_pass == null ? '–' : pd.plume_days_per_usable_pass.toFixed(3)}</td>

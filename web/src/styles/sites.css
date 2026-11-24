@@ -1,0 +1,25 @@
+/* Landfills page: one sortable table on wide screens, a plain list on narrow ones. Loaded only on /sites/. */
+.sites-filters { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: end; margin: 0 0 1rem; }
+.sites-filters label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+.sites-filters select { font: inherit; padding: 0.35rem 0.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.sites-count { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.75rem; }
+
+.sites-table th button { all: unset; cursor: pointer; display: inline-flex; gap: 0.3rem; align-items: center; }
+.sites-table th button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.sites-table th button .dir { color: var(--muted); font-size: 0.8em; }
+.sites-table th[scope="row"] { min-width: 11rem; white-space: normal; }
+/* The reason a landfill has no estimate can be a sentence: let it wrap. */
+.sites-table td.estimate { min-width: 11rem; max-width: 17rem; white-space: normal; }
+.sites-table .reason, .sites-cards .reason { font-size: 0.9em; }
+
+.sites-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.sites-cards li { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem 0.9rem; background: var(--bg); }
+.sites-cards h3 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+.sites-cards p { margin: 0.2rem 0 0; font-size: 0.95rem; }
+
+.sites-wide { display: none; }
+.sites-narrow { display: grid; }
+@media (min-width: 52rem) {
+  .sites-wide { display: block; }
+  .sites-narrow { display: none; }
+}

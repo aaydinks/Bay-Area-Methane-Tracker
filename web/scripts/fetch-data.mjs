@@ -361,6 +361,7 @@ await writeFile(
       properties: {
         plume_id: p.plume_id, source: p.source, instrument: p.instrument, acquired_utc: p.acquired_utc,
         q_kg_hr: p.q_kg_hr, site_id: p.site_id, attribution: p.attribution, new_in_update: p.new_in_update,
+        region: p.region ?? null,
       },
     })),
   )),

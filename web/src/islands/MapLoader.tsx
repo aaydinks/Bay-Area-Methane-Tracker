@@ -8,6 +8,7 @@ const MethaneMap = lazy(() => import('./MethaneMap'));
 interface Props {
   sites: SiteSummary[];
   availableSources: string[];
+  regions: { id: string; label: string }[];
 }
 
 export default function MapLoader(props: Props) {

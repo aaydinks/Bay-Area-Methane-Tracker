@@ -23,6 +23,10 @@ const credits = snapshot.data_terms.filter((t) => t.credit_line).map((t) => t.cr
 // every other page keeps them in full.
 const isHome = kind === 'home';
 const isCurrent =(href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+// What stands behind "provisional", from the landfills in this build: placeholder outlines for
+// all of them, for some, or for none.
+const placeholders = snapshot.sites.filter((s) => s.provisional).length;
+const outlines = placeholders === 0 ? '' : placeholders === snapshot.sites.length ? 'site outlines are placeholders and ' : 'some site outlines are placeholders and ';
 ---
 <!doctype html>
 <html lang="en">
@@ -79,7 +83,7 @@ const isCurrent =(href: string) => (href === '/' ? path === '/' : path.startsWit
     ) : (
       <>
         {publication?.provisional && (
-          <Banner>Provisional: site outlines are placeholders and some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
+          <Banner>Provisional: {outlines}some instrument detection curves are not yet confirmed. Figures may change in a later update.</Banner>
         )}
         {carbonMapperHeld && (
           <Banner>Carbon Mapper data is held back until its publication terms are confirmed. Pass and plume counts on this site cover NASA EMIT and Sentinel-2.</Banner>

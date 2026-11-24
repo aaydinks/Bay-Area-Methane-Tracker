@@ -66,8 +66,18 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
   section is left out for a copy published before the measures existed.
 - `src/pages/`: home, map, updates, checks, landfills, methods, how to read, data, 404.
 - `src/lib/data.ts`: the typed snapshot and the helpers pages use; `database.types.ts` is
-  generated from the live schema.
-- `fixtures/make-fixture.mjs`: writes the sample snapshot. Nothing in it is a real result.
+  generated from the live schema. Counts and region names in the text come from here
+  (`landfillsText`, `regionsText`, `studiedSites`), so a build names only the landfills and
+  regions it holds. Region labels are in `src/config.ts` and must match `config/project.yaml`.
+- `src/islands/SitesTable.tsx`: every landfill in one sortable table, with a region filter when
+  the build holds more than one region. A landfill without a usable estimate shows no figure and
+  stays after the ranked ones however the table is sorted. The home page shows cards for the
+  landfills studied in depth only.
+- `src/islands/MethaneMap.tsx`: the map. Its region choice frames one region's landfills and
+  leaves out the rest.
+- `fixtures/make-fixture.mjs`: writes the sample snapshot. Nothing in it is a real result. The
+  review update holds four screened landfills in two regions beside the five studied in depth;
+  the public update holds the five only.
 - `src/islands/Carousel.tsx`: the home page carousels. Two slides in view; it moves on by one
   every 5 seconds and loops, and pauses on hover, on keyboard focus, when its pause button is
   pressed, while the tab is hidden and under reduced motion.

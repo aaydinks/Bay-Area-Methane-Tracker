@@ -1,7 +1,7 @@
 ---
 // Dot-and-whisker chart of a median with its 90% range per site, on a log scale.
 import { num } from '../lib/format';
-// Labels are plain text: an image must not hold links. The cards under the chart link to each site.
+// Labels are plain text: an image must not hold links. The table under the chart links to each site.
 interface Item { label: string; med: number; lo: number; hi: number; provisional?: boolean }
 interface Props { items: Item[]; unit: string; title: string }
 const { items, unit, title } = Astro.props;

@@ -230,7 +230,7 @@ const ref1 = usable?.m.reference?.rates;
     <h2 id="recent">Checked on recent landfill passes</h2>
     {recent ? (
       <>
-        <p><span class="tag">{recent.result === 'pass' ? 'Passed' : 'Did not pass'}</span> Check run <span class="mono">{recent.run_id}</span>, {date(recent.created_at)}. Every Sentinel-2 pass over the five landfills in 2025: {recent.m.windows.site_days} site-days on {recent.m.windows.acquisition_days} days, {recent.m.windows.scored} of them scored over the 5 km around each site. The test images were all from 2017 to 2020, so this asks whether the model behaves the same on newer images, including the Sentinel-2C satellite. There are no expert labels for these passes, so Sen2Cor and a blind look by eye are the yardsticks. The six rules were written down before the run (decision record 0014).</p>
+        <p><span class="tag">{recent.result === 'pass' ? 'Passed' : 'Did not pass'}</span> Check run <span class="mono">{recent.run_id}</span>, {date(recent.created_at)}. Every 2025 Sentinel-2 pass over the five landfills studied in depth: {recent.m.windows.site_days} site-days on {recent.m.windows.acquisition_days} days, {recent.m.windows.scored} of them scored over the 5 km around each site. The test images were all from 2017 to 2020, so this asks whether the model behaves the same on newer images, including the Sentinel-2C satellite. There are no expert labels for these passes, so Sen2Cor and a blind look by eye are the yardsticks. The six rules were written down before the run (decision record 0014).</p>
         <TableWrap label="Recent-pass check">
           <table>
             <caption>The six rules of the recent-pass check. All six had to hold.</caption>

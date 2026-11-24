@@ -35,6 +35,7 @@ export interface SiteSummary {
   href: string;
   lon: number;
   lat: number;
+  region: string;
   provisional: boolean;
   status: string | null;
   usable_passes: number;
@@ -48,6 +49,8 @@ export interface SiteSummary {
 interface Props {
   sites: SiteSummary[];
   availableSources: string[];
+  /** Regions with a landfill in this build. The region choice appears when there are two or more. */
+  regions: { id: string; label: string }[];
 }
 
 type FC = FeatureCollection;
@@ -100,7 +103,7 @@ function addLayers(map: MapLibreMap) {
   for (const spec of specs) if (!map.getLayer(spec.id)) map.addLayer(spec);
 }
 
-export default function MethaneMap({ sites, availableSources }: Props) {
+export default function MethaneMap({ sites: allSites, availableSources, regions }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -115,6 +118,10 @@ export default function MethaneMap({ sites, availableSources }: Props) {
   const [weight, setWeight] = useState<'count' | 'rate'>('count');
   const [layers, setLayers] = useState({ heat: true, points: true, passes: true, outlines: true, neighbours: true, boundaries: true });
   const [selected, setSelected] = useState<string | null>(null);
+  // One region at a time, or all of them: the landfills, their rings and the plumes shown.
+  const [region, setRegion] = useState('all');
+  const sites = useMemo(() => (region === 'all' ? allSites : allSites.filter((s) => s.region === region)), [allSites, region]);
+  const regionOfSite = useMemo(() => new Map(allSites.map((s) => [s.site_id, s.region])), [allSites]);
 
   useEffect(() => {
     let alive = true;
@@ -143,10 +150,13 @@ export default function MethaneMap({ sites, availableSources }: Props) {
       features: data.plumes.features.filter((f) => {
         const p = f.properties ?? {};
         if (!sources.has(String(p.source)) || !instruments.has(String(p.instrument))) return false;
+        // A plume tied to a landfill goes with that landfill's region; any other, with the
+        // region it lies in.
+        if (region !== 'all' && (regionOfSite.get(String(p.site_id ?? '')) ?? p.region) !== region) return false;
         return stepKind === 'all' || current === null || stepOf(String(p.acquired_utc ?? ''), stepKind) === current;
       }),
     };
-  }, [data, sources, instruments, stepKind, current]);
+  }, [data, sources, instruments, stepKind, current, region, regionOfSite]);
 
   // Play steps forward about once a second and stops on the last step.
   useEffect(() => {
@@ -211,11 +221,6 @@ export default function MethaneMap({ sites, availableSources }: Props) {
       zoom: 8.2,
       attributionControl: { compact: false },
     });
-    // Open on the five landfills, whatever the width of the screen.
-    if (sites.length > 1) {
-      const bounds = sites.reduce((b, s) => b.extend([s.lon, s.lat]), new LngLatBounds([sites[0].lon, sites[0].lat], [sites[0].lon, sites[0].lat]));
-      map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 64, right: 48 }, maxZoom: 11, animate: false });
-    }
     map.addControl(new NavigationControl({ visualizePitch: false }), 'top-left');
     map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('style.load', () => {
@@ -229,16 +234,30 @@ export default function MethaneMap({ sites, availableSources }: Props) {
     };
   }, []);
 
+  // Frame the landfills shown, whatever the width of the screen: all of them at first, then the
+  // chosen region's.
+  const framed = useRef(false);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !sites.length) return;
+    const bounds = sites.reduce((b, s) => b.extend([s.lon, s.lat]), new LngLatBounds([sites[0].lon, sites[0].lat], [sites[0].lon, sites[0].lat]));
+    const still = !framed.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 64, right: 48 }, maxZoom: 11, animate: !still });
+    framed.current = true;
+    setSelected((cur) => (cur && !sites.some((s) => s.site_id === cur) ? null : cur));
+  }, [sites]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !data) return;
     const set = (id: string, fc: FC) => (map.getSource(id) as GeoJSONSource | undefined)?.setData(fc);
+    const shownIds = new Set(sites.map((s) => s.site_id));
     set('boundaries', data.boundaries);
-    set('sites', data.sites);
+    set('sites', region === 'all' ? data.sites : { type: 'FeatureCollection', features: data.sites.features.filter((f) => shownIds.has(String(f.properties?.site_id))) });
     set('neighbours', data.neighbours);
     set('passes', passFc);
     set('plumes', filtered);
-  }, [ready, data, filtered, passFc]);
+  }, [ready, data, filtered, passFc, region, sites]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -314,6 +333,16 @@ export default function MethaneMap({ sites, availableSources }: Props) {
 
   return (
     <div className="map-layout">
+      {regions.length > 1 && (
+        <fieldset className="step-choice region-choice">
+          <legend>Region</legend>
+          {[{ id: 'all', label: 'All regions' }, ...regions].map((r) => (
+            <label key={r.id} className={region === r.id ? 'is-on' : undefined}>
+              <input type="radio" name="region" value={r.id} checked={region === r.id} onChange={() => setRegion(r.id)} /> {r.label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className="map-stage">
         {/* The canvas is a scrollable, zoomable region and must be reachable from the keyboard. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
