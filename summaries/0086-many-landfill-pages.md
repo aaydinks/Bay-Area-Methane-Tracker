@@ -1,6 +1,6 @@
 # PR #86: Pages that work for many landfills
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/86)
+**Status:** merged 2026-11-23 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/86)
 
 ## In one sentence
 
