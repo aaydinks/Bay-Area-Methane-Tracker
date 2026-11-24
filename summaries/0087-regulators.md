@@ -1,6 +1,6 @@
 # PR #87: Each record names its own regulator
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/87)
+**Status:** merged 2026-11-24 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/87)
 
 ## In one sentence
 
