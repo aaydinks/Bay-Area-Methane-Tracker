@@ -28,10 +28,10 @@ const SITES = [
 // Screening landfills (ADR 0018, 0021): on the review update only, in both regions, outside the
 // public scope. They have passes and plumes but no estimate, operator report or measure yet.
 const SCREEN_SITES = [
-  { site_id: 'altamont', name: 'Altamont Landfill', city: 'Livermore', county: 'Alameda', region: 'bay-area', lat: 37.75762, lon: -121.64948, status: 'active', swis: '01-AA-0009', ghgrp: null, detect: 0.2 },
-  { site_id: 'keller-canyon', name: 'Keller Canyon Landfill', city: 'Bay Point', county: 'Contra Costa', region: 'bay-area', lat: 37.99224, lon: -121.9365, status: 'active', swis: '07-AA-0032', ghgrp: null },
-  { site_id: 'forward', name: 'Forward Landfill', city: 'Manteca', county: 'San Joaquin', region: 'north-valley', lat: 37.87802, lon: -121.19074, status: 'active', swis: '39-AA-0015', ghgrp: null, detect: 0.1 },
-  { site_id: 'kiefer', name: 'Kiefer Landfill', city: 'Sloughhouse', county: 'Sacramento', region: 'north-valley', lat: 38.51796, lon: -121.18595, status: 'active', swis: '34-AA-0001', ghgrp: null, detect: 0.3 },
+  { site_id: 'altamont', name: 'Altamont Landfill', city: 'Livermore', county: 'Alameda', region: 'bay-area', lat: 37.75762, lon: -121.64948, status: 'active', swis: '01-AA-0009', ghgrp: null, detect: 0.2, district: 'Bay Area' },
+  { site_id: 'keller-canyon', name: 'Keller Canyon Landfill', city: 'Bay Point', county: 'Contra Costa', region: 'bay-area', lat: 37.99224, lon: -121.9365, status: 'active', swis: '07-AA-0032', ghgrp: null, district: 'Bay Area' },
+  { site_id: 'forward', name: 'Forward Landfill', city: 'Manteca', county: 'San Joaquin', region: 'north-valley', lat: 37.87802, lon: -121.19074, status: 'active', swis: '39-AA-0015', ghgrp: null, detect: 0.1, district: 'San Joaquin Valley Unified' },
+  { site_id: 'kiefer', name: 'Kiefer Landfill', city: 'Sloughhouse', county: 'Sacramento', region: 'north-valley', lat: 38.51796, lon: -121.18595, status: 'active', swis: '34-AA-0001', ghgrp: null, detect: 0.3, district: 'Sacramento Metro' },
 ];
 const REVIEW = 'fixture-review-0002';
 
@@ -161,7 +161,7 @@ sites.push(...SCREEN_SITES.map((s) => ({
   tier: 'screen', status: s.status, swis_number: s.swis, ghgrp_facility_id: s.ghgrp, polygon_source: 'CalRecycle LandfillBoundaries layer',
   provisional: false, area_km2: 1.767, lon: s.lon, lat: s.lat, outline_geojson: circle(s.lon, s.lat, 750),
   region: s.region, public_scope: false,
-  air_district: null, air_district_confirmed: false, district_facility_id: null,
+  air_district: s.district, air_district_confirmed: false, district_facility_id: null,
 })));
 
 const neighbours = PUBS.map((pub) => ({
@@ -194,6 +194,9 @@ const checks = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, check_id: 'fx-check-1', site_id: 'newby-island', check_type: 'operator-repair', repair_kind: 'cover', date_start: '2025-05-12', date_end: '2025-05-30', date_confidence: 'week', description: 'Sample record: interim cover placed on the north slope.', source_doc: 'fixture-operator-log.pdf', source_doc_title: 'Sample operator log (fixture)', source_url: null, source_page: '3', entered_on: '2026-09-01' },
   { publish_id: pub.publish_id, check_id: 'fx-check-2', site_id: 'sonoma-central', check_type: 'air-district-notice', repair_kind: null, date_start: '2023-06-15', date_end: null, date_confidence: 'month', description: 'Sample record: a notice issued after a surface monitoring round.', source_doc: 'fixture-notice.pdf', source_doc_title: 'Notice of Violation (sample title, fixture)', source_url: null, source_page: null, entered_on: '2026-09-01' },
 ]);
+
+// One record at a screened landfill in another air district, on the review update only.
+checks.push({ publish_id: REVIEW, check_id: 'fx-check-3', site_id: 'kiefer', check_type: 'air-district-inspection', repair_kind: null, date_start: '2026-02-10', date_end: null, date_confidence: 'exact', description: 'Sample record: a surface monitoring inspection.', source_doc: 'fixture-inspection.pdf', source_doc_title: 'Inspection report (sample title, fixture)', source_url: null, source_page: null, entered_on: '2026-09-01', public_scope: false });
 
 const check_results = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, check_run_id: 'fixture-repairs-1', check_id: 'fx-check-1', site_id: 'newby-island', call: 'inconclusive', effect_med: 0.12, effect_lo: -0.41, effect_hi: 0.63, change_pct_med: 12.7, change_pct_lo: -33.6, change_pct_hi: 87.8, de_t_yr_med: -520, de_t_yr_lo: -3600, de_t_yr_hi: 1700, p_decrease: 0.36, mde_pct: 75, n_before: 14, n_after: 16, controls: 'potrero-hills;sonoma-central', diag_ok: true, reason: '', evidence: 'weak', size: 'slight', colour: 'yellow', plain_reading: 'Methane rose about 13% (90% range -34% to 88%) after this record; weak evidence; this test could only have caught drops of 75% or more.', provisional: true, restricted: true },
@@ -1079,7 +1082,7 @@ const update_log = [
   { publish_id: 'fixture-public-0001', item_order: 1, kind: 'new-model-run', site_id: null, event_date: '2026-10-01', count: null, text: 'First sample model run published.', data_through: '2026-09-01' },
   { publish_id: 'fixture-public-0001', item_order: 2, kind: 'note', site_id: null, event_date: '2026-10-01', count: null, text: 'Site outlines are provisional 500 m circles around the CalRecycle reference points.', data_through: '2026-09-01' },
   { publish_id: 'fixture-review-0002', item_order: 1, kind: 'new-plumes', site_id: 'newby-island', event_date: '2026-09-18', count: 3, text: 'Three new plumes near Newby Island in September 2026.', data_through: '2026-09-20' },
-  { publish_id: 'fixture-review-0002', item_order: 2, kind: 'new-record', site_id: 'sonoma-central', event_date: '2026-09-25', count: 1, text: 'One Air District record added for Sonoma Central.', data_through: '2026-09-20' },
+  { publish_id: 'fixture-review-0002', item_order: 2, kind: 'new-record', site_id: 'sonoma-central', event_date: '2026-09-25', count: 1, text: 'One air district record added for Sonoma Central.', data_through: '2026-09-20' },
 ];
 
 const snapshot = {

@@ -10,7 +10,7 @@ import ReportedMeasures from '../../components/ReportedMeasures.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT, TIER } from '../../config';
 import {
-  checksFor, estimateFor, featuresFor, hasMeasures, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
+  checksFor, districtLabel, estimateFor, featuresFor, hasMeasures, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
   passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, regionIds, regionLabel, sites, type Site, usableEstimate,
 } from '../../lib/data';
 import { date, listText, num, pct } from '../../lib/format';
@@ -91,7 +91,7 @@ const noEstimate = estimate
       <ul>
         {checks.map((c) => (
           <li>
-            {date(c.date_start)} <span class="muted">({DATE_CONFIDENCE[c.date_confidence ?? ''] ?? ''})</span> · <CheckTypeTag type={c.check_type} repairKind={c.repair_kind} /> · <ResultBadge colour={c.colour} held={c.result_held} />
+            {date(c.date_start)} <span class="muted">({DATE_CONFIDENCE[c.date_confidence ?? ''] ?? ''})</span> · <CheckTypeTag type={c.check_type} repairKind={c.repair_kind} siteId={id} /> · <ResultBadge colour={c.colour} held={c.result_held} />
             {c.plain_reading && <p>{c.plain_reading}</p>}
             {!c.plain_reading && c.change_pct_med != null && <p class="muted">Change {pct(c.change_pct_med)} (90% range {pct(c.change_pct_lo)} to {pct(c.change_pct_hi)}); passes before / after {num(c.n_before)} / {num(c.n_after)}.</p>}
           </li>
@@ -177,6 +177,13 @@ const noEstimate = estimate
         {site.status && <><dt>Status</dt><dd>{site.status}</dd></>}
         {regionIds.length > 1 && site.region && <><dt>Region</dt><dd>{regionLabel(site.region)}</dd></>}
         {site.tier && TIER[site.tier] && <><dt>Coverage</dt><dd>{TIER[site.tier]}</dd></>}
+        {site.air_district && (
+          <>
+            <dt>Air district</dt>
+            <dd data-testid="air-district">{districtLabel(site.air_district)}{site.air_district_confirmed ? '' : " (from CARB's 2004 district outlines; not yet checked with the district)"}</dd>
+          </>
+        )}
+        {site.district_facility_id && <><dt>Facility number at the air district</dt><dd>{site.district_facility_id}</dd></>}
         <dt>Outline</dt><dd>{site.provisional ? `Provisional (${site.polygon_source ?? 'placeholder'})` : site.polygon_source ?? 'traced'}</dd>
         {site.swis_number && <><dt>CalRecycle SWIS</dt><dd>{site.swis_number}</dd></>}
         {site.ghgrp_facility_id && <><dt>EPA GHGRP facility</dt><dd>{site.ghgrp_facility_id}</dd></>}

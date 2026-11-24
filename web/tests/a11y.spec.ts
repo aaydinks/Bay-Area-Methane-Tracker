@@ -105,6 +105,18 @@ test('a screened landfill says it has no estimate yet, and why', async ({ page }
   await expect(page.locator('.headline-figure')).toHaveCount(0);
 });
 
+test('a record names the air district its landfill falls under', async ({ page }) => {
+  // The fixture has records at landfills in two air districts.
+  await page.goto('/checks/');
+  const table = page.locator('.checks-table');
+  await expect(table.locator('tbody tr', { hasText: 'Sonoma Central' })).toContainText('Bay Area AQMD notice');
+  await expect(table.locator('tbody tr', { hasText: 'Kiefer' })).toContainText('Sacramento Metro AQMD inspection');
+  await expect(table).not.toContainText('Air District');
+  await page.goto('/sites/kiefer/');
+  await expect(page.locator('section[aria-labelledby="checks"]')).toContainText('Sacramento Metro AQMD inspection');
+  await expect(page.locator('[data-testid="air-district"]')).toHaveText("Sacramento Metro AQMD (from CARB's 2004 district outlines; not yet checked with the district)");
+});
+
 test('the site stays light when the system asks for dark', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');

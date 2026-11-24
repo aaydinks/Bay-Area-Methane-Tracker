@@ -73,6 +73,9 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
   the build holds more than one region. A landfill without a usable estimate shows no figure and
   stays after the ranked ones however the table is sorted. The home page shows cards for the
   landfills studied in depth only.
+- Records name their regulator: `checkLabel` in `src/lib/data.ts` builds "Sacramento Metro AQMD
+  inspection" from the air district of the record's landfill, with the district names in
+  `src/config.ts`.
 - `src/islands/MethaneMap.tsx`: the map. Its region choice frames one region's landfills and
   leaves out the rest.
 - `fixtures/make-fixture.mjs`: writes the sample snapshot. Nothing in it is a real result. The

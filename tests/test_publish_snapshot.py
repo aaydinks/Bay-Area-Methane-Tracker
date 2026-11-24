@@ -190,6 +190,7 @@ def _write_inputs(tmp_path, *, bad_description=False, demo=False, cloud_detail=T
             "check_id": ["c1"],
             "site_id": ["newby-island"],
             "check_type": ["air-district-notice"],
+            "regulator": ["Bay Area"],
             "repair_kind": [None],
             "date_start": ["2025-05-12"],
             "date_end": [None],
@@ -424,6 +425,24 @@ def test_banned_wording_in_a_description_stops_the_build(tmp_path):
     checks.loc[0, "description"] = "Repairs after the violation were completed in real-time."
     checks.to_csv(tmp_path / "registry" / "checks.csv", index=False)
     with pytest.raises(snap.WordingError, match=r"checks\.description"):
+        snap.build(
+            _project(tmp_path),
+            load_data_terms(),
+            load_impact(),
+            model_run_id="model-1",
+            check_run_id="repairs-1",
+        )
+
+
+@pytest.mark.parametrize("regulator", ["Sacramento Metro", None])
+def test_a_check_that_disagrees_with_its_sites_air_district_stops_the_build(tmp_path, regulator):
+    """The pages name an air district record's regulator from its site, so the registry must
+    agree: a record from another district, or with none named, is not published."""
+    _write_inputs(tmp_path)
+    checks = pd.read_csv(tmp_path / "registry" / "checks.csv")
+    checks["regulator"] = [regulator]
+    checks.to_csv(tmp_path / "registry" / "checks.csv", index=False)
+    with pytest.raises(snap.RegulatorError, match=r"checks\.csv: c1: "):
         snap.build(
             _project(tmp_path),
             load_data_terms(),

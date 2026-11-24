@@ -105,14 +105,16 @@ CHECK_TYPES = [
 REPAIR_KINDS = ["well-field", "cover", "leak-repair", "other"]
 DATE_CONFIDENCE = ["exact", "week", "month"]
 
-# Dated records at a landfill (data/registry/checks.csv, ADR 0010): Air District inspections and
+# Dated records at a landfill (data/registry/checks.csv, ADR 0010): air district inspections and
 # notices, operator repairs, CARB plume notices. No row without a source document. The before/after
-# test runs on every type; the result is the change after the date, never a cause.
+# test runs on every type; the result is the change after the date, never a cause. `regulator`
+# names who issued the record; `ingest.airdistrict.regulator_problems` checks it against the site.
 checks = pa.DataFrameSchema(
     {
         "check_id": pa.Column(str, unique=True),
         "site_id": pa.Column(str),
         "check_type": pa.Column(str, pa.Check.isin(CHECK_TYPES)),
+        "regulator": pa.Column(str, nullable=True, required=False),
         "repair_kind": pa.Column(str, pa.Check.isin(REPAIR_KINDS), nullable=True),
         "date_start": pa.Column("datetime64[ns]"),
         "date_end": pa.Column("datetime64[ns]", nullable=True),
