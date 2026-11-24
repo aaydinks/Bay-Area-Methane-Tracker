@@ -6,11 +6,11 @@ Hand-curated inputs. These are the only data files tracked in git.
 |---|---|
 | `sites.csv` | One row per landfill: attributes, tier (`pilot` / `screen`), known neighbor sources |
 | `sites.geojson` | Boundary polygons, keyed by `site_id`; pilot sites also get `working_face` and `closed` parts. `polygon_source` in `sites.csv` says where each outline comes from. Four pilots (Newby Island, Acme Fill, Sonoma Central, Potrero Hills) have the outline CalRecycle's staff drew from permit maps (LandfillBoundaries layer, data as of September 2021), in place since 2026-11-22. **Shoreline still has a provisional 500 m circle** around the CalRecycle SWIS point: the layer has no outline for it. Of the 28 Bay Area screening sites, 14 have CalRecycle's drawn outline (data as of September 2021) and 14 a provisional 750 m circle. Of the 19 North Valley screening sites, 11 have a drawn outline and 8 a circle |
-| `checks.csv` | Dated checks: Air District inspections and notices, operator repairs (with a `repair_kind`), CARB plume notices. **Every row cites a source document** (order, notice, monitoring report, operator log). An official title goes in `source_doc_title`; `description` is in the project's own words |
+| `checks.csv` | Dated checks: air district inspections and notices, operator repairs (with a `repair_kind`), CARB plume notices. **Every row cites a source document** (order, notice, monitoring report, operator log). An official title goes in `source_doc_title`; `description` is in the project's own words. `regulator` says who issued the record (see below) |
 | `operator_crosswalk.csv` | Maps `site_id` to EPA GHGRP and CARB reporting IDs |
 | `screening_overrides.csv` | Landfills where a person overruled the screening rule, one per row: `swis_number`, `include` (`yes` or `no`) and the reason. `mw sites screen` reads it |
 
-Blank fields in `sites.csv` are filled from permits and Air District records; do not fill them from memory.
+Blank fields in `sites.csv` are filled from permits and air district records; do not fill them from memory.
 The screening tier is proposed by `mw sites screen` and enters this folder only after a hand review.
 The Bay Area screening rows were reviewed and added on 2026-11-21. Their names and ids are short forms chosen by hand; `notes` keeps the name CalRecycle uses. Their `city` is the city in CalRecycle's address (EPA's city for American Canyon). `operator`, `ghgrp_facility_id` and `neighbors` are blank until each is checked.
 The North Valley screening rows were reviewed and added the same day, by the same rules. Yolo County Central's `city` is EPA's (Woodland), because CalRecycle's address names none; UC Davis has none in either source and is blank. One permitted unit was left out by the owner and is recorded in `screening_overrides.csv`: the Aerojet Waste Consolidation Unit (34-AA-0240), which CalRecycle lists as planned.
@@ -25,3 +25,19 @@ The North Valley screening rows were reviewed and added the same day, by the sam
 | `district_facility_id` | The site's facility number at its air district, from permits (this column was `baaqmd_facility_id`) |
 
 `mw sites build` lists any site within 500 m of a district edge, or in no district outline, so those are checked first.
+
+## The `regulator` column in `checks.csv`
+
+Sites fall under several air districts, so each record says which regulator it came from.
+
+- **An air district inspection or notice** must name its district, by the same CARB name
+  `air_district` uses (`Bay Area`, `Sacramento Metro`, `San Joaquin Valley Unified`,
+  `Yolo-Solano`, `Northern Sonoma`). Take it from the document.
+- **It must be the district the site sits in.** `mw publish build` stops when a record names
+  another district than its site's, or names none. If the document is right and the site's
+  district is wrong, correct `air_district` in `sites.csv`.
+- **Other records** (operator repairs, CARB plume notices, other) may leave it blank, or name the
+  body that issued the record.
+
+The website builds a record's label from its site's district ("Sacramento Metro AQMD
+inspection"), which is why the two have to agree. The column itself is not published.

@@ -1,7 +1,7 @@
 // The published snapshot the whole site is built from. Written by scripts/fetch-data.mjs at
 // build time; pages import this module and never query anything at run time.
 
-import { REGION } from '../config';
+import { AIR_DISTRICT, CHECK_TYPE, REGION } from '../config';
 import type { Database } from './database.types';
 import { countWord, listText } from './format';
 import snapshotJson from '../data/snapshot.json';
@@ -92,6 +92,22 @@ export function landfillsText(n: number): string {
 /** The landfills studied in depth; the rest are screened with the same public data. */
 export const isStudied = (s: Site): boolean => s.tier === 'pilot';
 export const studiedSites = sites.filter(isStudied);
+
+// ---- regulators (ADR 0020) ------------------------------------------------------------------
+
+/** A site's air district as CARB's list names it, or "<name> air district" for one not listed. */
+export function districtLabel(name: string | null | undefined): string {
+  return name ? (AIR_DISTRICT[name] ?? `${name} air district`) : '';
+}
+
+/** What kind of record a check is, naming the regulator where the kind has one: an air
+ *  district record is from the district its landfill sits in, which the build has checked
+ *  against the record itself. */
+export function checkLabel(checkType: string | null | undefined, siteId: string | null | undefined): string {
+  const info = CHECK_TYPE[checkType ?? 'other'] ?? CHECK_TYPE.other;
+  const district = info.record && siteId ? districtLabel(siteById(siteId)?.air_district) : '';
+  return district ? `${district} ${info.record}` : info.label;
+}
 
 export function siteById(siteId: string): Site | undefined {
   return snapshot.sites.find((s) => s.site_id === siteId);

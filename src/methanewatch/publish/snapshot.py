@@ -32,6 +32,7 @@ from methanewatch.config import (
     load_model,
     load_public_scope,
 )
+from methanewatch.ingest.airdistrict import regulator_problems
 from methanewatch.provenance import git_dirty, git_sha, new_id, utcnow
 from methanewatch.publish import schemas as pub
 from methanewatch.publish.labels import label_result
@@ -53,6 +54,10 @@ class WordingError(ValueError):
 
 class MeasureError(ValueError):
     """A measure row does not agree with the catalogue in ``config/metrics.yaml``."""
+
+
+class RegulatorError(ValueError):
+    """A dated check does not name its regulator, or names one its site does not fall under."""
 
 
 @dataclass
@@ -658,6 +663,11 @@ def build(
         ck = pd.read_csv(checks_path, dtype=str)
         if "entered_on" not in ck:
             ck["entered_on"] = None
+        # The pages name an air district record's regulator from its site's district, so a
+        # record that disagrees with its site stops the build (ADR 0020).
+        problems = regulator_problems(ck, sites)
+        if problems:
+            raise RegulatorError("checks.csv: " + "; ".join(problems))
         tables["checks"] = ck
     else:
         tables["checks"] = pd.DataFrame(columns=list(pub.checks.columns))

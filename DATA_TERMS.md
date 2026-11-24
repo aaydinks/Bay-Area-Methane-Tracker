@@ -14,6 +14,10 @@ Before publishing any derived table, confirm below that the source's terms allow
 | CloudSEN12+ v1.1 (Hugging Face `tacofoundation/cloudsen12`, revision `f9490f7`) | Expert cloud labels to train and test the Sentinel-2 cloud model (ADR 0012, 0013) | CC0 1.0 on the v1.1 cards, checked 2026-10-31; older copies state other terms (check) | yes (test metrics only; no pixels are redistributed) | "CloudSEN12+ (Aybar et al. 2024, Data in Brief 56:110852)" |
 | US EPA GHGRP (Envirofacts REST) | Operator-reported subpart HH methane | US government public data | yes | "US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts" |
 | Bay Area Air Quality Management District | Permits, orders, monitoring reports | Public records | yes, with citation | _to fill_ |
+| Northern Sonoma County APCD | Records for the two sites in its area, none requested yet | Public records; terms not checked | _to confirm_ | _to fill_ |
+| Sacramento Metro AQMD | Records for the six sites in its area, none requested yet | Public records; terms not checked | _to confirm_ | _to fill_ |
+| San Joaquin Valley APCD | Records for the eleven sites in its area, none requested yet | Public records; terms not checked | _to confirm_ | _to fill_ |
+| Yolo-Solano AQMD | Records for the four sites in its area, none requested yet | Public records; terms not checked | _to confirm_ | _to fill_ |
 | US Census ACS 5-year (B01003) and TIGERweb block groups | Population context, areal-weighted | Public data; ACS API needs a free key | yes | "US Census Bureau, American Community Survey 5-year estimates" |
 | US Census 2020 TIGER/Line blocks (`tl_2020_06_tabblock20`, carries `POP20`) | Block population near sites | Public data, no key | yes | "US Census Bureau, 2020 Census, TIGER/Line Shapefiles" |
 | CalRecycle Solid Waste Information System (SWIS) | Site reference points, addresses, status | Public records | yes, with citation | "CalRecycle Solid Waste Information System (SWIS)" |
@@ -22,3 +26,9 @@ Before publishing any derived table, confirm below that the source's terms allow
 | CARB air district boundaries (`CaAirDistrict_PublicWeb`, as of March 2004; check against current BAAQMD) | Descriptive district outline, never a covariate | Public map service; no terms published (check) | _to confirm_ | "California Air Resources Board, air district boundaries as of March 2004 (originally developed by Teale Data Center GIS Lab)" |
 
 Record the date each row was checked and a link to the terms page.
+
+**Air districts.** The four districts added in November 2026 are named as CARB's list of
+districts writes them (https://ww2.arb.ca.gov/california-air-districts, read 2026-11-23). Which
+sites fall in which district is read from CARB's 2004 outlines and is not yet checked with any
+district. A district enters `config/data_terms.yaml`, and so the website's list of sources, only
+once records from it are in hand and its terms have been checked.

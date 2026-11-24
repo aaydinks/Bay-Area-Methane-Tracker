@@ -1,6 +1,6 @@
 """Run the before/after test over every dated check (the remediation outcome).
 
-For each row of ``data/registry/checks.csv`` (operator repairs, Air District
+For each row of ``data/registry/checks.csv`` (operator repairs, air district
 inspections and notices, CARB plume notices; ADR 0010) this calls ``verify_repair`` with
 every other chosen site as a control and adds the minimum detectable drop (MDE) for
 that repair's own pass schedule. The controls are the sites the run was asked to use (by

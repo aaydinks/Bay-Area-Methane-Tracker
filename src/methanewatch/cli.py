@@ -896,7 +896,12 @@ def publish_build(
             allow_simulated=allow_simulated,
             notes=notes,
         )
-    except (snap.SimulatedRunError, snap.WordingError, snap.MeasureError) as exc:
+    except (
+        snap.SimulatedRunError,
+        snap.WordingError,
+        snap.MeasureError,
+        snap.RegulatorError,
+    ) as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
     out = s.write(_publications_dir())

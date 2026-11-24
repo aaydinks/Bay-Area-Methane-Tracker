@@ -681,6 +681,15 @@ If time runs short, cut from the end of step 16 backwards: air monitors, CalEnvi
 - Step 15: Gate 3 coverage inside 85 to 95% at the new site count.
 - CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present.
 
-### 16.7 Out of scope
+### 16.7 Regulators
+
+Sites fall under five air districts (by CARB's 2004 outlines, unconfirmed): Bay Area, Northern Sonoma, Sacramento Metro, San Joaquin Valley Unified and Yolo-Solano.
+
+- **A record names its regulator.** `checks.csv` has a `regulator` column. An air district inspection or notice must name its district, and that must be the district its site sits in; `mw publish build` stops otherwise.
+- **Pages name the regulator from the site.** A record's label is built from its site's district ("Sacramento Metro AQMD inspection"), so nothing on a page says "the Air District". Because the build has checked the record against the site, no new database column is needed.
+- **A district joins `config/data_terms.yaml` when its records arrive** and its terms have been checked, not before. Until then it is listed in `DATA_TERMS.md` only, so the website's list of sources names no district the project holds nothing from.
+- **Still to do:** the map has a layer for county and air district lines, but no outlines are loaded into the website's database yet (checked 2026-11-23). The outlines are in `datasets/boundaries/`.
+
+### 16.8 Out of scope
 
 A CO2 emission model. Sources other than landfills, except as a reason to mark a plume ambiguous. Counties south of Merced or east of 120°W. Linking an air monitor to a site by wind direction.

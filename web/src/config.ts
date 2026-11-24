@@ -36,7 +36,7 @@ export const EXPECTED = {
   estimates:
     'An estimate appears once a landfill is part of a model fit and has enough usable passes for one.',
   checks:
-    'Results appear as dated records arrive from the Air District and operators. Requests were filed in October 2026 and responses can take 45 days or more.',
+    'Results appear as dated records arrive from regulators and operators. The first requests were filed in October 2026 and responses can take 45 days or more.',
   plumes: 'Plume and pass counts appear with the first published data update.',
   updates: 'The update log starts with the first published data update.',
   operator: 'Operator-reported figures appear once the EPA records are loaded for this site.',
@@ -52,12 +52,26 @@ export const RESULT: Record<ResultColour, { label: string; icon: string }> = {
   grey: { label: 'Not enough data', icon: 'ring' },
 };
 
-export const CHECK_TYPE: Record<string, { label: string; icon: string }> = {
-  'air-district-inspection': { label: 'Air District inspection', icon: 'clipboard' },
-  'air-district-notice': { label: 'Air District notice', icon: 'document' },
+// Landfills fall under several air districts (ADR 0020), so a record's label names its own:
+// `label` follows the regulator's name, as in "Bay Area AQMD inspection". `checkLabel` in
+// lib/data.ts builds it; the full text here is used when the district is not known.
+export const CHECK_TYPE: Record<string, { label: string; icon: string; record?: string }> = {
+  'air-district-inspection': { label: 'Air district inspection', icon: 'clipboard', record: 'inspection' },
+  'air-district-notice': { label: 'Air district notice', icon: 'document', record: 'notice' },
   'operator-repair': { label: 'Operator repair', icon: 'wrench' },
   'carb-plume-notice': { label: 'CARB plume notice', icon: 'satellite' },
   other: { label: 'Other record', icon: 'dot' },
+};
+
+// Air districts by the name CARB's district outlines give them (the name a site carries), with
+// the name CARB's list of districts uses (ww2.arb.ca.gov/california-air-districts, read
+// 2026-11-23). tests/test_web_regions.py checks every key is a name in those outlines.
+export const AIR_DISTRICT: Record<string, string> = {
+  'Bay Area': 'Bay Area AQMD',
+  'Northern Sonoma': 'Northern Sonoma County APCD',
+  'Sacramento Metro': 'Sacramento Metro AQMD',
+  'San Joaquin Valley Unified': 'San Joaquin Valley APCD',
+  'Yolo-Solano': 'Yolo-Solano AQMD',
 };
 
 export const EVIDENCE: Record<string, string> = {

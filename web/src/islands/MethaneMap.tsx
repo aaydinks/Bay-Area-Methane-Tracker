@@ -465,7 +465,7 @@ export default function MethaneMap({ sites: allSites, availableSources, regions 
                 ['passes', 'Usable passes per site'],
                 ['outlines', 'Site outlines'],
                 ['neighbours', 'Neighbouring sources'],
-                ['boundaries', 'County and Air District lines'],
+                ['boundaries', 'County and air district lines'],
               ] as const
             ).map(([key, label]) => (
               <label key={key}>
@@ -483,7 +483,7 @@ export default function MethaneMap({ sites: allSites, availableSources, regions 
           <li><span className="swatch pass" /> Usable passes (size)</li>
           <li><span className="swatch outline" /> Site outline (dashed: provisional)</li>
           <li><span className="swatch neighbour" /> Neighbouring source</li>
-          <li><span className="swatch boundary" /> County and Air District</li>
+          <li><span className="swatch boundary" /> County and air district</li>
           <li>Marker shape: type of the latest record; colour: its result; grey: no check on record</li>
         </ul>
       </details>
