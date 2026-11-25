@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import { isStudied, sites } from '../lib/data';
+import { isStudied, screeningFit, sites } from '../lib/data';
 // The two words for how closely a landfill is followed matter only when both kinds are shown.
 const bothKinds = sites.some(isStudied) && sites.some((s) => !isStudied(s));
 ---
@@ -15,7 +15,8 @@ const bothKinds = sites.some(isStudied) && sites.some((s) => !isStudied(s));
     {bothKinds && (
       <>
         <dt>Studied in depth</dt><dd>A landfill followed closely: more instruments, and dated records requested from the operator and the regulator.</dd>
-        <dt>Screened</dt><dd>A landfill whose passes and plumes are counted from the same public data. It has no estimate until a model fit includes it, which says nothing about how much methane it gives off.</dd>
+        <dt>Screened</dt><dd>A landfill whose passes and plumes are counted from the same public data. {screeningFit ? 'Its estimate, where it has one, comes from the screening fit. Having none says nothing about how much methane it gives off.' : 'It has no estimate until a model fit includes it, which says nothing about how much methane it gives off.'}</dd>
+        {screeningFit && <><dt>Screening fit</dt><dd>One model fitted to every landfill together. It supplies provisional figures for the screened landfills only; the landfills studied in depth keep the figures of their own fit.</dd></>}
       </>
     )}
     <dt>Detection floor</dt><dd>A lower cut-off on the emission rate. Annual figures count only methane above it, in daytime and clear skies, so they are never a site's total.</dd>

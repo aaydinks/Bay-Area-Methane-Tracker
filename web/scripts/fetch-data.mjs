@@ -296,7 +296,12 @@ async function fromSupabase() {
     const source = PUBLIC ? (PUBLIC_VIEWS[name] ?? view) : view;
     tables[name] = publication ? await all(source, order, (q) => q.eq('publish_id', publication.publish_id)) : [];
   }
-  const runIds = publication ? [publication.refresh_id, publication.model_run_id, publication.check_run_id].filter(Boolean) : [];
+  // An estimate names the fit it came from. Beside the update's main fit that can be a screening
+  // fit (decision record 0021), whose manifest the pages need to say what it covers.
+  const estimateRuns = (tables.site_estimates ?? []).map((e) => e.model_run_id);
+  const runIds = publication
+    ? [...new Set([publication.refresh_id, publication.model_run_id, publication.check_run_id, ...estimateRuns].filter(Boolean))]
+    : [];
   return {
     publication,
     publications,

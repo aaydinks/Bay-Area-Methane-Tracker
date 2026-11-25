@@ -10,8 +10,9 @@ import ReportedMeasures from '../../components/ReportedMeasures.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT, TIER } from '../../config';
 import {
-  checksFor, districtLabel, estimateFor, featuresFor, hasMeasures, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED, operatorReportsFor,
-  passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, regionIds, regionLabel, sites, type Site, usableEstimate,
+  checksFor, districtLabel, estimateFor, featuresFor, fromScreeningFit, hasMeasures, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED,
+  operatorReportsFor, passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, regionIds, regionLabel, screeningFit, sites, type Site,
+  usableEstimate,
 } from '../../lib/data';
 import { date, listText, num, pct } from '../../lib/format';
 
@@ -30,8 +31,11 @@ const reports = operatorReportsFor(id);
 const residents = populationFor(id);
 const neighbours = neighboursFor(id);
 const features = featuresFor(id);
-// Instruments the model run used, and those with usable passes here that it left out (ADR 0016).
-const model = modelInstruments();
+// The fit behind this landfill's figure: the update's main fit, or the screening fit for a
+// landfill the main fit does not cover (ADR 0021). The page says so when it is the second.
+const screening = fromScreeningFit(id) ? screeningFit : null;
+// Instruments that fit used, and those with usable passes here that it left out (ADR 0016).
+const model = modelInstruments(estimate?.model_run_id ?? undefined);
 const label = (i: string) => INSTRUMENT[i] ?? i;
 const leftHere = model.leftOut
   .map((l) => ({ ...l, usable: passes.find((p) => p.instrument === l.instrument)?.usable ?? 0 }))
@@ -67,6 +71,11 @@ const noEstimate = estimate
         <p class="figure"><span class="figure-value">{num(estimate.e_t_yr_med)}</span> <span class="figure-unit">tonnes a year</span></p>
         <p class="figure-range">90% range {num(estimate.e_t_yr_lo)} to {num(estimate.e_t_yr_hi)} tonnes a year{estimate.provisional ? ' · provisional' : ''}</p>
         <p class="muted">Methane above what the instruments can detect, in daytime and clear skies. It is not the landfill's total.</p>
+        {screening && (
+          <p class="muted" data-testid="screening-fit">
+            This figure comes from the screening fit, one model fitted to {screening.pooled ? `all ${num(screening.pooled)} landfills` : 'every landfill'} together. It is provisional, and it is not the fit behind the figures of the landfills studied in depth.
+          </p>
+        )}
       </div>
     ) : (
       <EmptyState title={noEstimate.title} expected={noEstimate.text} />
@@ -117,6 +126,7 @@ const noEstimate = estimate
         <p class="muted">No estimate in this update.</p>
       )}
       {hasEstimate && estimate?.provisional && <p class="muted">Provisional: some detection curves are not yet confirmed.</p>}
+      {screening && estimate && <p class="muted">From the screening fit, run <span class="mono">{screening.runId}</span>.</p>}
       {showModel && (
         <p class="muted" data-testid="model-instruments">
           The model run uses {listText(model.used.map(label))}.

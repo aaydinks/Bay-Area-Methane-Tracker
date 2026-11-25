@@ -76,11 +76,16 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
 - Records name their regulator: `checkLabel` in `src/lib/data.ts` builds "Sacramento Metro AQMD
   inspection" from the air district of the record's landfill, with the district names in
   `src/config.ts`.
+- Two fits can sit side by side (decision record 0021): the update's main fit and a screening
+  fit that supplies figures for the screened landfills. An estimate row names its fit;
+  `fromScreeningFit` and `screeningFit` in `src/lib/data.ts` read that, and a figure from the
+  screening fit says so on the landfill's page, in the landfills table, under the chart, on the
+  methods page and in the glossary.
 - `src/islands/MethaneMap.tsx`: the map. Its region choice frames one region's landfills and
   leaves out the rest.
 - `fixtures/make-fixture.mjs`: writes the sample snapshot. Nothing in it is a real result. The
-  review update holds four screened landfills in two regions beside the five studied in depth;
-  the public update holds the five only.
+  review update holds four screened landfills in two regions beside the five studied in depth,
+  and a screening fit with rows for two of them; the public update holds the five only.
 - `src/islands/Carousel.tsx`: the home page carousels. Two slides in view; it moves on by one
   every 5 seconds and loops, and pauses on hover, on keyboard focus, when its pause button is
   pressed, while the tab is hidden and under reduced motion.
