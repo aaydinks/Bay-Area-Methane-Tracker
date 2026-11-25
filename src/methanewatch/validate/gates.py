@@ -76,11 +76,12 @@ def synthetic_recovery_at_scale(n_replicates: int = 200) -> bool:
     tiers = sorted(set(tier_of) - {""})
     chosen = run.select_sites(interim, pd.read_parquet(path), tiers=tiers)
     det = run.select_searched(interim, chosen.detections, load_instruments()).detections
-    last = pd.to_datetime(det["acquired_utc"]).max().date()
     source = (
         f"usable passes of {', '.join(sorted(det['instrument'].unique()))} over the "
-        f"{det['site_id'].nunique()} registry sites, through {last}"
+        f"{det['site_id'].nunique()} registry sites with any"
     )
+    if "acquired_utc" in det:
+        source += f", through {pd.to_datetime(det['acquired_utc']).max().date()}"
     layout = synthetic.layout_from_detections(det, region_of, source)
     out_root = project.resolve(project.paths.reports) / "trials"
     return synthetic.gate(n_replicates, out_root, layout=layout).passed

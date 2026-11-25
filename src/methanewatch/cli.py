@@ -444,6 +444,14 @@ def model_fit(
     ] = None,
     site: FitSites = None,
     tier: FitTiers = None,
+    covariate: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Site covariate for this fit, in place of the list in config/model.yaml. "
+            "Repeat for several. A fit of sites in several regions needs the region term "
+            "(north_valley). Recorded in the run manifest."
+        ),
+    ] = None,
 ) -> None:
     """Fit the persistence model to data/interim/detections.parquet.
 
@@ -476,6 +484,7 @@ def model_fit(
             include_unsearched=tuple(include_unsearched or ()),
             sites=tuple(site or ()),
             tiers=tuple(tier or ()),
+            covariates=tuple(covariate) if covariate else None,
         )
     except run.ConfigNotReadyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
