@@ -104,4 +104,6 @@ publish:
   # tier). A site's estimate comes from the official fit when that fit has the site, otherwise
   # from this run, marked provisional; with neither, the site has no estimate. Unset: only the
   # official fit is carried.
-  screening_model_run: null
+  # fit-20261125T045806Z: all 52 sites with the region term, after the coverage test at that
+  # size passed (ADR 0023). It supplies the 47 sites the official fit does not cover.
+  screening_model_run: fit-20261125T045806Z

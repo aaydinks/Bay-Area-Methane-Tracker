@@ -417,6 +417,7 @@ All tests live under `mw validate <name>`. Each writes `reports/validation/<name
 - **Pass:** coverage within [85%, 95%] for each quantity, pooled over sites and replicates, with a binomial CI shown.
 - Also run: rank-based simulation-based calibration histograms (diagnostic only) and the misspecification scenarios from §6.5. These are reported, not gated.
 - Run cost: the grid model fits in seconds to tens of seconds, so 200 fits can run overnight. `--quick` (R = 20) runs in CI.
+- `--at-scale` (ADR 0023) runs the same test in the shape of a fit of every registry site: as many sites, in their regions, with each site's real pass counts, the region term in the model, and chains as long as a real fit's. Each region must be inside the band as well. Its report goes to `reports/trials/synthetic-scale/`, which is not published.
 
 ### 8.2 Matched pairs (`validate matched-pairs`)
 
@@ -644,7 +645,7 @@ Everything that is not a methane estimate goes in one table, `site_metrics`, des
 - An allowlist of regions and tiers (`config/public_scope.json`), starting as the Bay Area pilot tier. It is enforced in the database, in the web build and in the public-output check.
 - New sites and new regions go to the review copy first. The owner widens the allowlist after a review window.
 - `official_model_run` supplies the figures for the sites it covers. An optional `screening_model_run` supplies estimates for the rest, marked provisional.
-- A pooled fit becomes official only after Gate 3 passes at the real site count, with a region term and each region's own pass rates.
+- A pooled fit becomes official only after Gate 3 passes at the real site count, with a region term and each region's own pass rates. ADR 0023 says how: `mw validate synthetic --at-scale`, and `mw model fit --covariate north_valley` for the fit itself, which stops if its sites span regions without the term.
 
 ### 16.5 Build order
 
@@ -678,7 +679,7 @@ If time runs short, cut from the end of step 16 backwards: air monitors, CalEnvi
 - Step 6: the Bay Area region reproduces the earlier box and county lists exactly.
 - Steps 9 and 10: counts per county match the CalRecycle pull; the wider pulls reproduce the counts recorded in ADR 0018.
 - Step 12: EPA's 2023 rows for Kiefer Landfill match the figures recorded in ADR 0019.
-- Step 15: Gate 3 coverage inside 85 to 95% at the new site count.
+- Step 15: Gate 3 coverage inside 85 to 95% at the new site count, pooled and within each region.
 - CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present.
 
 ### 16.7 Regulators

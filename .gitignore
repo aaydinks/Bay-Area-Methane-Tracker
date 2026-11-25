@@ -25,6 +25,8 @@ data/processed/
 
 # Built outputs (dashboard is published from CI or by hand after the review window)
 reports/site/
+# Per-site rows of a trial run are large and can be made again from its seed (ADR 0023)
+reports/trials/**/*.csv
 
 # OS / editors
 .DS_Store
