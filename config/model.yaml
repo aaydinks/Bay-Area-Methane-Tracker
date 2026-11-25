@@ -45,6 +45,8 @@ interval_mass: 0.90
 # Site-level covariates (ADR 0008): shift each site's emitting share and typical rate
 # by beta . X_s. Choose from closed, log_area, ghgrp_reporter, log_dist_neighbor; at most
 # two or three for ~36 sites. Empty = the model without covariates.
+# The region term (north_valley, ADR 0023) is not listed here: a fit that pools regions names
+# it with `mw model fit --covariate north_valley`, so a pilot-only fit stays as it was.
 covariates:
   names: []
   beta_sd: 0.5 # Normal(0, beta_sd) prior on each standardized coefficient

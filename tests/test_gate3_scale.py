@@ -246,6 +246,8 @@ def test_a_fit_that_pools_regions_stops_without_the_region_term(tmp_path, monkey
     assert manifest["sites"] == [SCREEN, "newby-island", "potrero-hills"]
     assert manifest["covariates"]["names"] == ["north_valley"]
     assert manifest["covariates"]["center"]["north_valley"] == pytest.approx(1 / 3)
+    # A fit that pools regions gets longer chains; the manifest records them
+    assert manifest["sampler"]["draws"] == load_model().covariates.pooled_draws == 3000
 
 
 def test_a_fit_of_one_region_needs_no_term_and_refuses_one(tmp_path, monkeypatch):
@@ -255,6 +257,7 @@ def test_a_fit_of_one_region_needs_no_term_and_refuses_one(tmp_path, monkeypatch
     run_id = run.fit_real(*args, allow_unconfirmed=True, tiers=("pilot",))
     manifest, _ = _manifest(tmp_path, run_id)
     assert manifest["covariates"] is None
+    assert manifest["sampler"] == load_model().sampler.model_dump()  # the usual chains
     with pytest.raises(run.ConfigNotReadyError, match="does not vary"):
         run.fit_real(*args, allow_unconfirmed=True, tiers=("pilot",), covariates=("north_valley",))
 
@@ -294,3 +297,14 @@ def test_one_replicate_in_the_shape_of_a_small_two_region_fit():
     assert out["region"].tolist() == ["bay-area"] * 4 + ["north-valley"] * 2
     assert (out["n_overpasses"] == 21).all()
     assert {"hyper_beta_f_north_valley", "hyper_beta_mu_north_valley"} <= set(out.columns)
+
+
+def test_only_a_pooled_fit_gets_the_longer_chains():
+    cfg = load_model()
+    usual = cfg.sampler
+    assert cfg.covariates.sampler(usual, active=False) is usual
+    assert cfg.covariates.sampler(usual, active=True).draws == usual.draws
+    pooled = cfg.covariates.sampler(usual, active=True, pooled=True)
+    assert pooled.draws == 3000 and pooled.tune == usual.tune and pooled.chains == usual.chains
+    longer = usual.model_copy(update={"draws": 5000})
+    assert cfg.covariates.sampler(longer, active=True, pooled=True).draws == 5000  # never shortened

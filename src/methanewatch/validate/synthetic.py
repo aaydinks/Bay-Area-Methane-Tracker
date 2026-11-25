@@ -128,7 +128,9 @@ def fit_replicate(
     )
     cov = features.design_synthetic(sites, covariates) if covariates else None
     model = persistence.build_model(data, cfg.priors, cov, beta_sd=cfg.covariates.beta_sd)
-    sampler = cfg.covariates.sampler(sampler or syn.sampler, active=bool(covariates))
+    # A fit given a real fit's sampler also gets that fit's longer chains when it pools regions
+    pooled = sampler is not None and bool(set(covariates) & set(features.REGION_TERMS))
+    sampler = cfg.covariates.sampler(sampler or syn.sampler, active=bool(covariates), pooled=pooled)
     idata = persistence.fit(model, sampler, seed=seed)
     diag = persistence.diagnostics(idata, cfg)
 
@@ -395,7 +397,13 @@ def write_report(
         f"{gate.n_fits} replicates x {n_sites} sites = {gate.n_site_fits} site fits. "
         "Truths drawn from the model's priors; instrument settings from "
         "`config/synthetic.yaml` (SYNTHETIC, not measured values)."
-        + (" Chains as long as a real fit's (`config/model.yaml`)." if layout is not None else ""),
+        + (
+            " Chains as long as the real fit's (`config/model.yaml`): "
+            f"{cfg.covariates.sampler(cfg.sampler, active=True, pooled=bool(covariates)).draws} "
+            "draws each."
+            if layout is not None
+            else ""
+        ),
         "",
         f"Site covariates: {', '.join(covariates)} "
         f"({'each site in its real region' if layout is not None else 'made-up values'}; "

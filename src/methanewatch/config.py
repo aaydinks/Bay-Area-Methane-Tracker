@@ -295,12 +295,19 @@ class CovariateSettings(_Strict):
     beta_sd: float = Field(default=0.5, gt=0)
     # Covariate fits diverge slightly more often; a smaller step size fixes most of it
     target_accept: float = Field(default=0.95, gt=0, lt=1)
+    # Draws per chain for a fit that pools regions (ADR 0023). With some fifty sites the shared
+    # spreads mix slowly, and chains of the usual length end just outside the checks too often.
+    pooled_draws: int = Field(default=3000, ge=1)
 
-    def sampler(self, base: Sampler, active: bool) -> Sampler:
-        """``base`` with the covariate target_accept when covariates are in the fit."""
-        if not active or base.target_accept >= self.target_accept:
-            return base
-        return base.model_copy(update={"target_accept": self.target_accept})
+    def sampler(self, base: Sampler, active: bool, *, pooled: bool = False) -> Sampler:
+        """``base`` with the covariate target_accept when covariates are in the fit, and with
+        at least ``pooled_draws`` draws when the fit pools regions."""
+        update: dict[str, float | int] = {}
+        if active and base.target_accept < self.target_accept:
+            update["target_accept"] = self.target_accept
+        if pooled and base.draws < self.pooled_draws:
+            update["draws"] = self.pooled_draws
+        return base.model_copy(update=update) if update else base
 
 
 class ModelConfig(_Strict):

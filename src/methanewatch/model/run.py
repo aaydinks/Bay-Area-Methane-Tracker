@@ -194,7 +194,9 @@ def fit_real(
         except ValueError as exc:
             raise ConfigNotReadyError(str(exc)) from exc
     model = persistence.build_model(data, cfg.priors, cov, beta_sd=cfg.covariates.beta_sd)
-    idata = persistence.fit(model, cfg.covariates.sampler(cfg.sampler, active=cov is not None))
+    pooled = bool(set(names) & set(features.REGION_TERMS))
+    sampler = cfg.covariates.sampler(cfg.sampler, active=cov is not None, pooled=pooled)
+    idata = persistence.fit(model, sampler)
     diag = persistence.diagnostics(idata, cfg)
     provisional = bool(instruments.unconfirmed(used))
     est = summarize(idata, data, diag, cfg, run_id=run_id, provisional=provisional)
@@ -211,6 +213,7 @@ def fit_real(
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
             "covariates": cov.manifest() if cov is not None else None,
+            "sampler": sampler.model_dump(),
             **chosen.manifest(),
             **sel.manifest(),
         },
