@@ -52,7 +52,10 @@ def make_project(tmp_path):
                 "processed": tmp_path / "processed", "datasets": tmp_path / "datasets",
                 "reports": tmp_path / "reports"}
     )  # fmt: skip
-    publish = base.publish.model_copy(update={"official_model_run": None})
+    # Each test names the fits it needs; the ones in config/project.yaml are not on this disk
+    publish = base.publish.model_copy(
+        update={"official_model_run": None, "screening_model_run": None}
+    )
     return base.model_copy(update={"paths": paths, "publish": publish})
 
 

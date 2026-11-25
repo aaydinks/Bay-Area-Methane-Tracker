@@ -133,6 +133,7 @@ def fit_real(
     include_unsearched: Iterable[str] = (),
     sites: Iterable[str] = (),
     tiers: Iterable[str] = (),
+    covariates: Iterable[str] | None = None,
 ) -> str:
     """Fit ``interim/detections.parquet`` with the real instrument settings.
 
@@ -140,6 +141,9 @@ def fit_real(
     ``model.siteselect``. Instruments whose plume search has not run are left out (see
     ``model.searched``), unless named in ``include_unsearched``. The manifest names the
     choice of sites, and what was left out and why.
+
+    ``covariates`` replaces the list in ``config/model.yaml`` for this fit. A fit whose sites
+    lie in several regions must carry the region term (ADR 0023) and stops without it.
     """
     interim = project.resolve(project.paths.interim)
     path = interim / "detections.parquet"
@@ -167,15 +171,32 @@ def fit_real(
         allow_unconfirmed=allow_unconfirmed,
     )
     run_id = new_id("fit")
+    names = tuple(cfg.covariates.names) if covariates is None else tuple(covariates)
+    region_of = siteselect.site_regions(interim)
+    if region_of is not None:
+        regions = [r for r in region_of.reindex(data.site_ids).dropna() if r]
+        missing = [t for t in features.region_terms(regions) if t not in names]
+        if missing:
+            raise ConfigNotReadyError(
+                f"the chosen sites lie in several regions ({', '.join(sorted(set(regions)))}); "
+                "a fit that pools regions carries the region term, so add "
+                + " ".join(f"--covariate {t}" for t in missing)
+            )
     cov = None
-    if cfg.covariates.names:
-        feat_path = project.resolve(project.paths.interim) / "site_features.parquet"
+    if names:
+        feat_path = interim / "site_features.parquet"
         if not feat_path.exists():
             raise FileNotFoundError(f"missing {feat_path}; run `mw features build` first")
-        table = pd.read_parquet(feat_path)
-        cov = features.design(table[table["site_id"].isin(data.site_ids)], cfg.covariates.names)
+        table = features.with_regions(pd.read_parquet(feat_path), region_of)
+        try:
+            cov = features.design(table[table["site_id"].isin(data.site_ids)], names)
+            cov.rows(data.site_ids)  # every fitted site needs its row
+        except ValueError as exc:
+            raise ConfigNotReadyError(str(exc)) from exc
     model = persistence.build_model(data, cfg.priors, cov, beta_sd=cfg.covariates.beta_sd)
-    idata = persistence.fit(model, cfg.covariates.sampler(cfg.sampler, active=cov is not None))
+    pooled = bool(set(names) & set(features.REGION_TERMS))
+    sampler = cfg.covariates.sampler(cfg.sampler, active=cov is not None, pooled=pooled)
+    idata = persistence.fit(model, sampler)
     diag = persistence.diagnostics(idata, cfg)
     provisional = bool(instruments.unconfirmed(used))
     est = summarize(idata, data, diag, cfg, run_id=run_id, provisional=provisional)
@@ -192,6 +213,7 @@ def fit_real(
             "provisional": provisional,
             "unconfirmed_pod": instruments.unconfirmed(used),
             "covariates": cov.manifest() if cov is not None else None,
+            "sampler": sampler.model_dump(),
             **chosen.manifest(),
             **sel.manifest(),
         },

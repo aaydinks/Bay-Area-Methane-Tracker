@@ -25,8 +25,13 @@ import pandas as pd
 from methanewatch import schemas
 from methanewatch.config import ProjectConfig
 
+# Region terms (ADR 0023): one yes/no covariate per region after the first, named here with the
+# region id it stands for. A fit that pools regions carries them, so the regions are not
+# assumed to share one typical landfill.
+REGION_TERMS = {"north_valley": "north-valley"}
+
 # Covariates the model accepts, and how each is built from the feature table.
-BINARY = {"closed", "ghgrp_reporter"}
+BINARY = {"closed", "ghgrp_reporter", *REGION_TERMS}
 CONTINUOUS = {"log_area", "log_dist_neighbor"}
 COVARIATES = BINARY | CONTINUOUS
 
@@ -120,7 +125,34 @@ def _column(features: pd.DataFrame, name: str) -> np.ndarray:
         return np.log(features["area_km2"].astype(float).to_numpy())
     if name == "log_dist_neighbor":
         return np.log1p(features["dist_neighbor_m"].astype(float).to_numpy())
+    if name in REGION_TERMS:
+        if "region" not in features:
+            raise ValueError(f"covariate {name!r} needs each site's region; see `with_regions`")
+        region = features["region"]
+        if region.isna().any() or (region == "").any():
+            missing = features.loc[region.isna() | (region == ""), "site_id"].tolist()
+            raise ValueError(f"covariate {name!r}: no region for {missing}")
+        return (region == REGION_TERMS[name]).astype(float).to_numpy()
     raise ValueError(f"unknown covariate {name!r}; choose from {sorted(COVARIATES)}")
+
+
+def with_regions(features: pd.DataFrame, region_of: pd.Series | None) -> pd.DataFrame:
+    """``features`` with each site's ``region`` (``region_of`` is indexed by ``site_id``).
+
+    The feature table does not hold the region; the registry does. Sites the registry has no
+    region for get none, and ``design`` then refuses a region term.
+    """
+    if region_of is None:
+        return features
+    return features.assign(region=features["site_id"].map(region_of))
+
+
+def region_terms(regions: Sequence[str]) -> tuple[str, ...]:
+    """The region terms a fit over sites of these regions needs: none for a single region."""
+    present = set(regions)
+    if len(present) < 2:
+        return ()
+    return tuple(name for name, region in REGION_TERMS.items() if region in present)
 
 
 def design(features: pd.DataFrame, names: Sequence[str]) -> Covariates:
