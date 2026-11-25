@@ -1,6 +1,6 @@
 # PR #88: The coverage test at 52 landfills, and the first screening fit
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/88)
+**Status:** merged 2026-11-24 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/88)
 
 ## In one sentence
 
