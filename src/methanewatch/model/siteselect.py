@@ -37,15 +37,24 @@ class SiteSelection:
         }
 
 
-def site_tiers(interim: Path) -> pd.Series | None:
-    """Tier by ``site_id`` from ``interim/sites.parquet``; None when it cannot be read."""
+def _site_column(interim: Path, column: str) -> pd.Series | None:
     path = interim / "sites.parquet"
     if not path.exists():
         return None
     table = pd.read_parquet(path)
-    if "tier" not in table or "site_id" not in table:
+    if column not in table or "site_id" not in table:
         return None
-    return table.set_index("site_id")["tier"].fillna("").astype(str)
+    return table.set_index("site_id")[column].fillna("").astype(str)
+
+
+def site_tiers(interim: Path) -> pd.Series | None:
+    """Tier by ``site_id`` from ``interim/sites.parquet``; None when it cannot be read."""
+    return _site_column(interim, "tier")
+
+
+def site_regions(interim: Path) -> pd.Series | None:
+    """Region by ``site_id`` from ``interim/sites.parquet``; None when it cannot be read."""
+    return _site_column(interim, "region")
 
 
 def _counts(tiers: pd.Series) -> str:

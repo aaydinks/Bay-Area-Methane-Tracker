@@ -51,12 +51,15 @@ def sites_from_prior(
     *,
     covariates: Sequence[str] = (),
     beta_sd: float = 0.5,
+    columns: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, dict[str, float]]:
     """Draw hyperparameters, then site parameters, from the model's priors.
 
     With ``covariates``, each site also gets made-up covariate values (one column
     per name) and the coefficients are drawn from their Normal(0, beta_sd) prior,
-    applied to the covariates as the model standardizes them (ADR 0008).
+    applied to the covariates as the model standardizes them (ADR 0008). ``columns``
+    gives the covariate values instead of making them up, one row per site in order:
+    for example which region each site is in.
     """
     hyper = {
         "alpha_f": rng.normal(priors.alpha_f_mu, priors.alpha_f_sd),
@@ -69,7 +72,12 @@ def sites_from_prior(
     shift_f = shift_mu = np.zeros(n_sites)
     cols = pd.DataFrame(index=range(n_sites))
     if covariates:
-        cols = features.synthetic_columns(covariates, n_sites, rng)
+        if columns is None:
+            cols = features.synthetic_columns(covariates, n_sites, rng)
+        elif len(columns) != n_sites:
+            raise ValueError(f"{len(columns)} rows of covariate values for {n_sites} sites")
+        else:
+            cols = columns[list(covariates)].reset_index(drop=True)
         X = features.design_synthetic(cols.assign(site_id=site_ids), covariates).X
         beta_f = rng.normal(0, beta_sd, len(covariates))
         beta_mu = rng.normal(0, beta_sd, len(covariates))

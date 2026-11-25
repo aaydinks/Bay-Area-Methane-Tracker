@@ -637,10 +637,24 @@ def validate_synthetic(
         str | None,
         typer.Option(help="Comma-separated site covariates to simulate and fit (ADR 0008)."),
     ] = None,
+    at_scale: Annotated[
+        bool,
+        typer.Option(
+            help="Simulate as many sites as the registry has, in their regions and with their "
+            "real pass counts, and fit with the region term (200 replicates unless told "
+            "otherwise). The report goes to reports/trials, which is not published."
+        ),
+    ] = False,
 ) -> None:
     """Gate 3: 90% intervals cover the truth 85-95% of the time on simulated data."""
     from methanewatch.validate import gates
 
+    if at_scale:
+        if covariates:
+            typer.secho("--at-scale brings its own region term; drop --covariates", err=True)
+            raise typer.Exit(code=1)
+        _gate(_run_or_exit(gates.synthetic_recovery_at_scale, replicates or (5 if quick else 200)))
+        return
     n = replicates or (20 if quick else 200)
     names = tuple(c.strip() for c in covariates.split(",") if c.strip()) if covariates else ()
     _gate(_run(gates.synthetic_recovery, n, 0 if quick else scenario_replicates, names))

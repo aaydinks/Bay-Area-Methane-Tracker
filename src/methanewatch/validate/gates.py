@@ -52,6 +52,40 @@ def synthetic_recovery(
     ).passed
 
 
+def synthetic_recovery_at_scale(n_replicates: int = 200) -> bool:
+    """Gate 3 with the sites, regions and pass counts of a fit of every registry site.
+
+    Reads only the counts from ``interim/detections.parquet``, for the instruments a real fit
+    would use. Writes to ``reports/trials``, not ``reports/validation``: everything in that
+    folder is published as a method check (ADR 0021).
+    """
+    import pandas as pd
+
+    from methanewatch.config import load_instruments, load_project
+    from methanewatch.model import run, siteselect
+    from methanewatch.validate import synthetic
+
+    project = load_project()
+    interim = project.resolve(project.paths.interim)
+    path = interim / "detections.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"missing {path}; run `mw coverage build` first")
+    tier_of, region_of = siteselect.site_tiers(interim), siteselect.site_regions(interim)
+    if tier_of is None or region_of is None:
+        raise FileNotFoundError("run `mw sites build` first: no tiers or regions for the sites")
+    tiers = sorted(set(tier_of) - {""})
+    chosen = run.select_sites(interim, pd.read_parquet(path), tiers=tiers)
+    det = run.select_searched(interim, chosen.detections, load_instruments()).detections
+    last = pd.to_datetime(det["acquired_utc"]).max().date()
+    source = (
+        f"usable passes of {', '.join(sorted(det['instrument'].unique()))} over the "
+        f"{det['site_id'].nunique()} registry sites, through {last}"
+    )
+    layout = synthetic.layout_from_detections(det, region_of, source)
+    out_root = project.resolve(project.paths.reports) / "trials"
+    return synthetic.gate(n_replicates, out_root, layout=layout).passed
+
+
 def _out_root():
     from methanewatch.config import load_project
 
