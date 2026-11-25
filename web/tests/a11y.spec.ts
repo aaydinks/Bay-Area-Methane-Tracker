@@ -54,7 +54,7 @@ test('a site marked insufficient data shows no figure and is never ranked, even 
   expect((await names()).slice(0, 2)).toEqual(['Newby Island Landfill', 'Potrero Hills Landfill']);
   await sort.click();
   await expect(page.locator('.sites-table th[aria-sort="ascending"]')).toContainText('Estimate');
-  expect((await names()).slice(0, 3)).toEqual(['Potrero Hills Landfill', 'Newby Island Landfill', 'Acme Fill']);
+  expect((await names()).slice(0, 4)).toEqual(['Altamont Landfill', 'Potrero Hills Landfill', 'Newby Island Landfill', 'Acme Fill']);
   await page.goto('/');
   const card = page.locator('.site-card', { hasText: 'Acme Fill' });
   await expect(card).toContainText('Not enough data yet');
@@ -68,7 +68,7 @@ test('the landfills table filters by region and by how closely a landfill is fol
   const rows = page.locator('.sites-table tbody tr');
   const count = page.locator('.sites-count');
   await expect(rows).toHaveCount(9);
-  await expect(count).toHaveText('9 of 9 landfills shown, 2 with an estimate.');
+  await expect(count).toHaveText('9 of 9 landfills shown, 3 with an estimate.');
   await page.locator('.sites-filters label', { hasText: 'Region' }).locator('select').selectOption({ label: 'North Valley' });
   await expect(rows).toHaveCount(2);
   await expect(count).toHaveText('2 of 9 landfills shown, 0 with an estimate.');
@@ -103,6 +103,32 @@ test('a screened landfill says it has no estimate yet, and why', async ({ page }
   await expect(estimate).toContainText('not yet part of a model fit');
   await expect(estimate).not.toContainText('Insufficient data');
   await expect(page.locator('.headline-figure')).toHaveCount(0);
+});
+
+test('a figure from the screening fit says so wherever it is shown', async ({ page }) => {
+  // In the fixture a screening fit supplies Altamont's figure and marks Keller Canyon as
+  // insufficient data; the landfills studied in depth keep the main fit's figures.
+  await page.goto('/sites/altamont/');
+  const note = page.locator('[data-testid="screening-fit"]');
+  await expect(note).toContainText('This figure comes from the screening fit, one model fitted to all 7 landfills together.');
+  await expect(note).toContainText('provisional');
+  await expect(page.locator('.figure-range')).toContainText('provisional');
+  await page.goto('/sites/newby-island/');
+  await expect(page.locator('.headline-figure')).toHaveCount(1);
+  await expect(page.locator('[data-testid="screening-fit"]')).toHaveCount(0);
+  await page.goto('/sites/keller-canyon/');
+  await expect(page.locator('section[aria-labelledby="estimate"]')).toContainText('Insufficient data');
+  await expect(page.locator('.headline-figure')).toHaveCount(0);
+
+  await page.goto('/sites/');
+  await expect(page.locator('.sites-table tbody tr', { hasText: 'Altamont' })).toContainText('screening fit');
+  await expect(page.locator('.sites-table tbody tr', { hasText: 'Newby Island' })).not.toContainText('screening fit');
+  await expect(page.locator('[data-testid="chart-fits"]')).toContainText('Figures for screened landfills come from the screening fit');
+  await page.locator('summary', { hasText: 'What the estimates mean' }).click();
+  await expect(page.locator('[data-testid="screening-fit-note"]')).toContainText('one model fitted to all seven landfills together');
+  await page.goto('/methods/');
+  await expect(page.locator('[data-testid="two-fits"]')).toContainText('Two model fits sit side by side.');
+  await expect(page.locator('[data-testid="two-fits"]')).toContainText('with a term that lets the regions differ');
 });
 
 test('a record names the air district its landfill falls under', async ({ page }) => {

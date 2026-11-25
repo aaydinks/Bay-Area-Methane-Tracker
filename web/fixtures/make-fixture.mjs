@@ -26,7 +26,8 @@ const SITES = [
 ];
 
 // Screening landfills (ADR 0018, 0021): on the review update only, in both regions, outside the
-// public scope. They have passes and plumes but no estimate, operator report or measure yet.
+// public scope. They have passes and plumes but no operator report or measure yet. Two of them
+// have a row from the screening fit; the other two are in no fit.
 const SCREEN_SITES = [
   { site_id: 'altamont', name: 'Altamont Landfill', city: 'Livermore', county: 'Alameda', region: 'bay-area', lat: 37.75762, lon: -121.64948, status: 'active', swis: '01-AA-0009', ghgrp: null, detect: 0.2, district: 'Bay Area' },
   { site_id: 'keller-canyon', name: 'Keller Canyon Landfill', city: 'Bay Point', county: 'Contra Costa', region: 'bay-area', lat: 37.99224, lon: -121.9365, status: 'active', swis: '07-AA-0032', ghgrp: null, district: 'Bay Area' },
@@ -189,6 +190,25 @@ const site_estimates = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, model_run_id: 'fixture-model-1', site_id: 'sonoma-central', period: 'all', n_usable_overpasses: 7, n_detections: 0, f_med: null, f_lo: null, f_hi: null, qbar_kg_hr_med: null, qbar_kg_hr_lo: null, qbar_kg_hr_hi: null, e_t_yr_med: null, e_t_yr_lo: null, e_t_yr_hi: null, status: 'insufficient_data', insufficient_reason: 'fewer than 8 usable passes', rhat_max: null, ess_bulk_min: null, divergences: null, provisional: false, restricted: false },
   { publish_id: pub.publish_id, model_run_id: 'fixture-model-1', site_id: 'shoreline', period: 'all', n_usable_overpasses: 5, n_detections: 0, f_med: null, f_lo: null, f_hi: null, qbar_kg_hr_med: null, qbar_kg_hr_lo: null, qbar_kg_hr_hi: null, e_t_yr_med: null, e_t_yr_lo: null, e_t_yr_hi: null, status: 'insufficient_data', insufficient_reason: 'fewer than 8 usable passes', rhat_max: null, ess_bulk_min: null, divergences: null, provisional: false, restricted: false },
 ]);
+
+// A screening fit beside the main one, on the review update only (ADR 0021, 0023): it pools the
+// landfills studied in depth with two screened ones and supplies rows for those two alone.
+const SCREENING_RUN = 'fixture-screening-1';
+RUNS.push({
+  run_id: SCREENING_RUN, kind: 'model', created_at: '2026-10-20T17:30:00Z', git_sha: 'fixture0', git_dirty: false, config_sha256: {}, versions: {},
+  manifest: {
+    note: 'sample',
+    sites: ['acme-fill', 'altamont', 'keller-canyon', 'newby-island', 'potrero-hills', 'shoreline', 'sonoma-central'],
+    instruments: ['aircraft', 'emit', 'tanager1'],
+    instruments_left_out: { sentinel2: { reason: 'plume search not run', plume_sources: ['s2-local'], n_passes: 40, n_detections: 0 } },
+    covariates: { names: ['north_valley'] },
+    site_selection: { tiers: ['pilot', 'screen'], sites: [] },
+  },
+});
+site_estimates.push(
+  { publish_id: REVIEW, model_run_id: SCREENING_RUN, site_id: 'altamont', period: 'all', n_usable_overpasses: 26, n_detections: 5, f_med: 0.17, f_lo: 0.08, f_hi: 0.31, qbar_kg_hr_med: 350, qbar_kg_hr_lo: 160, qbar_kg_hr_hi: 800, e_t_yr_med: 520, e_t_yr_lo: 140, e_t_yr_hi: 1700, status: 'provisional', insufficient_reason: null, rhat_max: 1.005, ess_bulk_min: 700, divergences: 0, provisional: true, restricted: true, public_scope: false },
+  { publish_id: REVIEW, model_run_id: SCREENING_RUN, site_id: 'keller-canyon', period: 'all', n_usable_overpasses: 12, n_detections: 0, f_med: 0.04, f_lo: 0.002, f_hi: 0.2, qbar_kg_hr_med: 280, qbar_kg_hr_lo: 50, qbar_kg_hr_hi: 1500, e_t_yr_med: 90, e_t_yr_lo: 2, e_t_yr_hi: 1300, status: 'insufficient_data', insufficient_reason: 'the 90% range is too wide (its top is more than 100 times its bottom)', rhat_max: 1.005, ess_bulk_min: 700, divergences: 0, provisional: true, restricted: true, public_scope: false },
+);
 
 const checks = PUBS.flatMap((pub) => [
   { publish_id: pub.publish_id, check_id: 'fx-check-1', site_id: 'newby-island', check_type: 'operator-repair', repair_kind: 'cover', date_start: '2025-05-12', date_end: '2025-05-30', date_confidence: 'week', description: 'Sample record: interim cover placed on the north slope.', source_doc: 'fixture-operator-log.pdf', source_doc_title: 'Sample operator log (fixture)', source_url: null, source_page: '3', entered_on: '2026-09-01' },

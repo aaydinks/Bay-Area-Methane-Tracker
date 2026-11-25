@@ -166,10 +166,38 @@ export function passesByInstrument(siteId: string): { instrument: string; passes
 // between its instruments and the published passes is known, so the reason stays null.
 export interface LeftOut { instrument: string; reason: string | null }
 export const NOT_SEARCHED = 'plume search not run';
-interface ModelManifest { instruments?: string[]; instruments_left_out?: Record<string, { reason?: string }> }
+interface ModelManifest {
+  instruments?: string[];
+  instruments_left_out?: Record<string, { reason?: string }>;
+  sites?: string[];
+  covariates?: { names?: string[] } | null;
+}
+// Covariates that let a fit's regions differ (decision record 0023), as the pipeline names them.
+const REGION_TERMS = ['north_valley'];
 
-export function modelInstruments(): { used: string[]; leftOut: LeftOut[] } {
-  const run = snapshot.runs.find((r) => r.run_id === publication?.model_run_id);
+// Two fits can sit side by side (decision record 0021): the update's main fit, and a screening
+// fit that pools every landfill and supplies figures only for those the main fit lacks. A
+// figure from the screening fit says so wherever it is shown.
+export function fromScreeningFit(siteId: string): boolean {
+  const run = estimateFor(siteId)?.model_run_id;
+  return Boolean(run && publication?.model_run_id && run !== publication.model_run_id);
+}
+
+/** The screening fit behind this update's figures, when one supplied any: its id, how many
+ *  landfills it pooled (null for a manifest that does not list them), how many rows it
+ *  supplies, and whether it carries a term that lets the regions differ. */
+export const screeningFit: { runId: string; pooled: number | null; supplies: number; regionTerm: boolean } | null = (() => {
+  const rows = snapshot.site_estimates.filter((e) => e.period === 'all' && fromScreeningFit(e.site_id ?? ''));
+  const runId = rows[0]?.model_run_id;
+  if (!runId) return null;
+  const manifest = (snapshot.runs.find((r) => r.run_id === runId)?.manifest ?? {}) as ModelManifest;
+  const regionTerm = (manifest.covariates?.names ?? []).some((n) => REGION_TERMS.includes(n));
+  return { runId, pooled: manifest.sites?.length ?? null, supplies: rows.length, regionTerm };
+})();
+
+/** The instruments a fit used and left out: the update's main fit, or the one named. */
+export function modelInstruments(runId: string | null | undefined = publication?.model_run_id): { used: string[]; leftOut: LeftOut[] } {
+  const run = snapshot.runs.find((r) => r.run_id === runId);
   const m = (run?.manifest ?? {}) as ModelManifest;
   if (!run || !m.instruments) return { used: [], leftOut: [] };
   const used = [...m.instruments].sort();

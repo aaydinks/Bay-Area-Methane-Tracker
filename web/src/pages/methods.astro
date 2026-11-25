@@ -2,7 +2,7 @@
 import TableWrap from '../components/TableWrap.astro';
 import Base from '../layouts/Base.astro';
 import EmptyState from '../components/EmptyState.astro';
-import { isStudied, landfillsText, sites, snapshot, studiedSites } from '../lib/data';
+import { isStudied, landfillsText, screeningFit, sites, snapshot, studiedSites } from '../lib/data';
 import { countWord, date, sentence } from '../lib/format';
 const screened = sites.filter((s) => !isStudied(s)).length;
 const GATES: Record<string, string> = {
@@ -28,7 +28,13 @@ function metricText(m: unknown): string {
       <p>
         This update covers {landfillsText(sites.length)}.
         {studiedSites.length > 0 && ` ${screened === 0 && sites.length > 1 ? 'All' : sentence(countWord(studiedSites.length))} ${studiedSites.length === 1 ? 'is' : 'are'} studied in depth: Sentinel-2 passes are built for ${studiedSites.length === 1 ? 'it' : 'them'} as well, and dated records are requested from the operator and the regulator.`}
-        {screened > 0 && ` The other ${countWord(screened)} ${screened === 1 ? 'is' : 'are'} screened: every permitted landfill on CalRecycle's list for the region, open or closed, with its passes and plumes counted in the same way. A screened landfill has no estimate until a model fit includes it.`}
+        {screened > 0 && ` The other ${countWord(screened)} ${screened === 1 ? 'is' : 'are'} screened: every permitted landfill on CalRecycle's list for the region, open or closed, with its passes and plumes counted in the same way.`}
+        {screened > 0 && !screeningFit && ' A screened landfill has no estimate until a model fit includes it.'}
+        {screened > 0 && screeningFit && (
+          <span data-testid="two-fits">
+            {' '}Two model fits sit side by side. The landfills studied in depth keep the figures of their own fit. The screened landfills take theirs from a screening fit: one model fitted to {screeningFit.pooled ? `all ${countWord(screeningFit.pooled)} landfills` : 'every landfill'} together{screeningFit.regionTerm ? ', with a term that lets the regions differ' : ''}. Screening figures are always provisional, and each page says which fit a figure comes from.
+          </span>
+        )}
       </p>
     </section>
   )}

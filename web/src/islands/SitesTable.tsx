@@ -15,7 +15,8 @@ export interface SiteRow {
   studied: boolean;
   usablePasses: number | null;
   plumeDays: number | null;
-  estimate: { med: number; lo: number; hi: number; provisional: boolean } | null;
+  /** ``screening``: the figure comes from the screening fit, not the update's main fit. */
+  estimate: { med: number; lo: number; hi: number; provisional: boolean; screening: boolean } | null;
   /** What to say in place of a figure: "Not enough data yet" or "No estimate yet". */
   note: string;
   /** Why there is not enough data, when the model gave a reason. */
@@ -38,7 +39,7 @@ function Estimate({ r }: { r: SiteRow }) {
     <>
       {num(r.estimate.med)} t/yr
       <br />
-      <span className="muted">{num(r.estimate.lo)} to {num(r.estimate.hi)}{r.estimate.provisional ? ' · provisional' : ''}</span>
+      <span className="muted">{num(r.estimate.lo)} to {num(r.estimate.hi)}{r.estimate.provisional ? ' · provisional' : ''}{r.estimate.screening ? ' · screening fit' : ''}</span>
     </>
   );
 }

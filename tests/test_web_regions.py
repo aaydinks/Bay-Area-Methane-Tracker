@@ -42,3 +42,14 @@ def test_the_website_keys_air_districts_by_the_names_in_the_district_outlines():
     known = {f["properties"]["NAME"] for f in json.loads(outlines.read_text())["features"]}
     labels = _web_districts()
     assert labels and set(labels) <= known
+
+
+def test_the_website_knows_the_region_terms_by_the_pipeline_names():
+    """The methods page says a screening fit lets the regions differ when its manifest lists a
+    region term; a term under another name would go unnoticed."""
+    from methanewatch import features
+
+    text = (WEB_CONFIG.parent / "lib" / "data.ts").read_text()
+    block = re.search(r"const REGION_TERMS = \[(.*?)\];", text)
+    assert block, "web/src/lib/data.ts no longer defines REGION_TERMS"
+    assert set(re.findall(r"'(\w+)'", block.group(1))) == set(features.REGION_TERMS)
