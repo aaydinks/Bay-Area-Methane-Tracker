@@ -56,3 +56,25 @@ measures:
     kind: reported
     source: ghgrp
     caveat: "Filed only by sites that report stationary combustion to EPA."
+  # Carbon Mapper's CO2 search, as counts per landfill and year (ADR 0024). Counted by
+  # `mw ingest carbonmapper-co2` from its CO2 plume list and CO2 scene lists; nothing is
+  # modelled. "500 m" below is attribution.buffer_m in project.yaml, and a test keeps the two
+  # in step.
+  cm_co2_passes:
+    label: "Days searched for CO2"
+    unit: "count"
+    kind: observed
+    source: carbonmapper-co2
+    caveat: >-
+      Days on which a scene that Carbon Mapper searched for CO2 covered the landfill. A year
+      with no figure was not searched.
+  cm_co2_plumes:
+    label: "CO2 plumes found on or beside the landfill"
+    unit: "count"
+    kind: observed
+    source: carbonmapper-co2
+    caveat: >-
+      Plumes that start on the landfill's outline or within 500 m of it, whatever source Carbon
+      Mapper tagged them with. A plume beside a landfill can come from a neighbouring plant.
+      This search picks up only very large CO2 sources, such as power plants, so "none found"
+      does not mean no CO2.

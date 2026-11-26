@@ -293,6 +293,32 @@ def ingest_carbonmapper(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@ingest_app.command("carbonmapper-co2")
+def ingest_carbonmapper_co2(
+    start: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default the project start")] = None,
+    end: Annotated[str | None, typer.Option(help="YYYY-MM-DD, default today")] = None,
+    bbox: BBoxOpt = None,
+    offline: Annotated[
+        bool, typer.Option(help="Recount from the pulls on disk, no download")
+    ] = False,
+) -> None:
+    """Carbon Mapper CO2 plumes and CO2 scenes, as counts per landfill and year
+    (-> data/interim/site_metrics/carbonmapper-co2.parquet). Kept apart from the methane pulls;
+    CO2 is counted, never modelled."""
+    from methanewatch.ingest import pipeline
+
+    project = config.load_project()
+    if offline:
+        counts = _run_or_exit(pipeline.write_carbonmapper_co2, project)
+    else:
+        first = date.fromisoformat(start) if start else project.ingest.start
+        stop = date.fromisoformat(end) if end else date.today()
+        counts = _run_or_exit(
+            pipeline.ingest_carbonmapper_co2, project, _bbox(project, bbox), first, stop
+        )
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+
+
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
     from methanewatch.ingest.pipeline import registry_bbox
 

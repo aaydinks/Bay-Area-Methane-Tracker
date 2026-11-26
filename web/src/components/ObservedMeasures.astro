@@ -1,0 +1,57 @@
+---
+// Counts the project made in a source's published lists for one landfill (ADR 0024), one table
+// per source: a row for each year with a count, a column for each count the catalogue lists. A
+// year with no row was not searched, and a count missing within a year reads "not listed";
+// neither is ever shown as zero. Labels and caveats come from the published catalogue.
+import TableWrap from './TableWrap.astro';
+import { observedMeasuresFor } from '../lib/data';
+import { num } from '../lib/format';
+
+interface Props { siteId: string }
+const { siteId } = Astro.props;
+const groups = observedMeasuresFor(siteId);
+---
+{groups.map((g) => (
+  <div data-testid="observed-measures" data-source={g.source}>
+    <h3>{g.sourceName}</h3>
+    {g.periods.length ? (
+      <>
+        <TableWrap label={`Counts from ${g.sourceName}`}>
+          <table>
+            <caption>
+              Counted by this project in the source's published lists. A year that is not listed was not searched. A count of plumes is not an amount of gas, and CO2 is not estimated here.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Year</th>
+                {g.entries.map((m) => <th scope="col" class="num">{m.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {g.periods.map((period) => (
+                <tr>
+                  <th scope="row">{period}</th>
+                  {g.entries.map((m) => {
+                    const cell = g.cell(period, m.metric_id);
+                    return cell
+                      ? <td class="num">{cell.value != null ? num(cell.value) : cell.value_text}</td>
+                      : <td class="num muted">not listed</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+        <ul class="muted">
+          {g.entries.filter((m) => m.caveat).map((m) => <li>{m.label}: {m.caveat}</li>)}
+        </ul>
+      </>
+    ) : (
+      <p class="muted">Not searched: nothing in this source's lists covers this landfill.</p>
+    )}
+  </div>
+))}
+
+<style>
+  th[scope="col"] { white-space: normal; min-width: 6.5rem; max-width: 12rem; vertical-align: bottom; }
+</style>

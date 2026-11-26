@@ -97,10 +97,15 @@ def _get(client: httpx.Client, path: str, params: list[tuple[str, str]]) -> http
 
 
 def plume_csv(
-    client: httpx.Client, bbox: BBox, start: date, *, sectors: list[str] | None = None
+    client: httpx.Client,
+    bbox: BBox,
+    start: date,
+    *,
+    sectors: list[str] | None = None,
+    gas: str = "CH4",
 ) -> pd.DataFrame:
-    """Every CH4 plume in ``bbox`` observed on or after ``start``, all instruments."""
-    base = [("plume_gas", "CH4"), ("datetime", f"{start.isoformat()}T00:00:00Z/..")]
+    """Every plume of ``gas`` in ``bbox`` observed on or after ``start``, all instruments."""
+    base = [("plume_gas", gas), ("datetime", f"{start.isoformat()}T00:00:00Z/..")]
     base += [("bbox", str(b)) for b in bbox]
     base += [("sectors", s) for s in sectors or []]
     pages, offset = [], 0
@@ -188,18 +193,14 @@ def latest_pull(raw_root: Path) -> Path:
     return pulls[-1]
 
 
-def merged_plumes(pulls: list[Path]) -> pd.DataFrame:
+def merged_plumes(pulls: list[Path], file: str = "plumes_all-sectors.csv") -> pd.DataFrame:
     """One row per plume across pulls: the most recently modified version wins.
 
     Merging, rather than reading only the newest pull, keeps plumes from earlier
     pulls when a later pull covers a shorter window. When Carbon Mapper reprocesses
     a plume, its ``modified`` time moves forward, so the newer version is kept.
     """
-    frames = [
-        plumes_table(p / "plumes_all-sectors.csv").assign(pull_id=p.name)
-        for p in pulls
-        if (p / "plumes_all-sectors.csv").exists()
-    ]
+    frames = [plumes_table(p / file).assign(pull_id=p.name) for p in pulls if (p / file).exists()]
     if not frames:
         raise FileNotFoundError("no Carbon Mapper plume pull yet; run `mw ingest carbonmapper`")
     table = pd.concat(frames, ignore_index=True)
@@ -235,6 +236,19 @@ def plumes_table(csv: Path) -> pd.DataFrame:
     return df.sort_values(["datetime", "plume_id"]).reset_index(drop=True)
 
 
+_SCENE_COLUMNS = (
+    "scene_id",
+    "acquired_utc",
+    "platform",
+    "version",
+    "gsd_m",
+    "pod10_kg_hr",
+    "pod50_kg_hr",
+    "pod90_kg_hr",
+    "geometry",
+)
+
+
 def scenes_table(items: list[dict]) -> gpd.GeoDataFrame:
     """Scene footprints, times and Carbon Mapper's per-scene detection quantiles (kg/hr)."""
     rows = []
@@ -254,7 +268,9 @@ def scenes_table(items: list[dict]) -> gpd.GeoDataFrame:
                 "geometry": shape(it["geometry"]),
             }
         )
-    gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs="EPSG:4326")
+    # Named columns, so a collection with no scene in the window gives an empty table
+    table = pd.DataFrame(rows, columns=list(_SCENE_COLUMNS))
+    gdf = gpd.GeoDataFrame(table, geometry="geometry", crs="EPSG:4326")
     gdf["acquired_utc"] = pd.to_datetime(gdf["acquired_utc"], utc=True, format="ISO8601")
     return gdf.sort_values("acquired_utc").reset_index(drop=True)
 

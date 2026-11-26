@@ -63,7 +63,10 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
 - `src/components/`: badges, tags, ranges, empty states, and `ReportedMeasures.astro`, the table
   of figures an operator or agency reported for a landfill. Its labels and caveats come from the
   published catalogue (`config/metrics.yaml`); a year with no figure reads "not reported". The
-  section is left out for a copy published before the measures existed.
+  section is left out for a copy published before the measures existed. `ObservedMeasures.astro` is its
+  twin for counts the project made in a source's lists (today, CO2 plumes near a landfill): a
+  year with no count reads as not searched, and the section appears only when the copy holds
+  such a count, which a public build does not while the source's terms are unsettled.
 - `src/pages/`: home, map, updates, checks, landfills, methods, how to read, data, 404.
 - `src/lib/data.ts`: the typed snapshot and the helpers pages use; `database.types.ts` is
   generated from the live schema. Counts and region names in the text come from here

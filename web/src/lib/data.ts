@@ -225,6 +225,8 @@ export const hasMeasures = catalogue.length > 0;
 export interface MeasureGroup {
   source: string;
   sourceName: string;
+  /** Every measure the catalogue lists for this source, in catalogue order. */
+  entries: MetricEntry[];
   /** Measures with at least one figure for the site, in catalogue order. */
   columns: MetricEntry[];
   /** Measures the catalogue lists for this source that have no figure for the site. */
@@ -237,13 +239,11 @@ export interface MeasureGroup {
   cell: (period: string, metricId: string) => SiteMetric | undefined;
 }
 
-/** Reported figures for a site, one group per source. A measure or a year without a row is
- *  "not reported"; it is never shown as zero. */
-export function reportedMeasuresFor(siteId: string): MeasureGroup[] {
-  const reported = catalogue.filter((m) => m.kind === 'reported');
+function measureGroups(siteId: string, kind: MetricEntry['kind']): MeasureGroup[] {
+  const listed = catalogue.filter((m) => m.kind === kind);
   const rows = (snapshot.site_metrics ?? []).filter((r) => r.site_id === siteId);
-  return [...new Set(reported.map((m) => m.source))].map((source) => {
-    const entries = reported.filter((m) => m.source === source);
+  return [...new Set(listed.map((m) => m.source))].map((source) => {
+    const entries = listed.filter((m) => m.source === source);
     const ids = new Set(entries.map((m) => m.metric_id));
     const mine = rows.filter((r) => r.source === source && ids.has(r.metric_id));
     const byKey = new Map(mine.map((r) => [`${r.period}|${r.metric_id}`, r]));
@@ -252,6 +252,7 @@ export function reportedMeasuresFor(siteId: string): MeasureGroup[] {
     return {
       source,
       sourceName: snapshot.data_terms.find((d) => d.source === source)?.display_name ?? source,
+      entries,
       columns,
       missing: entries.filter((m) => !columns.includes(m)),
       periods: [...new Set(mine.map((r) => r.period))].sort().reverse(),
@@ -260,6 +261,27 @@ export function reportedMeasuresFor(siteId: string): MeasureGroup[] {
       cell: (period: string, metricId: string) => byKey.get(`${period}|${metricId}`),
     };
   });
+}
+
+/** Reported figures for a site, one group per source. A measure or a year without a row is
+ *  "not reported"; it is never shown as zero. */
+export function reportedMeasuresFor(siteId: string): MeasureGroup[] {
+  return measureGroups(siteId, 'reported');
+}
+
+// Counts the project made in a source's public lists (ADR 0024). A source is listed only when
+// this copy holds a count from it for some landfill: with none, "not searched" beside every
+// landfill would be untrue. A public build drops restricted counts before this point, so a
+// source whose terms are not settled gives no section there at all.
+const observedSources = new Set(
+  (snapshot.site_metrics ?? []).filter((r) => r.kind === 'observed').map((r) => r.source),
+);
+export const hasObserved = observedSources.size > 0;
+
+/** Counted figures for a site, one group per source that this copy holds counts from. A year
+ *  without a row was not searched; it is never shown as zero. */
+export function observedMeasuresFor(siteId: string): MeasureGroup[] {
+  return measureGroups(siteId, 'observed').filter((g) => observedSources.has(g.source));
 }
 
 export function populationFor(siteId: string): Population[] {

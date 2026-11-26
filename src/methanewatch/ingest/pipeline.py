@@ -12,6 +12,9 @@
   ``interim/operator_reports.parquet``, and every gas they reported ->
   ``interim/site_metrics/ghgrp.parquet``.
 
+- Carbon Mapper CO2: plumes and scenes from their own raw folder -> counts per landfill and
+  year in ``interim/site_metrics/carbonmapper-co2.parquet``, and nothing else (ADR 0024).
+
 Footprint tables are rebuilt from every raw pull of that source, deduplicated by
 scene, so repeated or overlapping pulls are safe.
 """
@@ -26,7 +29,7 @@ import geopandas as gpd
 import pandas as pd
 
 from methanewatch.config import ProjectConfig, load_impact
-from methanewatch.ingest import carbonmapper, emit, ghgrp
+from methanewatch.ingest import carbonmapper, carbonmapper_co2, emit, ghgrp
 from methanewatch.provenance import PullManifest
 from methanewatch.sentinel2 import search as s2
 
@@ -96,6 +99,54 @@ def write_carbonmapper(project: ProjectConfig) -> dict:
         "plumes": len(plumes),
         "plumes_with_rate": int(plumes["q_kg_hr"].notna().sum()),
         "plume_versions": plumes["data_version"].value_counts().to_dict(),
+    }
+
+
+def ingest_carbonmapper_co2(project: ProjectConfig, bbox: BBox, start: date, end: date) -> dict:
+    carbonmapper_co2.pull(bbox, start, end, project.resolve(project.paths.raw))
+    return write_carbonmapper_co2(project)
+
+
+def write_carbonmapper_co2(project: ProjectConfig) -> dict:
+    """CO2 plume and pass counts per landfill and year, from every finished CO2 pull.
+
+    Rerun this after the registry changes: the counts depend on each landfill's outline.
+    """
+    pulls = carbonmapper_co2.finished_pulls(project.resolve(project.paths.raw))
+    if not pulls:
+        raise FileNotFoundError("no Carbon Mapper CO2 pull yet; run `mw ingest carbonmapper-co2`")
+    interim = project.resolve(project.paths.interim)
+    if not (interim / "sites.parquet").exists():
+        raise FileNotFoundError("no site table yet; run `mw sites build`")
+    sites = gpd.read_parquet(interim / "sites.parquet")
+    plumes = carbonmapper_co2.merged_plumes(pulls)
+    scenes = carbonmapper_co2.merged_scenes(pulls)
+    near = carbonmapper_co2.plumes_near(
+        plumes, sites, buffer_m=project.attribution.buffer_m, metric_crs=project.crs_metric
+    )
+    passes = carbonmapper_co2.passes_over(
+        scenes,
+        sites,
+        min_coverage_frac=project.coverage.min_coverage_frac,
+        metric_crs=project.crs_metric,
+    )
+    rows = carbonmapper_co2.yearly_counts(near, passes, pulls[-1].name)
+    (interim / "site_metrics").mkdir(parents=True, exist_ok=True)
+    rows.to_parquet(interim / "site_metrics" / f"{carbonmapper_co2.SOURCE}.parquet")
+    return {
+        "pulls": len(pulls),
+        "newest_pull": pulls[-1].name,
+        "co2_plumes": len(plumes),
+        "co2_plumes_by_sector": plumes["ipcc_sector"].fillna("no tag").value_counts().to_dict(),
+        "co2_scenes": len(scenes),
+        "sites_with_a_pass": int(passes["site_id"].nunique()),
+        "site_days_searched": len(passes),
+        "plumes_near_a_site": int(near["plume_id"].nunique()),
+        "near_plumes_by_sector": near.drop_duplicates("plume_id")["ipcc_sector"]
+        .fillna("no tag")
+        .value_counts()
+        .to_dict(),
+        "rows": len(rows),
     }
 
 

@@ -208,6 +208,34 @@ test('the map and site pages lead with one sentence and keep the notices', async
   await expect(page.locator('[data-testid="model-instruments"]')).toBeHidden();
 });
 
+test('counts of CO2 plumes say when a landfill or a year was not searched', async ({ page }) => {
+  // In the fixture, Newby Island was searched in 2024 (no plume) and 2025 (one plume); Potrero
+  // Hills has a plume in a year with no listed pass; Shoreline was not searched.
+  await page.goto('/sites/newby-island/');
+  const section = page.locator('#observed');
+  await section.locator('summary').click();
+  const rows = section.locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toHaveText(/2025\s*4\s*1/);
+  await expect(rows.nth(1)).toHaveText(/2024\s*6\s*0/);
+  await expect(section.locator('caption')).toContainText('was not searched');
+  await expect(section).toContainText('does not mean no CO2');
+  // the CO2 source shares Carbon Mapper's credit line, which the footer names once
+  expect((await page.locator('footer').innerText()).match(/Carbon Mapper, non-commercial use/g)).toHaveLength(1);
+  const results = await new AxeBuilder({ page }).include('#observed').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
+
+  await page.goto('/sites/potrero-hills/');
+  await page.locator('#observed summary').click();
+  await expect(page.locator('#observed tbody tr')).toHaveText(/2025\s*not listed\s*1/);
+
+  await page.goto('/sites/shoreline/');
+  const empty = page.locator('#observed');
+  await empty.locator('summary').click();
+  await expect(empty.locator('table')).toHaveCount(0);
+  await expect(empty).toContainText('Not searched');
+});
+
 test('reported figures show a gap as "not reported", never as zero', async ({ page }) => {
   // In the fixture, Potrero Hills has a landfill figure for 2023 and one combustion figure for
   // 2018, so each year has one measure with no figure; Shoreline has nothing on file.

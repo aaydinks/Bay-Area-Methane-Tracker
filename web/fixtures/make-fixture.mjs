@@ -73,6 +73,7 @@ const RUNS = [
 const DATA_TERMS = [
   { source: 'cloudsen12', display_name: 'CloudSEN12+ v1.1 expert cloud labels', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-31', terms_url: 'https://huggingface.co/datasets/tacofoundation/cloudsen12', credit_line: 'CloudSEN12+ (Aybar et al. 2024, Data in Brief 56:110852), CC0' },
   { source: 'carbonmapper', display_name: 'Carbon Mapper (Tanager-1, aircraft)', raw_publishable: false, derived_publishable: false, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Carbon Mapper, non-commercial use' },
+  { source: 'carbonmapper-co2', display_name: 'Carbon Mapper CO2 plume and scene lists', raw_publishable: false, derived_publishable: false, confirmed: false, checked_on: '2026-11-25', terms_url: null, credit_line: 'Carbon Mapper, non-commercial use' },
   { source: 'emit-v2', display_name: 'NASA EMIT L2B CH4 v002', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: 'https://lpdaac.usgs.gov/products/emitl2bch4plmv002/', credit_line: 'NASA EMIT L2B methane products, LP DAAC' },
   { source: 's2-local', display_name: 'ESA Copernicus Sentinel-2 L1C', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Contains modified Copernicus Sentinel data' },
   { source: 'ghgrp', display_name: 'US EPA Greenhouse Gas Reporting Program', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: 'https://www.epa.gov/ghgreporting', credit_line: 'US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts' },
@@ -241,9 +242,30 @@ const CATALOGUE = [
   { metric_id: 'epa_combustion_ch4', label: 'Methane from burning fuel on site', caveat: EPA_CAVEAT },
   { metric_id: 'epa_combustion_n2o', label: 'Nitrous oxide from burning fuel on site', caveat: EPA_CAVEAT },
 ];
-const metric_catalogue = PUBS.flatMap((pub) => CATALOGUE.map((m, i) => ({
-  publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
-})));
+// Counts from Carbon Mapper's CO2 search (ADR 0024), worded as config/metrics.yaml words them.
+// Their source's terms are not settled, so every count is restricted: a review build shows
+// them and a public build must show no trace of the section.
+const CO2_CATALOGUE = [
+  { metric_id: 'cm_co2_passes', label: 'Days searched for CO2', caveat: 'Days on which a scene that Carbon Mapper searched for CO2 covered the landfill. A year with no figure was not searched.' },
+  { metric_id: 'cm_co2_plumes', label: 'CO2 plumes found on or beside the landfill', caveat: 'Plumes that start on the landfill\'s outline or within 500 m of it, whatever source Carbon Mapper tagged them with. A plume beside a landfill can come from a neighbouring plant. This search picks up only very large CO2 sources, such as power plants, so "none found" does not mean no CO2.' },
+];
+const metric_catalogue = PUBS.flatMap((pub) => [
+  ...CATALOGUE.map((m, i) => ({
+    publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
+  })),
+  ...CO2_CATALOGUE.map((m, i) => ({
+    publish_id: pub.publish_id, ...m, unit: 'count', kind: 'observed', source: 'carbonmapper-co2', sort_order: CATALOGUE.length + i + 1,
+  })),
+]);
+// Newby Island was searched in two years, with one plume found in the second; Potrero Hills has
+// a plume in a year with no listed pass; the other landfills were not searched.
+const CO2_COUNTS = [
+  ['newby-island', 'cm_co2_passes', '2024', 6],
+  ['newby-island', 'cm_co2_plumes', '2024', 0],
+  ['newby-island', 'cm_co2_passes', '2025', 4],
+  ['newby-island', 'cm_co2_plumes', '2025', 1],
+  ['potrero-hills', 'cm_co2_plumes', '2025', 1],
+];
 const MEASURES = [
   ['newby-island', '1006179', 'epa_landfill_ch4', '2022', 58640],
   ['newby-island', '1006179', 'epa_landfill_ch4', '2023', 55555],
@@ -259,7 +281,10 @@ const MEASURES = [
 const site_metrics = PUBS.flatMap((pub) => MEASURES.map(([site_id, facility, metric_id, period, value]) => ({
   publish_id: pub.publish_id, site_id, metric_id, period, source: 'ghgrp', value, value_text: null, unit: 't CO2e', kind: 'reported',
   confirmed: true, source_id: facility, url: 'https://enviro.epa.gov/', restricted: false, display_only: false, public_scope: true,
-})));
+})).concat(CO2_COUNTS.map(([site_id, metric_id, period, value]) => ({
+  publish_id: pub.publish_id, site_id, metric_id, period, source: 'carbonmapper-co2', value, value_text: null, unit: 'count', kind: 'observed',
+  confirmed: true, source_id: null, url: null, restricted: true, display_only: false, public_scope: true,
+}))));
 
 const population = PUBS.flatMap((pub) => SITES.flatMap((s, i) => [1, 3, 5].map((r) => ({
   publish_id: pub.publish_id, site_id: s.site_id, radius_km: r, residents: (i + 1) * 1000 * r * r, label: 'residents nearby (context only)',
