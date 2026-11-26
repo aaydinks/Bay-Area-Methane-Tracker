@@ -220,6 +220,8 @@ test('counts of CO2 plumes say when a landfill or a year was not searched', asyn
   await expect(rows.nth(1)).toHaveText(/2024\s*6\s*0/);
   await expect(section.locator('caption')).toContainText('was not searched');
   await expect(section).toContainText('does not mean no CO2');
+  // the CO2 source shares Carbon Mapper's credit line, which the footer names once
+  expect((await page.locator('footer').innerText()).match(/Carbon Mapper, non-commercial use/g)).toHaveLength(1);
   const results = await new AxeBuilder({ page }).include('#observed').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
 

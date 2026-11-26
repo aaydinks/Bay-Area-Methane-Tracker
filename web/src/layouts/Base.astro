@@ -18,7 +18,8 @@ const { title, description = TAGLINE, kind, image = '/og/default.png' } = Astro.
 const path = Astro.url.pathname.replace(/\/?$/, '/');
 const pageTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
-const credits = snapshot.data_terms.filter((t) => t.credit_line).map((t) => t.credit_line);
+// Two sources can share one credit (Carbon Mapper's methane and CO2 lists): name it once.
+const credits = [...new Set(snapshot.data_terms.filter((t) => t.credit_line).map((t) => t.credit_line))];
 // The home page folds the provisional and Carbon Mapper notices into one short line for newcomers;
 // every other page keeps them in full.
 const isHome = kind === 'home';
