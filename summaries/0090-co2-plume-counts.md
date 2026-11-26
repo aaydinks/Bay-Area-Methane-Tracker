@@ -1,6 +1,6 @@
 # PR #90: CO2 plumes counted near each landfill
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/90)
+**Status:** merged 2026-11-26 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/90)
 
 ## In one sentence
 
