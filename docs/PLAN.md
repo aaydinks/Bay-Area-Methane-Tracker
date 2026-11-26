@@ -637,6 +637,7 @@ Everything that is not a methane estimate goes in one table, `site_metrics`, des
 | People nearby, CalEnviroScreen scores | Census, OEHHA | context |
 
 - **CO2 is never modelled.** No instrument used here sees landfill CO2. It is shown as reported, or as a count of plumes found.
+- **The CO2 count (ADR 0024).** `mw ingest carbonmapper-co2` pulls Carbon Mapper's CO2 plumes and CO2 scenes into their own raw folder and writes two counts per landfill and year: days searched, and plumes that start on the outline or within 500 m. A zero is written only for a year that was searched. The counts are review-only until Carbon Mapper confirms its terms cover them.
 - **"Not reported" is not zero.** Most landfills file no combustion report.
 - **Context is never attributed to the landfill** and never ranked (ADR 0020).
 
@@ -680,7 +681,7 @@ If time runs short, cut from the end of step 16 backwards: air monitors, CalEnvi
 - Steps 9 and 10: counts per county match the CalRecycle pull; the wider pulls reproduce the counts recorded in ADR 0018.
 - Step 12: EPA's 2023 rows for Kiefer Landfill match the figures recorded in ADR 0019.
 - Step 15: Gate 3 coverage inside 85 to 95% at the new site count, pooled and within each region.
-- CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present.
+- CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present (`tests/test_carbonmapper_co2.py`), and a public build shows no CO2 count and no CO2 section.
 
 ### 16.7 Regulators
 

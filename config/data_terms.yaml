@@ -19,6 +19,19 @@ sources:
     checked_on: 2026-11-08
     terms_url: null
     credit_line: "Carbon Mapper (non-commercial use)"
+  carbonmapper-co2:
+    display_name: "Carbon Mapper CO2 plume and scene lists"
+    instruments: []
+    raw_publishable: false
+    derived_publishable: false
+    # Counts of CO2 plumes and of days searched for CO2 (ADR 0024). Whether the display terms
+    # reported on 2026-11-08 also cover CO2 counts has not been asked: check. Until that is
+    # confirmed these rows stay restricted, so they appear in review copies only.
+    display_publishable: false
+    confirmed: false
+    checked_on: 2026-11-25
+    terms_url: null
+    credit_line: "Carbon Mapper (non-commercial use)"
   emit-v2:
     display_name: "NASA EMIT L2B CH4 v002"
     instruments: [emit]
