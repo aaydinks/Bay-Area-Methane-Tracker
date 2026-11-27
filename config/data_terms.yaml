@@ -59,6 +59,17 @@ sources:
     checked_on: 2026-10-30
     terms_url: "https://www.epa.gov/ghgreporting"
     credit_line: "US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts"
+  epa-lmop:
+    display_name: "US EPA Landfill Methane Outreach Program database"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    # EPA's website terms, read 2026-11-27: its documents "may be freely distributed and used
+    # for non-commercial, scientific and educational purposes".
+    confirmed: true
+    checked_on: 2026-11-27
+    terms_url: "https://www.epa.gov/web-policies-and-procedures/epa-disclaimers"
+    credit_line: "US EPA Landfill Methane Outreach Program, Landfill and Project Database"
   baaqmd:
     display_name: "Bay Area Air District public records"
     instruments: []

@@ -14,6 +14,9 @@
 
 - Carbon Mapper CO2: plumes and scenes from their own raw folder -> counts per landfill and
   year in ``interim/site_metrics/carbonmapper-co2.parquet``, and nothing else (ADR 0024).
+- EPA landfill gas program (LMOP): EPA's California workbook -> how each matched landfill is
+  run, in ``interim/site_metrics/epa-lmop.parquet``, and the EPA landfills in the project's
+  counties that no site is matched to in ``interim/lmop_unmatched.csv`` (ADR 0025).
 
 Footprint tables are rebuilt from every raw pull of that source, deduplicated by
 scene, so repeated or overlapping pulls are safe.
@@ -29,7 +32,7 @@ import geopandas as gpd
 import pandas as pd
 
 from methanewatch.config import ProjectConfig, load_impact
-from methanewatch.ingest import carbonmapper, carbonmapper_co2, emit, ghgrp
+from methanewatch.ingest import carbonmapper, carbonmapper_co2, emit, ghgrp, lmop
 from methanewatch.provenance import PullManifest
 from methanewatch.sentinel2 import search as s2
 
@@ -201,4 +204,46 @@ def ingest_ghgrp(project: ProjectConfig, year: int) -> dict[str, int]:
         "operator_rows": len(reports),
         "gas_rows": len(gases),
         "gas_rows_left_out": int(left_out["rows"].sum()),
+    }
+
+
+def ingest_lmop(project: ProjectConfig) -> dict:
+    lmop.pull(project.resolve(project.paths.raw))
+    return write_lmop(project)
+
+
+def write_lmop(project: ProjectConfig) -> dict:
+    """How each matched landfill is run, from the newest pull of EPA's landfill gas file.
+
+    Rerun this after ``data/registry/lmop_crosswalk.csv`` changes: no download is needed.
+    """
+    pulls = lmop.finished_pulls(project.resolve(project.paths.raw))
+    if not pulls:
+        raise FileNotFoundError("no EPA landfill gas file yet; run `mw ingest lmop`")
+    newest = pulls[-1]
+    details = lmop.pull_details(newest)
+    table = lmop.read_workbook(newest / lmop.FILE)
+    crosswalk = lmop.read_crosswalk(project.resolve(project.paths.registry) / "lmop_crosswalk.csv")
+    rows, gone = lmop.measures(
+        table, crosswalk, edition=details["edition"], url=details["file_url"], pull_id=newest.name
+    )
+    interim = project.resolve(project.paths.interim)
+    (interim / "site_metrics").mkdir(parents=True, exist_ok=True)
+    rows.to_parquet(interim / "site_metrics" / f"{lmop.SOURCE}.parquet")
+    # EPA landfills in the project's counties that no site is matched to, for a hand check
+    listed = lmop.landfills(table)
+    in_counties = listed[listed[lmop.C_COUNTY].isin([c.name for c in project.counties])]
+    matched = set(crosswalk["lmop_landfill_id"].dropna().astype(int))
+    unmatched = in_counties[~in_counties.index.isin(matched)]
+    unmatched[[lmop.C_NAME, lmop.C_COUNTY, lmop.C_GHGRP]].to_csv(interim / "lmop_unmatched.csv")
+    return {
+        "newest_pull": newest.name,
+        "edition": details["edition"],
+        "epa_landfills_in_file": len(listed),
+        "epa_landfills_in_counties": len(in_counties),
+        "sites_matched": int(rows["site_id"].nunique()),
+        "matches_checked_by_hand": int(rows.loc[rows["confirmed"], "site_id"].nunique()),
+        "epa_landfills_unmatched": len(unmatched),
+        "matched_but_no_longer_listed": len(gone),
+        "rows": len(rows),
     }
