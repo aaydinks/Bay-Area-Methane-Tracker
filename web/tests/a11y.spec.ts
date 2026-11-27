@@ -240,8 +240,8 @@ test('reported figures show a gap as "not reported", never as zero', async ({ pa
   // In the fixture, Potrero Hills has a landfill figure for 2023 and one combustion figure for
   // 2018, so each year has one measure with no figure; Shoreline has nothing on file.
   await page.goto('/sites/potrero-hills/');
-  const section = page.locator('#reported');
-  await section.locator('summary').click();
+  await page.locator('#reported summary').click();
+  const section = page.locator('#reported [data-source="ghgrp"]');
   const rows = section.locator('tbody tr');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toHaveText(/2023\s*30,862\s*not reported/);
@@ -252,8 +252,44 @@ test('reported figures show a gap as "not reported", never as zero', async ({ pa
   expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
 
   await page.goto('/sites/shoreline/');
-  const empty = page.locator('#reported');
-  await empty.locator('summary').click();
+  await page.locator('#reported summary').click();
+  const empty = page.locator('#reported [data-source="ghgrp"]');
   await expect(empty.locator('table')).toHaveCount(0);
   await expect(empty).toContainText('No figures from this source are on file for this landfill');
+});
+
+test("EPA's landfill gas file is shown as a list of facts, and a blank as \"not listed\"", async ({ page }) => {
+  // In the fixture, Newby Island has every figure; Sonoma Central has a waste figure with no
+  // year, no gas figures and no running project; Kiefer comes through an unchecked match;
+  // Shoreline is not matched to the file.
+  const lmop = '#reported [data-source="epa-lmop"]';
+  const row = (name: string) => page.locator(`${lmop} tbody tr`).filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+  await page.goto('/sites/newby-island/');
+  await page.locator('#reported summary').click();
+  await expect(page.locator(`${lmop} tbody tr`)).toHaveCount(7);
+  await expect(page.locator(`${lmop} caption`)).toContainText('file of Sep 2024');
+  await expect(page.locator(`${lmop} caption`)).toContainText('It does not mean zero');
+  await expect(row('Waste in place')).toContainText('30,000,000 short tons');
+  await expect(row('Year of the waste-in-place figure')).toHaveText(/2022$/); // a year, so no comma
+  await expect(row('Landfill gas flared')).toContainText('1.234 million standard cubic feet a day');
+  await expect(row('Energy projects running')).toHaveText(/2$/);
+  await expect(row('Types of energy project running')).toContainText('Reciprocating Engine');
+  await expect(page.locator(`${lmop} [data-testid="match-unchecked"]`)).toHaveCount(0);
+  const results = await new AxeBuilder({ page }).include('#reported').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
+
+  await page.goto('/sites/sonoma-central/');
+  await page.locator('#reported summary').click();
+  await expect(row('Year of the waste-in-place figure')).toContainText('not listed');
+  await expect(row('Landfill gas collected')).toContainText('not listed');
+  await expect(row('Energy projects running')).toHaveText(/0$/); // a true zero: listed, none running
+
+  await page.goto('/sites/kiefer/');
+  await page.locator('#reported summary').click();
+  await expect(page.locator(`${lmop} [data-testid="match-unchecked"]`)).toContainText('not yet been checked by hand');
+
+  await page.goto('/sites/shoreline/');
+  await page.locator('#reported summary').click();
+  await expect(page.locator(`${lmop} table`)).toHaveCount(0);
+  await expect(page.locator(lmop)).toContainText('No figures from this source are on file for this landfill');
 });

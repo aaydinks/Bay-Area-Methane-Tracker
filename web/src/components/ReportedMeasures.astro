@@ -2,18 +2,62 @@
 // Figures an operator or agency reported for one landfill (ADR 0019), one table per source:
 // a row for each year, a column for each measure with any figure. A year or a measure with no
 // figure reads "not reported", never zero. Labels and caveats come from the published catalogue.
+//
+// A source that publishes a file of current facts (ADR 0025) gets a table of measure and
+// figure for each edition of the file. A measure the file leaves blank reads "not listed".
 import TableWrap from './TableWrap.astro';
-import { reportedMeasuresFor } from '../lib/data';
-import { listText, num } from '../lib/format';
+import { reportedMeasuresFor, type MetricEntry, type SiteMetric } from '../lib/data';
+import { listText, month, num } from '../lib/format';
 
 interface Props { siteId: string }
 const { siteId } = Astro.props;
 const groups = reportedMeasuresFor(siteId);
+
+/** A listed figure in the source's own unit. A year is not a quantity, so it gets no comma. */
+function listed(cell: SiteMetric, m: MetricEntry): string {
+  if (cell.value == null) return cell.value_text ?? '';
+  if (m.unit === 'year') return String(Math.round(cell.value));
+  const figure = cell.value.toLocaleString('en-US', { maximumFractionDigits: 3 });
+  return m.unit === 'count' ? figure : `${figure} ${m.unit}`;
+}
 ---
 {groups.map((g) => (
   <div data-testid="reported-measures" data-source={g.source}>
     <h3>{g.sourceName}</h3>
-    {g.periods.length ? (
+    {g.listing ? (
+      <>
+        {g.periods.map((period) => (
+          <TableWrap label={`As listed by ${g.sourceName}, ${month(period)}`}>
+            <table>
+              <caption>
+                As listed in the source's file of {month(period)}, in the source's units. The source does not update every figure each year. "Not listed" means the file gives no figure. It does not mean zero.
+              </caption>
+              <thead>
+                <tr><th scope="col">Measure</th><th scope="col">As listed</th></tr>
+              </thead>
+              <tbody>
+                {g.entries.map((m) => {
+                  const cell = g.cell(period, m.metric_id);
+                  return (
+                    <tr>
+                      <th scope="row">{m.label}</th>
+                      {cell ? <td>{listed(cell, m)}</td> : <td class="muted">not listed</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </TableWrap>
+        ))}
+        <ul class="muted">
+          {g.entries.filter((m) => m.caveat).map((m) => <li>{m.label}: {m.caveat}</li>)}
+        </ul>
+        {g.unchecked && (
+          <p class="muted" data-testid="match-unchecked">This landfill was matched to the source's record by name and place. The match has not yet been checked by hand.</p>
+        )}
+        {g.url && <p class="muted"><a href={g.url}>Source file</a></p>}
+      </>
+    ) : g.periods.length ? (
       <>
         <TableWrap label={`Figures reported to ${g.sourceName}`}>
           <table>

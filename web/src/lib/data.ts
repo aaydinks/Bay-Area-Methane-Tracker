@@ -236,6 +236,11 @@ export interface MeasureGroup {
   /** The one unit every column shares, or null when they differ. */
   unit: string | null;
   url: string | null;
+  /** The source publishes a file of current facts under an edition (a month such as 2024-09),
+   *  not a figure for each year (ADR 0025). */
+  listing: boolean;
+  /** Some figure comes through a match to the source's record that nobody has checked by hand. */
+  unchecked: boolean;
   cell: (period: string, metricId: string) => SiteMetric | undefined;
 }
 
@@ -258,6 +263,8 @@ function measureGroups(siteId: string, kind: MetricEntry['kind']): MeasureGroup[
       periods: [...new Set(mine.map((r) => r.period))].sort().reverse(),
       unit: units.size === 1 ? [...units][0] : null,
       url: mine.find((r) => r.url)?.url ?? null,
+      listing: mine.length > 0 && mine.every((r) => /^\d{4}-\d{2}$/.test(r.period)),
+      unchecked: mine.some((r) => !r.confirmed),
       cell: (period: string, metricId: string) => byKey.get(`${period}|${metricId}`),
     };
   });

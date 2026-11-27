@@ -77,6 +77,7 @@ const DATA_TERMS = [
   { source: 'emit-v2', display_name: 'NASA EMIT L2B CH4 v002', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: 'https://lpdaac.usgs.gov/products/emitl2bch4plmv002/', credit_line: 'NASA EMIT L2B methane products, LP DAAC' },
   { source: 's2-local', display_name: 'ESA Copernicus Sentinel-2 L1C', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Contains modified Copernicus Sentinel data' },
   { source: 'ghgrp', display_name: 'US EPA Greenhouse Gas Reporting Program', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: 'https://www.epa.gov/ghgreporting', credit_line: 'US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts' },
+  { source: 'epa-lmop', display_name: 'US EPA Landfill Methane Outreach Program database', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-11-27', terms_url: 'https://www.epa.gov/web-policies-and-procedures/epa-disclaimers', credit_line: 'US EPA Landfill Methane Outreach Program, Landfill and Project Database' },
   { source: 'baaqmd', display_name: 'Bay Area Air District public records', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'Bay Area Air Quality Management District public records' },
   { source: 'census', display_name: 'US Census Bureau ACS and TIGER', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'US Census Bureau, American Community Survey 5-year estimates' },
   { source: 'calrecycle', display_name: 'CalRecycle SWIS', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'CalRecycle Solid Waste Information System (SWIS)' },
@@ -249,6 +250,19 @@ const CO2_CATALOGUE = [
   { metric_id: 'cm_co2_passes', label: 'Days searched for CO2', caveat: 'Days on which a scene that Carbon Mapper searched for CO2 covered the landfill. A year with no figure was not searched.' },
   { metric_id: 'cm_co2_plumes', label: 'CO2 plumes found on or beside the landfill', caveat: 'Plumes that start on the landfill\'s outline or within 500 m of it, whatever source Carbon Mapper tagged them with. A plume beside a landfill can come from a neighbouring plant. This search picks up only very large CO2 sources, such as power plants, so "none found" does not mean no CO2.' },
 ];
+// How each landfill is run, from EPA's landfill gas program file (ADR 0025), worded as
+// config/metrics.yaml words it. The file is a list of current facts, so its rows carry the
+// file's edition as their period.
+const GAS_UNIT = 'million standard cubic feet a day';
+const LMOP_CATALOGUE = [
+  { metric_id: 'lmop_waste_in_place', unit: 'short tons', label: 'Waste in place', caveat: 'All the waste buried at the landfill so far, in short tons (2,000 pounds each). EPA does not update this figure every year.' },
+  { metric_id: 'lmop_waste_in_place_year', unit: 'year', label: 'Year of the waste-in-place figure', caveat: 'Listed only where EPA gives the year.' },
+  { metric_id: 'lmop_gas_system', unit: 'yes or no', label: 'Gas collection system in place', caveat: '"Yes" means a system that actively draws gas out of the landfill. EPA writes "No" where there is no system, where gas only vents or flares passively, or where the only wells are around the edge.' },
+  { metric_id: 'lmop_gas_collected', unit: GAS_UNIT, label: 'Landfill gas collected', caveat: 'All of the gas the system draws out, not methane alone. It is not the amount the landfill makes, and it is not the amount that escapes.' },
+  { metric_id: 'lmop_gas_flared', unit: GAS_UNIT, label: 'Landfill gas flared', caveat: 'Gas burned in flares. Where an energy project is running, EPA lists the gas burned in back-up flares.' },
+  { metric_id: 'lmop_projects_running', unit: 'count', label: 'Energy projects running', caveat: "Projects that turn the landfill's gas into electricity, heat or fuel and that EPA lists as operational. Projects that have shut down or are only planned are not counted." },
+  { metric_id: 'lmop_project_types', unit: 'list', label: 'Types of energy project running', caveat: 'As EPA names them.' },
+];
 const metric_catalogue = PUBS.flatMap((pub) => [
   ...CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
@@ -256,7 +270,29 @@ const metric_catalogue = PUBS.flatMap((pub) => [
   ...CO2_CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, unit: 'count', kind: 'observed', source: 'carbonmapper-co2', sort_order: CATALOGUE.length + i + 1,
   })),
+  ...LMOP_CATALOGUE.map((m, i) => ({
+    publish_id: pub.publish_id, ...m, kind: 'reported', source: 'epa-lmop', sort_order: CATALOGUE.length + CO2_CATALOGUE.length + i + 1,
+  })),
 ]);
+// Made-up figures. Newby Island has every figure; Sonoma Central has a waste figure with no
+// year, no gas figures and no running project; Kiefer (a screened landfill, review copy only)
+// comes through a match nobody has checked by hand; the other landfills are not matched.
+const LMOP_ROWS = [
+  ['newby-island', '225', true, 'lmop_waste_in_place', 30000000, null],
+  ['newby-island', '225', true, 'lmop_waste_in_place_year', 2022, null],
+  ['newby-island', '225', true, 'lmop_gas_system', null, 'Yes'],
+  ['newby-island', '225', true, 'lmop_gas_collected', 4.5, null],
+  ['newby-island', '225', true, 'lmop_gas_flared', 1.234, null],
+  ['newby-island', '225', true, 'lmop_projects_running', 2, null],
+  ['newby-island', '225', true, 'lmop_project_types', null, 'Reciprocating Engine'],
+  ['sonoma-central', '1929', true, 'lmop_waste_in_place', 12000000, null],
+  ['sonoma-central', '1929', true, 'lmop_gas_system', null, 'Yes'],
+  ['sonoma-central', '1929', true, 'lmop_projects_running', 0, null],
+  ['kiefer', '265', false, 'lmop_waste_in_place', 20000000, null],
+  ['kiefer', '265', false, 'lmop_gas_system', null, 'Yes'],
+  ['kiefer', '265', false, 'lmop_projects_running', 1, null],
+];
+const lmopUnit = new Map(LMOP_CATALOGUE.map((m) => [m.metric_id, m.unit]));
 // Newby Island was searched in two years, with one plume found in the second; Potrero Hills has
 // a plume in a year with no listed pass; the other landfills were not searched.
 const CO2_COUNTS = [
@@ -284,6 +320,10 @@ const site_metrics = PUBS.flatMap((pub) => MEASURES.map(([site_id, facility, met
 })).concat(CO2_COUNTS.map(([site_id, metric_id, period, value]) => ({
   publish_id: pub.publish_id, site_id, metric_id, period, source: 'carbonmapper-co2', value, value_text: null, unit: 'count', kind: 'observed',
   confirmed: true, source_id: null, url: null, restricted: true, display_only: false, public_scope: true,
+}))).concat(LMOP_ROWS.filter(([site_id]) => pub.publish_id === REVIEW || !SCREEN_SITES.some((s) => s.site_id === site_id)).map(([site_id, landfill, confirmed, metric_id, value, value_text]) => ({
+  publish_id: pub.publish_id, site_id, metric_id, period: '2024-09', source: 'epa-lmop', value, value_text, unit: lmopUnit.get(metric_id), kind: 'reported',
+  confirmed, source_id: landfill, url: 'https://www.epa.gov/lmop/project-and-landfill-data-state', restricted: false, display_only: false,
+  public_scope: !SCREEN_SITES.some((s) => s.site_id === site_id),
 }))));
 
 const population = PUBS.flatMap((pub) => SITES.flatMap((s, i) => [1, 3, 5].map((r) => ({
