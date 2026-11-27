@@ -319,6 +319,22 @@ def ingest_carbonmapper_co2(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@ingest_app.command("lmop")
+def ingest_lmop(
+    offline: Annotated[
+        bool, typer.Option(help="Rebuild from the newest file on disk, no download")
+    ] = False,
+) -> None:
+    """EPA's landfill gas program file for California: waste in place, gas collected and flared,
+    and energy projects, for each landfill matched in data/registry/lmop_crosswalk.csv
+    (-> data/interim/site_metrics/epa-lmop.parquet)."""
+    from methanewatch.ingest import pipeline
+
+    step = pipeline.write_lmop if offline else pipeline.ingest_lmop
+    counts = _run_or_exit(step, config.load_project())
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+
+
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
     from methanewatch.ingest.pipeline import registry_bbox
 

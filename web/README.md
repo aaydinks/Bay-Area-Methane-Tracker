@@ -62,7 +62,10 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
   white, black, red and a light green, set as tokens at the top of `src/styles/global.css`.
 - `src/components/`: badges, tags, ranges, empty states, and `ReportedMeasures.astro`, the table
   of figures an operator or agency reported for a landfill. Its labels and caveats come from the
-  published catalogue (`config/metrics.yaml`); a year with no figure reads "not reported". The
+  published catalogue (`config/metrics.yaml`); a year with no figure reads "not reported". A
+  source that publishes a file of current facts under an edition, such as EPA's landfill gas
+  file (ADR 0025), gets a list of measure and figure there, with "not listed" for a blank and a
+  note when the landfill's match to the source has not been checked by hand. The
   section is left out for a copy published before the measures existed. `ObservedMeasures.astro` is its
   twin for counts the project made in a source's lists (today, CO2 plumes near a landfill): a
   year with no count reads as not searched, and the section appears only when the copy holds

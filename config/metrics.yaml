@@ -78,3 +78,60 @@ measures:
       Mapper tagged them with. A plume beside a landfill can come from a neighbouring plant.
       This search picks up only very large CO2 sources, such as power plants, so "none found"
       does not mean no CO2.
+  # EPA's landfill gas program database (LMOP), as its California workbook lists each landfill
+  # (ADR 0025). The meanings below are EPA's own field descriptions in the workbook, read
+  # 2026-11-27. These rows carry the file's edition (such as 2024-09) as their period, not a
+  # reporting year, and `mw ingest lmop` writes them in EPA's units.
+  lmop_waste_in_place:
+    label: "Waste in place"
+    unit: "short tons"
+    kind: reported
+    source: epa-lmop
+    caveat: >-
+      All the waste buried at the landfill so far, in short tons (2,000 pounds each). EPA does
+      not update this figure every year.
+  lmop_waste_in_place_year:
+    label: "Year of the waste-in-place figure"
+    unit: "year"
+    kind: reported
+    source: epa-lmop
+    caveat: "Listed only where EPA gives the year."
+  lmop_gas_system:
+    label: "Gas collection system in place"
+    unit: "yes or no"
+    kind: reported
+    source: epa-lmop
+    caveat: >-
+      "Yes" means a system that actively draws gas out of the landfill. EPA writes "No" where
+      there is no system, where gas only vents or flares passively, or where the only wells are
+      around the edge.
+  lmop_gas_collected:
+    label: "Landfill gas collected"
+    unit: "million standard cubic feet a day"
+    kind: reported
+    source: epa-lmop
+    caveat: >-
+      All of the gas the system draws out, not methane alone. It is not the amount the landfill
+      makes, and it is not the amount that escapes.
+  lmop_gas_flared:
+    label: "Landfill gas flared"
+    unit: "million standard cubic feet a day"
+    kind: reported
+    source: epa-lmop
+    caveat: >-
+      Gas burned in flares. Where an energy project is running, EPA lists the gas burned in
+      back-up flares.
+  lmop_projects_running:
+    label: "Energy projects running"
+    unit: "count"
+    kind: reported
+    source: epa-lmop
+    caveat: >-
+      Projects that turn the landfill's gas into electricity, heat or fuel and that EPA lists
+      as operational. Projects that have shut down or are only planned are not counted.
+  lmop_project_types:
+    label: "Types of energy project running"
+    unit: "list"
+    kind: reported
+    source: epa-lmop
+    caveat: "As EPA names them."

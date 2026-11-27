@@ -638,6 +638,7 @@ Everything that is not a methane estimate goes in one table, `site_metrics`, des
 
 - **CO2 is never modelled.** No instrument used here sees landfill CO2. It is shown as reported, or as a count of plumes found.
 - **The CO2 count (ADR 0024).** `mw ingest carbonmapper-co2` pulls Carbon Mapper's CO2 plumes and CO2 scenes into their own raw folder and writes two counts per landfill and year: days searched, and plumes that start on the outline or within 500 m. A zero is written only for a year that was searched. The counts are review-only until Carbon Mapper confirms its terms cover them.
+- **How a landfill is run (ADR 0025).** `mw ingest lmop` pulls EPA's landfill gas program workbook for California and writes seven measures for each landfill matched by hand in `data/registry/lmop_crosswalk.csv`: waste in place and its year, whether a gas collection system is in place, gas collected and flared, and the running energy projects with their types. They are a list of current facts under the file's edition, not yearly figures, and a figure EPA leaves blank reads "not listed". A match nobody has checked by hand says so on the page.
 - **"Not reported" is not zero.** Most landfills file no combustion report.
 - **Context is never attributed to the landfill** and never ranked (ADR 0020).
 
@@ -682,6 +683,7 @@ If time runs short, cut from the end of step 16 backwards: air monitors, CalEnvi
 - Step 12: EPA's 2023 rows for Kiefer Landfill match the figures recorded in ADR 0019.
 - Step 15: Gate 3 coverage inside 85 to 95% at the new site count, pooled and within each region.
 - CO2 step: the methane plume and detection tables are unchanged with CO2 pulls present (`tests/test_carbonmapper_co2.py`), and a public build shows no CO2 count and no CO2 section.
+- Site operations step: the figures written for a landfill match EPA's file (`tests/test_lmop.py`, on recorded rows), every registry site has a line in the match list, and a public build shows the list only for landfills on the allowlist.
 
 ### 16.7 Regulators
 
