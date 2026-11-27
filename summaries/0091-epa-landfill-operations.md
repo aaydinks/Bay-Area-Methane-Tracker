@@ -1,6 +1,6 @@
 # PR #91: How each landfill is run, from EPA's landfill gas file
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/91)
+**Status:** merged 2026-11-27 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/91)
 
 ## In one sentence
 
