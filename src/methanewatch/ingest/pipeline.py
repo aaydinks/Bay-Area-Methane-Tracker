@@ -20,6 +20,9 @@
 - CalEnviroScreen: the state's geodatabase of census tracts -> the score of the tract each
   landfill sits in and of the tracts around it, in ``interim/site_metrics/calenviroscreen.parquet``
   (ADR 0026). Context only.
+- EPA air monitors: EPA's annual file for each of five years -> the nearest fine-particle and
+  NO2 monitor to each landfill, in ``interim/site_metrics/epa-aqs.parquet`` (ADR 0027).
+  Context only.
 
 Footprint tables are rebuilt from every raw pull of that source, deduplicated by
 scene, so repeated or overlapping pulls are safe.
@@ -36,6 +39,7 @@ import pandas as pd
 
 from methanewatch.config import ProjectConfig, load_impact
 from methanewatch.ingest import (
+    aqs,
     calenviroscreen,
     carbonmapper,
     carbonmapper_co2,
@@ -294,5 +298,48 @@ def write_calenviroscreen(project: ProjectConfig) -> dict:
         "sites_on_a_scored_tract": len(scored),
         "sites_with_a_provisional_outline": int((~own["confirmed"]).sum()),
         "sites_on_no_tract": len(outside),
+        "rows": len(rows),
+    }
+
+
+def ingest_aqs(project: ProjectConfig, last_year: int | None = None) -> dict:
+    aqs.pull(project.resolve(project.paths.raw), last_year)
+    return write_aqs(project)
+
+
+def write_aqs(project: ProjectConfig) -> dict:
+    """The nearest air monitors to each landfill, from the newest pull.
+
+    Rerun this after the registry changes: distances are measured from each landfill's
+    outline. No download is needed.
+    """
+    pulls = aqs.finished_pulls(project.resolve(project.paths.raw))
+    if not pulls:
+        raise FileNotFoundError("no EPA air monitor files yet; run `mw ingest aqs`")
+    interim = project.resolve(project.paths.interim)
+    if not (interim / "sites.parquet").exists():
+        raise FileNotFoundError("no site table yet; run `mw sites build`")
+    newest = pulls[-1]
+    years = aqs.pull_years(newest)
+    table = aqs.read_pull(newest)
+    sites = gpd.read_parquet(interim / "sites.parquet")
+    rows, none_near = aqs.measures(
+        table,
+        sites,
+        metric_crs=project.crs_metric,
+        pull_id=newest.name,
+        years=years,
+        near_km=project.context.monitor_limit_km,
+    )
+    (interim / "site_metrics").mkdir(parents=True, exist_ok=True)
+    rows.to_parquet(interim / "site_metrics" / f"{aqs.SOURCE}.parquet")
+    with_any = rows.drop_duplicates("site_id")
+    return {
+        "newest_pull": newest.name,
+        "years": aqs.period(years),
+        "sites_with_a_fine_particle_monitor": len(sites) - len(none_near[aqs.PM25.key]),
+        "sites_with_an_no2_monitor": len(sites) - len(none_near[aqs.NO2.key]),
+        "sites_with_neither": len(sites) - len(with_any),
+        "sites_with_a_provisional_outline": int((~with_any["confirmed"]).sum()),
         "rows": len(rows),
     }

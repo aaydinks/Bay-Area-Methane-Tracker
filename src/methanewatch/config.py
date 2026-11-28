@@ -124,6 +124,13 @@ class PublishSettings(_Strict):
     screening_model_run: str | None = None
 
 
+class ContextSettings(_Strict):
+    """Limits on figures that describe a landfill's surroundings (ADR 0020)."""
+
+    # No air monitor farther than this from a landfill's outline is listed (ADR 0027)
+    monitor_limit_km: float = Field(default=25.0, gt=0)
+
+
 class ProjectConfig(_Strict):
     crs_geographic: str
     crs_metric: str
@@ -134,6 +141,7 @@ class ProjectConfig(_Strict):
     repair: RepairWindows
     ingest: Ingest
     checks: ChecksSettings = ChecksSettings()
+    context: ContextSettings = ContextSettings()
     publish: PublishSettings = PublishSettings()
 
     def resolve(self, p: Path) -> Path:

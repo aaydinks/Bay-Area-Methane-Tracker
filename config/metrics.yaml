@@ -199,3 +199,76 @@ measures:
     unit: "percentile"
     kind: context
     source: calenviroscreen
+  # EPA's air monitors (ADR 0027). Context only (ADR 0020): these describe the air at a
+  # monitor near a landfill and are never attributed to it. Written by `mw ingest aqs` from
+  # EPA's annual files; nothing is averaged across monitors or compared with a standard.
+  # Column meanings read from EPA's description of the files on 2026-11-28.
+  aqs_pm25_monitor:
+    label: "Nearest fine-particle monitor"
+    unit: "monitor"
+    kind: context
+    source: epa-aqs
+    caveat: >-
+      The closest monitor within 25 km of the landfill's outline that has a full year of
+      readings its agency has certified to EPA, by the name and number EPA lists it under.
+  aqs_pm25_distance:
+    label: "Fine-particle monitor: distance from the landfill's outline"
+    unit: "km"
+    kind: context
+    source: epa-aqs
+    caveat: >-
+      A monitor measures the air where it stands. The further it is from the landfill, the
+      less it says about the air beside the landfill.
+  aqs_pm25_year:
+    label: "Fine-particle monitor: year of its figure"
+    unit: "year"
+    kind: context
+    source: epa-aqs
+    caveat: >-
+      The newest year, among those the table names, that EPA marks complete and the monitor's
+      agency has certified. Agencies certify at different times, so the year differs from
+      monitor to monitor.
+  aqs_pm25_days:
+    label: "Fine-particle monitor: days measured in that year"
+    unit: "days"
+    kind: context
+    source: epa-aqs
+    caveat: "Some monitors take a reading every day and others on fewer, scheduled days."
+  aqs_pm25_mean:
+    label: "Fine particles (PM2.5) at that monitor, average over that year"
+    unit: "µg/m³"
+    kind: context
+    source: epa-aqs
+    caveat: >-
+      EPA's average of every measured day, in micrograms per cubic metre of air. Days EPA
+      marks for events such as wildfire smoke are included. Fine particles come from many
+      sources, such as traffic, wood burning and wildfires.
+  aqs_no2_monitor:
+    label: "Nearest nitrogen dioxide monitor"
+    unit: "monitor"
+    kind: context
+    source: epa-aqs
+    caveat: "Chosen the same way as the fine-particle monitor. It can be a different monitor."
+  aqs_no2_distance:
+    label: "Nitrogen dioxide monitor: distance from the landfill's outline"
+    unit: "km"
+    kind: context
+    source: epa-aqs
+  aqs_no2_year:
+    label: "Nitrogen dioxide monitor: year of its figure"
+    unit: "year"
+    kind: context
+    source: epa-aqs
+  aqs_no2_days:
+    label: "Nitrogen dioxide monitor: days measured in that year"
+    unit: "days"
+    kind: context
+    source: epa-aqs
+  aqs_no2_mean:
+    label: "Nitrogen dioxide (NO2) at that monitor, average over that year"
+    unit: "ppb"
+    kind: context
+    source: epa-aqs
+    caveat: >-
+      EPA's average of every measured hour, in parts per billion. Nitrogen dioxide comes
+      mostly from burning fuel, so a monitor beside a busy road reads higher.

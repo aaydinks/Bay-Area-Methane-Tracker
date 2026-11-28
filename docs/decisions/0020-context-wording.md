@@ -47,6 +47,6 @@ and never health claims.
   the sentence is wrong and is rewritten.
 - Wind-direction analysis that links a monitor to a site is out of scope. It would turn context
   into an attribution claim and would need its own validation.
-- **Still to check:** whether EPA's air-monitor files can be read without an account (the server
-  was unavailable on 2026-11-19). The CalEnviroScreen version was settled on 2026-11-28: 5.0 is
-  final (0026).
+- Both open points were settled on 2026-11-28: CalEnviroScreen 5.0 is final (0026), and EPA's
+  air-monitor files can be read without an account (0027). The monitor limit is
+  `context.monitor_limit_km` in `config/project.yaml`.

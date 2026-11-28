@@ -256,9 +256,9 @@ def test_the_catalogue_describes_the_measures_as_the_step_writes_them():
     for metric_id, unit in ces.UNITS.items():
         entry = measures[metric_id]
         assert (entry.unit, entry.kind, entry.source) == (unit, "context", ces.SOURCE)
-    # every context measure in the catalogue is one this step writes
-    context = {m for m, entry in measures.items() if entry.kind == "context"}
-    assert context == set(ces.UNITS)
+    # every measure the catalogue lists for this source is one this step writes
+    listed = {m for m, entry in measures.items() if entry.source == ces.SOURCE}
+    assert listed == set(ces.UNITS)
 
 
 def test_the_source_stays_in_review_copies_until_its_terms_are_confirmed():
