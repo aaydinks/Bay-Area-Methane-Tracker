@@ -135,3 +135,67 @@ measures:
     kind: reported
     source: epa-lmop
     caveat: "As EPA names them."
+  # CalEnviroScreen 5.0, the state's score for each census tract (ADR 0026). Context only
+  # (ADR 0020): these describe the area around a landfill and are never attributed to it.
+  # Written by `mw ingest calenviroscreen` from the outline of each landfill; nothing is
+  # averaged across tracts. Column meanings read from OEHHA's data dictionary on 2026-11-28.
+  ces_tract:
+    label: "Census tract the landfill sits in"
+    unit: "census tract"
+    kind: context
+    source: calenviroscreen
+    caveat: >-
+      The tract that holds the largest part of the landfill's outline, by its 2020 Census
+      number.
+  ces_tract_population:
+    label: "People living in that tract"
+    unit: "people"
+    kind: context
+    source: calenviroscreen
+    caveat: "The 2024 five-year census estimate, as the state's file gives it."
+  ces_score_percentile:
+    label: "CalEnviroScreen overall percentile of that tract"
+    unit: "percentile"
+    kind: context
+    source: calenviroscreen
+    caveat: >-
+      The state scores every census tract by combining measures of pollution with measures of
+      the people living there. A percentile of 70 means the tract scores higher than about 70%
+      of California's tracts. A higher score means, by the state's method, more pollution
+      burden and a population more vulnerable to it. The score counts solid waste sites near
+      homes, so a landfill can be part of its own tract's score.
+  ces_pollution_percentile:
+    label: "Pollution Burden percentile of that tract"
+    unit: "percentile"
+    kind: context
+    source: calenviroscreen
+    caveat: >-
+      One of the two parts of the overall score: the state's measures of pollution in the
+      tract from every kind of source, such as traffic, industry, pesticides and waste sites.
+  ces_population_percentile:
+    label: "Population Characteristics percentile of that tract"
+    unit: "percentile"
+    kind: context
+    source: calenviroscreen
+    caveat: >-
+      The other part of the overall score: the state's measures of the people living in the
+      tract, such as poverty, education and the rates of certain illnesses.
+  ces_tracts_nearby:
+    label: "Census tracts within 1 km of the outline"
+    unit: "count"
+    kind: context
+    source: calenviroscreen
+    caveat: "Every tract with any part within 1 km of the landfill's outline, its own included."
+  ces_nearby_lowest:
+    label: "Lowest overall percentile among those tracts"
+    unit: "percentile"
+    kind: context
+    source: calenviroscreen
+    caveat: >-
+      The lowest and the highest are given as the state publishes them for those tracts.
+      Nothing is averaged across tracts.
+  ces_nearby_highest:
+    label: "Highest overall percentile among those tracts"
+    unit: "percentile"
+    kind: context
+    source: calenviroscreen

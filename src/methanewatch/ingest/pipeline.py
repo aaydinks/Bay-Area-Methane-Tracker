@@ -17,6 +17,9 @@
 - EPA landfill gas program (LMOP): EPA's California workbook -> how each matched landfill is
   run, in ``interim/site_metrics/epa-lmop.parquet``, and the EPA landfills in the project's
   counties that no site is matched to in ``interim/lmop_unmatched.csv`` (ADR 0025).
+- CalEnviroScreen: the state's geodatabase of census tracts -> the score of the tract each
+  landfill sits in and of the tracts around it, in ``interim/site_metrics/calenviroscreen.parquet``
+  (ADR 0026). Context only.
 
 Footprint tables are rebuilt from every raw pull of that source, deduplicated by
 scene, so repeated or overlapping pulls are safe.
@@ -32,7 +35,14 @@ import geopandas as gpd
 import pandas as pd
 
 from methanewatch.config import ProjectConfig, load_impact
-from methanewatch.ingest import carbonmapper, carbonmapper_co2, emit, ghgrp, lmop
+from methanewatch.ingest import (
+    calenviroscreen,
+    carbonmapper,
+    carbonmapper_co2,
+    emit,
+    ghgrp,
+    lmop,
+)
 from methanewatch.provenance import PullManifest
 from methanewatch.sentinel2 import search as s2
 
@@ -245,5 +255,44 @@ def write_lmop(project: ProjectConfig) -> dict:
         "matches_checked_by_hand": int(rows.loc[rows["confirmed"], "site_id"].nunique()),
         "epa_landfills_unmatched": len(unmatched),
         "matched_but_no_longer_listed": len(gone),
+        "rows": len(rows),
+    }
+
+
+def ingest_calenviroscreen(project: ProjectConfig) -> dict:
+    calenviroscreen.pull(project.resolve(project.paths.raw))
+    return write_calenviroscreen(project)
+
+
+def write_calenviroscreen(project: ProjectConfig) -> dict:
+    """The state's score for the census tracts around each landfill, from the newest pull.
+
+    Rerun this after the registry changes: the tracts depend on each landfill's outline. No
+    download is needed.
+    """
+    pulls = calenviroscreen.finished_pulls(project.resolve(project.paths.raw))
+    if not pulls:
+        raise FileNotFoundError("no CalEnviroScreen file yet; run `mw ingest calenviroscreen`")
+    interim = project.resolve(project.paths.interim)
+    if not (interim / "sites.parquet").exists():
+        raise FileNotFoundError("no site table yet; run `mw sites build`")
+    newest = pulls[-1]
+    tracts = calenviroscreen.read_tracts(newest / calenviroscreen.FILE)
+    sites = gpd.read_parquet(interim / "sites.parquet")
+    rows, outside = calenviroscreen.measures(
+        tracts, sites, metric_crs=project.crs_metric, pull_id=newest.name
+    )
+    (interim / "site_metrics").mkdir(parents=True, exist_ok=True)
+    rows.to_parquet(interim / "site_metrics" / f"{calenviroscreen.SOURCE}.parquet")
+    own = rows[rows["metric_id"] == calenviroscreen.TRACT]
+    scored = set(rows.loc[rows["metric_id"] == calenviroscreen.SCORE, "site_id"])
+    return {
+        "newest_pull": newest.name,
+        "version": calenviroscreen.pull_details(newest)["version"],
+        "tracts_in_file": len(tracts),
+        "sites_on_a_tract": len(own),
+        "sites_on_a_scored_tract": len(scored),
+        "sites_with_a_provisional_outline": int((~own["confirmed"]).sum()),
+        "sites_on_no_tract": len(outside),
         "rows": len(rows),
     }

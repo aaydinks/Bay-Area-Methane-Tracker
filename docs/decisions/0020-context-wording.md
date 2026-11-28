@@ -48,5 +48,5 @@ and never health claims.
 - Wind-direction analysis that links a monitor to a site is out of scope. It would turn context
   into an attribution claim and would need its own validation.
 - **Still to check:** whether EPA's air-monitor files can be read without an account (the server
-  was unavailable on 2026-11-19), and which CalEnviroScreen version is final (services for 4.0 and
-  5.0 both exist).
+  was unavailable on 2026-11-19). The CalEnviroScreen version was settled on 2026-11-28: 5.0 is
+  final (0026).

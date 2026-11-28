@@ -56,7 +56,7 @@ docs/               plan, decision records, technical note, briefing
 | Phase | Command | Gate |
 |---|---|---|
 | Site registry | `mw sites build` | — |
-| Ingest | `mw ingest carbonmapper / carbonmapper-co2 / emit / ghgrp / lmop` | — |
+| Ingest | `mw ingest carbonmapper / carbonmapper-co2 / emit / ghgrp / lmop / calenviroscreen` | — |
 | Overpasses | `mw coverage build` | `mw validate gate1` |
 | Sentinel-2 | `mw s2 search …`, `mw s2 site-clear` | `mw validate gate2` |
 | Persistence model | `mw model fit` | `mw validate synthetic` (85–95% coverage), `mw validate holdout` |
