@@ -1,6 +1,6 @@
 # PR #92: The area around each landfill, from the state's CalEnviroScreen
 
-**Status:** open · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/92)
+**Status:** merged 2026-11-28 · [pull request](https://github.com/aaydinks/Bay-Area-Methane-Tracker/pull/92)
 
 ## In one sentence
 
