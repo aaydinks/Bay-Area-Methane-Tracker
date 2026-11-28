@@ -47,6 +47,12 @@
   "allowances": {
     "verified-drop": ["saved"]
   },
+  "context_section": {
+    "html_attribute": "data-measure-kind",
+    "html_value": "context",
+    "required": ["not attributed to the landfill"],
+    "note": "Figures that describe the area around a landfill (ADR 0020) are shown inside an element marked data-measure-kind=\"context\". Any page with such an element must carry this sentence. The website build checks it; the Python report shows no context section."
+  },
   "quoted_source_title": {
     "html_attribute": "data-wording",
     "html_value": "source-title",

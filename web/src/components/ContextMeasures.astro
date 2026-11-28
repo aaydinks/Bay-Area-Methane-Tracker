@@ -1,0 +1,69 @@
+---
+// Figures that describe the area around one landfill (ADR 0020, 0026), one table per source
+// and version: a row for each measure the catalogue lists. They are context: the section
+// opens with the fixed sentence that they are not attributed to the landfill, it shares no
+// table or chart with emissions figures, and nothing is coloured, ranked or compared with a
+// standard. A measure without a figure reads "no score" or "not listed", never zero.
+// Labels and caveats come from the published catalogue.
+import TableWrap from './TableWrap.astro';
+import { contextMeasuresFor, type MetricEntry, type SiteMetric } from '../lib/data';
+
+interface Props { siteId: string }
+const { siteId } = Astro.props;
+const groups = contextMeasuresFor(siteId);
+
+/** A figure as the source publishes it: a percentile to one decimal, a count of people or
+ *  tracts with no unit, a census tract by its number. */
+function figure(cell: SiteMetric, m: MetricEntry): string {
+  if (cell.value == null) return cell.value_text ?? '';
+  return cell.value.toLocaleString('en-US', { maximumFractionDigits: m.unit === 'percentile' ? 1 : 0 });
+}
+---
+<div data-measure-kind="context">
+  <p data-testid="context-note">These figures describe the area around the landfill. They are not attributed to the landfill, and they say nothing about what the landfill emits.</p>
+  {groups.map((g) => (
+    <div data-testid="context-measures" data-source={g.source}>
+      <h3>{g.sourceName}</h3>
+      {g.periods.length ? (
+        <>
+          {g.periods.map((period) => (
+            <TableWrap label={`${g.sourceName}, version ${period}`}>
+              <table>
+                <caption>
+                  As the source publishes it for each census tract, version {period}. A percentile runs from 0 to 100 across California's census tracts. "No score" means the source gives that tract no score. It does not mean zero.
+                </caption>
+                <thead>
+                  <tr><th scope="col">Measure</th><th scope="col">As published</th></tr>
+                </thead>
+                <tbody>
+                  {g.entries.map((m) => {
+                    const cell = g.cell(period, m.metric_id);
+                    return (
+                      <tr>
+                        <th scope="row">{m.label}</th>
+                        {cell ? <td>{figure(cell, m)}</td> : <td class="muted">{m.unit === 'percentile' ? 'no score' : 'not listed'}</td>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableWrap>
+          ))}
+          <ul class="muted">
+            {g.entries.filter((m) => m.caveat).map((m) => <li>{m.label}: {m.caveat}</li>)}
+          </ul>
+          {g.unchecked && (
+            <p class="muted" data-testid="outline-provisional">This landfill's outline is provisional, so the census tract named here may change once the outline is drawn.</p>
+          )}
+          {g.url && <p class="muted"><a href={g.url}>Source data</a></p>}
+        </>
+      ) : (
+        <p class="muted">No figures from this source are on file for this landfill.</p>
+      )}
+    </div>
+  ))}
+</div>
+
+<style>
+  th[scope="col"] { white-space: normal; }
+</style>

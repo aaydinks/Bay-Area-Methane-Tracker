@@ -291,6 +291,19 @@ export function observedMeasuresFor(siteId: string): MeasureGroup[] {
   return measureGroups(siteId, 'observed').filter((g) => observedSources.has(g.source));
 }
 
+// Figures that describe the area around a landfill and are never attributed to it (ADR 0020).
+// As with counts, a source is listed only when this copy holds a figure from it for some
+// landfill, so a source whose terms are not settled gives no section in a public build.
+const contextSources = new Set(
+  (snapshot.site_metrics ?? []).filter((r) => r.kind === 'context').map((r) => r.source),
+);
+export const hasContext = contextSources.size > 0;
+
+/** Context figures for a site, one group per source that this copy holds figures from. */
+export function contextMeasuresFor(siteId: string): MeasureGroup[] {
+  return measureGroups(siteId, 'context').filter((g) => contextSources.has(g.source));
+}
+
 export function populationFor(siteId: string): Population[] {
   return snapshot.population.filter((p) => p.site_id === siteId).sort((a, b) => a.radius_km - b.radius_km);
 }

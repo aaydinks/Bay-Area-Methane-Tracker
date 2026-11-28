@@ -78,6 +78,7 @@ const DATA_TERMS = [
   { source: 's2-local', display_name: 'ESA Copernicus Sentinel-2 L1C', raw_publishable: true, derived_publishable: true, confirmed: false, checked_on: '2026-10-30', terms_url: null, credit_line: 'Contains modified Copernicus Sentinel data' },
   { source: 'ghgrp', display_name: 'US EPA Greenhouse Gas Reporting Program', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: 'https://www.epa.gov/ghgreporting', credit_line: 'US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts' },
   { source: 'epa-lmop', display_name: 'US EPA Landfill Methane Outreach Program database', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-11-27', terms_url: 'https://www.epa.gov/web-policies-and-procedures/epa-disclaimers', credit_line: 'US EPA Landfill Methane Outreach Program, Landfill and Project Database' },
+  { source: 'calenviroscreen', display_name: 'CalEnviroScreen 5.0 (California OEHHA)', raw_publishable: false, derived_publishable: false, confirmed: false, checked_on: '2026-11-28', terms_url: 'https://oehha.ca.gov/public-information/conditions-use', credit_line: 'California Office of Environmental Health Hazard Assessment, CalEnviroScreen 5.0' },
   { source: 'baaqmd', display_name: 'Bay Area Air District public records', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'Bay Area Air Quality Management District public records' },
   { source: 'census', display_name: 'US Census Bureau ACS and TIGER', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'US Census Bureau, American Community Survey 5-year estimates' },
   { source: 'calrecycle', display_name: 'CalRecycle SWIS', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'CalRecycle Solid Waste Information System (SWIS)' },
@@ -263,6 +264,20 @@ const LMOP_CATALOGUE = [
   { metric_id: 'lmop_projects_running', unit: 'count', label: 'Energy projects running', caveat: "Projects that turn the landfill's gas into electricity, heat or fuel and that EPA lists as operational. Projects that have shut down or are only planned are not counted." },
   { metric_id: 'lmop_project_types', unit: 'list', label: 'Types of energy project running', caveat: 'As EPA names them.' },
 ];
+// The state's score for the census tracts around a landfill (ADR 0026), worded as
+// config/metrics.yaml words it. Context only (ADR 0020). The source's terms are not settled, so
+// every figure is restricted: a review build shows them and a public build must show no trace
+// of the section.
+const CES_CATALOGUE = [
+  { metric_id: 'ces_tract', unit: 'census tract', label: 'Census tract the landfill sits in', caveat: "The tract that holds the largest part of the landfill's outline, by its 2020 Census number." },
+  { metric_id: 'ces_tract_population', unit: 'people', label: 'People living in that tract', caveat: "The 2024 five-year census estimate, as the state's file gives it." },
+  { metric_id: 'ces_score_percentile', unit: 'percentile', label: 'CalEnviroScreen overall percentile of that tract', caveat: "The state scores every census tract by combining measures of pollution with measures of the people living there. A percentile of 70 means the tract scores higher than about 70% of California's tracts. A higher score means, by the state's method, more pollution burden and a population more vulnerable to it. The score counts solid waste sites near homes, so a landfill can be part of its own tract's score." },
+  { metric_id: 'ces_pollution_percentile', unit: 'percentile', label: 'Pollution Burden percentile of that tract', caveat: "One of the two parts of the overall score: the state's measures of pollution in the tract from every kind of source, such as traffic, industry, pesticides and waste sites." },
+  { metric_id: 'ces_population_percentile', unit: 'percentile', label: 'Population Characteristics percentile of that tract', caveat: "The other part of the overall score: the state's measures of the people living in the tract, such as poverty, education and the rates of certain illnesses." },
+  { metric_id: 'ces_tracts_nearby', unit: 'count', label: 'Census tracts within 1 km of the outline', caveat: "Every tract with any part within 1 km of the landfill's outline, its own included." },
+  { metric_id: 'ces_nearby_lowest', unit: 'percentile', label: 'Lowest overall percentile among those tracts', caveat: 'The lowest and the highest are given as the state publishes them for those tracts. Nothing is averaged across tracts.' },
+  { metric_id: 'ces_nearby_highest', unit: 'percentile', label: 'Highest overall percentile among those tracts', caveat: null },
+];
 const metric_catalogue = PUBS.flatMap((pub) => [
   ...CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
@@ -273,7 +288,36 @@ const metric_catalogue = PUBS.flatMap((pub) => [
   ...LMOP_CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, kind: 'reported', source: 'epa-lmop', sort_order: CATALOGUE.length + CO2_CATALOGUE.length + i + 1,
   })),
+  ...CES_CATALOGUE.map((m, i) => ({
+    publish_id: pub.publish_id, ...m, kind: 'context', source: 'calenviroscreen', sort_order: CATALOGUE.length + CO2_CATALOGUE.length + LMOP_CATALOGUE.length + i + 1,
+  })),
 ]);
+// Made-up figures. Newby Island has every figure; the state gives Sonoma Central's own tract no
+// score, so only its neighbours' range is listed; Kiefer (a screened landfill, review copy
+// only) has a provisional outline; the other landfills have nothing on file.
+const CES_ROWS = [
+  ['newby-island', '06085000001', true, 'ces_tract', null, '06085000001'],
+  ['newby-island', '06085000001', true, 'ces_tract_population', 1500, null],
+  ['newby-island', '06085000001', true, 'ces_score_percentile', 61.5432, null],
+  ['newby-island', '06085000001', true, 'ces_pollution_percentile', 72.5, null],
+  ['newby-island', '06085000001', true, 'ces_population_percentile', 44.5, null],
+  ['newby-island', '06085000001', true, 'ces_tracts_nearby', 3, null],
+  ['newby-island', '06085000001', true, 'ces_nearby_lowest', 35.0499, null],
+  ['newby-island', '06085000001', true, 'ces_nearby_highest', 61.5432, null],
+  ['sonoma-central', '06097000002', true, 'ces_tract', null, '06097000002'],
+  ['sonoma-central', '06097000002', true, 'ces_tract_population', 40, null],
+  ['sonoma-central', '06097000002', true, 'ces_pollution_percentile', 22.5, null],
+  ['sonoma-central', '06097000002', true, 'ces_tracts_nearby', 2, null],
+  ['sonoma-central', '06097000002', true, 'ces_nearby_lowest', 18.5, null],
+  ['sonoma-central', '06097000002', true, 'ces_nearby_highest', 18.5, null],
+  ['kiefer', '06067000003', false, 'ces_tract', null, '06067000003'],
+  ['kiefer', '06067000003', false, 'ces_tract_population', 1800, null],
+  ['kiefer', '06067000003', false, 'ces_score_percentile', 40, null],
+  ['kiefer', '06067000003', false, 'ces_tracts_nearby', 2, null],
+  ['kiefer', '06067000003', false, 'ces_nearby_lowest', 12.5, null],
+  ['kiefer', '06067000003', false, 'ces_nearby_highest', 40, null],
+];
+const cesUnit = new Map(CES_CATALOGUE.map((m) => [m.metric_id, m.unit]));
 // Made-up figures. Newby Island has every figure; Sonoma Central has a waste figure with no
 // year, no gas figures and no running project; Kiefer (a screened landfill, review copy only)
 // comes through a match nobody has checked by hand; the other landfills are not matched.
@@ -323,6 +367,10 @@ const site_metrics = PUBS.flatMap((pub) => MEASURES.map(([site_id, facility, met
 }))).concat(LMOP_ROWS.filter(([site_id]) => pub.publish_id === REVIEW || !SCREEN_SITES.some((s) => s.site_id === site_id)).map(([site_id, landfill, confirmed, metric_id, value, value_text]) => ({
   publish_id: pub.publish_id, site_id, metric_id, period: '2024-09', source: 'epa-lmop', value, value_text, unit: lmopUnit.get(metric_id), kind: 'reported',
   confirmed, source_id: landfill, url: 'https://www.epa.gov/lmop/project-and-landfill-data-state', restricted: false, display_only: false,
+  public_scope: !SCREEN_SITES.some((s) => s.site_id === site_id),
+}))).concat(CES_ROWS.filter(([site_id]) => pub.publish_id === REVIEW || !SCREEN_SITES.some((s) => s.site_id === site_id)).map(([site_id, tract, confirmed, metric_id, value, value_text]) => ({
+  publish_id: pub.publish_id, site_id, metric_id, period: '5.0', source: 'calenviroscreen', value, value_text, unit: cesUnit.get(metric_id), kind: 'context',
+  confirmed, source_id: tract, url: 'https://data.ca.gov/dataset/calenviroscreen-5-0', restricted: true, display_only: false,
   public_scope: !SCREEN_SITES.some((s) => s.site_id === site_id),
 }))));
 
