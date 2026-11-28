@@ -6,12 +6,13 @@ import Base from '../../layouts/Base.astro';
 import CheckTypeTag from '../../components/CheckTypeTag.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import Range from '../../components/Range.astro';
+import ContextMeasures from '../../components/ContextMeasures.astro';
 import ObservedMeasures from '../../components/ObservedMeasures.astro';
 import ReportedMeasures from '../../components/ReportedMeasures.astro';
 import ResultBadge from '../../components/ResultBadge.astro';
 import { DATE_CONFIDENCE, EXPECTED, INSTRUMENT, TIER } from '../../config';
 import {
-  checksFor, districtLabel, estimateFor, featuresFor, fromScreeningFit, hasMeasures, hasObserved, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED,
+  checksFor, districtLabel, estimateFor, featuresFor, fromScreeningFit, hasContext, hasMeasures, hasObserved, isStudied, modelInstruments, neighboursFor, NOT_SEARCHED,
   operatorReportsFor, passesByInstrument, passMonthsFor, plumeDaysFor, populationFor, regionIds, regionLabel, screeningFit, sites, type Site,
   usableEstimate,
 } from '../../lib/data';
@@ -185,6 +186,13 @@ const noEstimate = estimate
       <details class="more" id="observed">
         <summary>CO2 plumes searched for near this landfill</summary>
         <ObservedMeasures siteId={id} />
+      </details>
+    )}
+
+    {hasContext && (
+      <details class="more" id="context">
+        <summary>The area around this landfill</summary>
+        <ContextMeasures siteId={id} />
       </details>
     )}
 

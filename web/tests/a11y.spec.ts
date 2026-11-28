@@ -293,3 +293,39 @@ test("EPA's landfill gas file is shown as a list of facts, and a blank as \"not 
   await expect(page.locator(`${lmop} table`)).toHaveCount(0);
   await expect(page.locator(lmop)).toContainText('No figures from this source are on file for this landfill');
 });
+
+test('figures about the area around a landfill are shown as context, never as its doing', async ({ page }) => {
+  // In the fixture, Newby Island has every figure; the state gives Sonoma Central's own tract no
+  // score; Kiefer has a provisional outline; Shoreline has nothing on file.
+  const ces = '#context [data-source="calenviroscreen"]';
+  const row = (name: string) => page.locator(`${ces} tbody tr`).filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+  await page.goto('/sites/newby-island/');
+  await page.locator('#context summary').click();
+  await expect(page.locator('#context [data-testid="context-note"]')).toContainText('not attributed to the landfill');
+  await expect(page.locator(`${ces} tbody tr`)).toHaveCount(8);
+  await expect(page.locator(`${ces} caption`)).toContainText('version 5.0');
+  await expect(row('Census tract the landfill sits in')).toContainText('06085000001'); // a number, not a quantity
+  await expect(row('People living in that tract')).toHaveText(/1,500$/);
+  await expect(row('CalEnviroScreen overall percentile of that tract')).toHaveText(/61\.5$/);
+  await expect(row('Lowest overall percentile among those tracts')).toHaveText(/35$/);
+  await expect(page.locator(`${ces} [data-testid="outline-provisional"]`)).toHaveCount(0);
+  // context shares no table with emissions figures and carries no good-or-bad colouring
+  await expect(page.locator('#reported, #observed').locator('text=CalEnviroScreen')).toHaveCount(0);
+  const results = await new AxeBuilder({ page }).include('#context').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
+
+  await page.goto('/sites/sonoma-central/');
+  await page.locator('#context summary').click();
+  await expect(row('CalEnviroScreen overall percentile of that tract')).toContainText('no score');
+  await expect(row('Highest overall percentile among those tracts')).toHaveText(/18\.5$/);
+  await expect(page.locator(`${ces} caption`)).toContainText('It does not mean zero');
+
+  await page.goto('/sites/kiefer/');
+  await page.locator('#context summary').click();
+  await expect(page.locator(`${ces} [data-testid="outline-provisional"]`)).toContainText('outline is provisional');
+
+  await page.goto('/sites/shoreline/');
+  await page.locator('#context summary').click();
+  await expect(page.locator(`${ces} table`)).toHaveCount(0);
+  await expect(page.locator(ces)).toContainText('No figures from this source are on file for this landfill');
+});

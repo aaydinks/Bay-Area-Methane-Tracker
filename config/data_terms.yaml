@@ -70,6 +70,21 @@ sources:
     checked_on: 2026-11-27
     terms_url: "https://www.epa.gov/web-policies-and-procedures/epa-disclaimers"
     credit_line: "US EPA Landfill Methane Outreach Program, Landfill and Project Database"
+  calenviroscreen:
+    display_name: "CalEnviroScreen 5.0 (California OEHHA)"
+    instruments: []
+    raw_publishable: false
+    derived_publishable: false
+    # Read 2026-11-28: the state data portal lists the dataset as "License not specified", and
+    # OEHHA's conditions of use (last updated 2020-07-22) state no terms of reuse. OEHHA's
+    # questions page says the data "are publicly available for download". Terms of reuse:
+    # check, by asking CalEnviroScreen@oehha.ca.gov. Until that is confirmed these rows stay
+    # restricted, so they appear in review copies only (ADR 0026).
+    display_publishable: false
+    confirmed: false
+    checked_on: 2026-11-28
+    terms_url: "https://oehha.ca.gov/public-information/conditions-use"
+    credit_line: "California Office of Environmental Health Hazard Assessment, CalEnviroScreen 5.0"
   baaqmd:
     display_name: "Bay Area Air District public records"
     instruments: []

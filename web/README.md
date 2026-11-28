@@ -70,6 +70,11 @@ Rebuild after a publication changes: trigger a deploy from the dashboard, or cal
   twin for counts the project made in a source's lists (today, CO2 plumes near a landfill): a
   year with no count reads as not searched, and the section appears only when the copy holds
   such a count, which a public build does not while the source's terms are unsettled.
+  `ContextMeasures.astro` shows figures about the area around a landfill (today, the state's
+  CalEnviroScreen score for the census tracts around it, ADR 0026). It opens with the fixed
+  sentence that the figures are not attributed to the landfill, and the wording check fails any
+  page that shows the section without it. A tract with no score reads "no score". Like the
+  counts, the section appears only when the copy holds such a figure.
 - `src/pages/`: home, map, updates, checks, landfills, methods, how to read, data, 404.
 - `src/lib/data.ts`: the typed snapshot and the helpers pages use; `database.types.ts` is
   generated from the live schema. Counts and region names in the text come from here

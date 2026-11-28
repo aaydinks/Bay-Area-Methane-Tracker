@@ -335,6 +335,22 @@ def ingest_lmop(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@ingest_app.command("calenviroscreen")
+def ingest_calenviroscreen(
+    offline: Annotated[
+        bool, typer.Option(help="Rebuild from the newest file on disk, no download")
+    ] = False,
+) -> None:
+    """The state's CalEnviroScreen 5.0 file: the score of the census tract each landfill sits in
+    and of the tracts within 1 km of its outline, as context only
+    (-> data/interim/site_metrics/calenviroscreen.parquet)."""
+    from methanewatch.ingest import pipeline
+
+    step = pipeline.write_calenviroscreen if offline else pipeline.ingest_calenviroscreen
+    counts = _run_or_exit(step, config.load_project())
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+
+
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
     from methanewatch.ingest.pipeline import registry_bbox
 

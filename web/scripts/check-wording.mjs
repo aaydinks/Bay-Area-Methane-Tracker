@@ -3,7 +3,9 @@
 // Each page names its kind in <meta name="wording-kind" content="...">. Script and style
 // contents are ignored, as is anything inside an element marked data-wording="source-title"
 // (an official document title). Everything else, including alt text and labels, is scanned.
-// Any hit fails the build.
+// A page that shows figures about the area around a landfill (an element marked
+// data-measure-kind="context") must also carry the fixed sentence that they are not attributed
+// to the landfill (ADR 0020). Any hit fails the build.
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -20,6 +22,9 @@ const quotedElement = new RegExp(
   `<([a-zA-Z][\\w-]*)\\b[^>]*\\b${quoted.html_attribute}\\s*=\\s*"${quoted.html_value}"[^>]*>[\\s\\S]*?</\\1\\s*>`,
   'gi',
 );
+
+const context = wording.context_section;
+const contextMarker = new RegExp(`\\b${context.html_attribute}\\s*=\\s*"${context.html_value}"`, 'i');
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'" };
 function decode(text) {
@@ -63,6 +68,11 @@ for await (const file of htmlFiles(distDir)) {
   }
   for (const phrase of wording.required[kind] ?? []) {
     if (!new RegExp(phrase, 'i').test(text)) problems.push(`${rel}: missing required phrase: ${phrase}`);
+  }
+  if (contextMarker.test(html)) {
+    for (const phrase of context.required) {
+      if (!new RegExp(phrase, 'i').test(text)) problems.push(`${rel}: a context section without its required phrase: ${phrase}`);
+    }
   }
 }
 
