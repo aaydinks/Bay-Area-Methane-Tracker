@@ -93,6 +93,12 @@ checks:
     source: "working values chosen 2026-10-30; to be confirmed"
     confirmed: false
 
+# Figures that describe a landfill's surroundings (ADR 0020).
+context:
+  # No air monitor farther than this from a landfill's outline is listed (ADR 0027). The
+  # caveat in config/metrics.yaml names the same distance.
+  monitor_limit_km: 25
+
 # `mw publish`: how a snapshot is described to the website.
 publish:
   source_lag_days: 30 # sources publish about this long after an observation

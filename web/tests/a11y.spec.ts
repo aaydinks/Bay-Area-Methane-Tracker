@@ -329,3 +329,43 @@ test('figures about the area around a landfill are shown as context, never as it
   await expect(page.locator(`${ces} table`)).toHaveCount(0);
   await expect(page.locator(ces)).toContainText('No figures from this source are on file for this landfill');
 });
+
+test('the nearest air monitors are listed with their distance and year, as context', async ({ page }) => {
+  // In the fixture, Newby Island has a monitor for both pollutants, from different years; Sonoma
+  // Central has no fine-particle monitor close enough; Kiefer has a provisional outline;
+  // Shoreline has no monitor close enough for either.
+  const aqs = '#context [data-source="epa-aqs"]';
+  const row = (name: string) => page.locator(`${aqs} tbody tr`).filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+  await page.goto('/sites/newby-island/');
+  await page.locator('#context summary').click();
+  await expect(page.locator('#context [data-testid="context-note"]')).toContainText('not attributed to the landfill');
+  await expect(page.locator(`${aqs} tbody tr`)).toHaveCount(10);
+  await expect(page.locator(`${aqs} caption`)).toContainText('from 2021 to 2025');
+  await expect(row('Nearest fine-particle monitor')).toContainText('Sample Street (06-085-9001)');
+  await expect(row("Fine-particle monitor: distance from the landfill's outline")).toHaveText(/12\.0 km$/);
+  await expect(row('Fine-particle monitor: year of its figure')).toHaveText(/2024$/); // a year, not a quantity
+  await expect(row('Fine-particle monitor: days measured in that year')).toHaveText(/355$/);
+  await expect(row('Fine particles (PM2.5) at that monitor, average over that year')).toHaveText(/8\.0 µg\/m³$/);
+  await expect(row('Nitrogen dioxide monitor: year of its figure')).toHaveText(/2022$/);
+  await expect(row('Nitrogen dioxide (NO2) at that monitor, average over that year')).toHaveText(/9\.5 ppb$/);
+  await expect(page.locator(`${aqs} [data-testid="outline-provisional"]`)).toHaveCount(0);
+  // a reading at a monitor is never placed among the landfill's own figures
+  await expect(page.locator('#reported, #observed').locator('text=monitor')).toHaveCount(0);
+  const results = await new AxeBuilder({ page }).include('#context').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(results.violations.filter((v) => ['serious', 'critical'].includes(v.impact ?? '')).map((v) => v.id)).toEqual([]);
+
+  await page.goto('/sites/sonoma-central/');
+  await page.locator('#context summary').click();
+  await expect(row('Nearest fine-particle monitor')).toContainText('none close enough');
+  await expect(row('Nearest nitrogen dioxide monitor')).toContainText('Example Avenue (06-097-9002)');
+  await expect(page.locator(`${aqs} caption`)).toContainText('It is not a reading');
+
+  await page.goto('/sites/kiefer/');
+  await page.locator('#context summary').click();
+  await expect(page.locator(`${aqs} [data-testid="outline-provisional"]`)).toContainText('distances given here may change');
+
+  await page.goto('/sites/shoreline/');
+  await page.locator('#context summary').click();
+  await expect(page.locator(`${aqs} table`)).toHaveCount(0);
+  await expect(page.locator(`${aqs} [data-testid="context-none"]`)).toContainText('No monitor close enough to this landfill');
+});

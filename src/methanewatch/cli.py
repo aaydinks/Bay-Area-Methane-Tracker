@@ -351,6 +351,29 @@ def ingest_calenviroscreen(
     typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
 
 
+@ingest_app.command("aqs")
+def ingest_aqs(
+    offline: Annotated[
+        bool, typer.Option(help="Rebuild from the newest files on disk, no download")
+    ] = False,
+    year: Annotated[
+        int | None,
+        typer.Option(help="Newest year to read (default: the newest year EPA holds in full)"),
+    ] = None,
+) -> None:
+    """EPA's annual air monitor files: the nearest fine-particle and NO2 monitor within 25 km of
+    each landfill's outline, at its newest certified full year, as context only
+    (-> data/interim/site_metrics/epa-aqs.parquet)."""
+    from methanewatch.ingest import pipeline
+
+    project = config.load_project()
+    if offline:
+        counts = _run_or_exit(pipeline.write_aqs, project)
+    else:
+        counts = _run_or_exit(pipeline.ingest_aqs, project, year)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in counts.items()))
+
+
 def _bbox(project: config.ProjectConfig, bbox: str | None) -> tuple[float, float, float, float]:
     from methanewatch.ingest.pipeline import registry_bbox
 

@@ -85,6 +85,18 @@ sources:
     checked_on: 2026-11-28
     terms_url: "https://oehha.ca.gov/public-information/conditions-use"
     credit_line: "California Office of Environmental Health Hazard Assessment, CalEnviroScreen 5.0"
+  epa-aqs:
+    display_name: "US EPA Air Quality System, annual monitor summaries"
+    instruments: []
+    raw_publishable: true
+    derived_publishable: true
+    # EPA's website terms, read again 2026-11-28: its documents "may be freely distributed and
+    # used for non-commercial, scientific and educational purposes". The readings are taken by
+    # state and local air agencies and reported to EPA, which publishes them.
+    confirmed: true
+    checked_on: 2026-11-28
+    terms_url: "https://www.epa.gov/web-policies-and-procedures/epa-disclaimers"
+    credit_line: "US EPA Air Quality System (AirData), readings reported by state and local air agencies"
   baaqmd:
     display_name: "Bay Area Air District public records"
     instruments: []

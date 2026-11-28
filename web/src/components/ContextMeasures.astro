@@ -1,10 +1,10 @@
 ---
-// Figures that describe the area around one landfill (ADR 0020, 0026), one table per source
-// and version: a row for each measure the catalogue lists. They are context: the section
-// opens with the fixed sentence that they are not attributed to the landfill, it shares no
-// table or chart with emissions figures, and nothing is coloured, ranked or compared with a
-// standard. A measure without a figure reads "no score" or "not listed", never zero.
-// Labels and caveats come from the published catalogue.
+// Figures that describe the area around one landfill (ADR 0020, 0026, 0027), one table per
+// source and period: a row for each measure the catalogue lists. They are context: the
+// section opens with the fixed sentence that they are not attributed to the landfill, it
+// shares no table or chart with emissions figures, and nothing is coloured, ranked or compared
+// with a standard. A measure without a figure reads "no score", "not listed" or "none close
+// enough", never zero. Labels and caveats come from the published catalogue.
 import TableWrap from './TableWrap.astro';
 import { contextMeasuresFor, type MetricEntry, type SiteMetric } from '../lib/data';
 
@@ -12,10 +12,40 @@ interface Props { siteId: string }
 const { siteId } = Astro.props;
 const groups = contextMeasuresFor(siteId);
 
-/** A figure as the source publishes it: a percentile to one decimal, a count of people or
- *  tracts with no unit, a census tract by its number. */
+/** What each source's table says about itself. `period` is the source's version, or the years
+ *  it was searched over ("2021-2025"). */
+interface Wording {
+  period: (period: string) => string;
+  caption: (period: string) => string;
+  missing: (m: MetricEntry) => string;
+  provisional: string;
+  none: string;
+}
+const span = (period: string) => period.replace('-', ' to ');
+const TRACTS: Wording = {
+  period: (p) => `version ${p}`,
+  caption: (p) => `As the source publishes it for each census tract, version ${p}. A percentile runs from 0 to 100 across California's census tracts. "No score" means the source gives that tract no score. It does not mean zero.`,
+  missing: (m) => (m.unit === 'percentile' ? 'no score' : 'not listed'),
+  provisional: "This landfill's outline is provisional, so the census tract named here may change once the outline is drawn.",
+  none: 'No figures from this source are on file for this landfill.',
+};
+const MONITORS: Wording = {
+  period: (p) => `years ${span(p)}`,
+  caption: (p) => `As EPA publishes it for each monitor. Each figure is from the newest year, from ${span(p)}, that EPA marks complete and the monitor's agency has certified. "None close enough" means no monitor near the landfill has such a year. It is not a reading.`,
+  missing: () => 'none close enough',
+  provisional: "This landfill's outline is provisional, so the distances given here may change once the outline is drawn.",
+  none: 'No monitor close enough to this landfill has a certified full year on file.',
+};
+const wording = (source: string): Wording => (source === 'epa-aqs' ? MONITORS : TRACTS);
+
+/** A figure as the source publishes it: a percentile to one decimal, a distance or a reading
+ *  to one decimal with its unit, a year as it is written, a count with no decimals, a tract or
+ *  a monitor by its name. */
+const WITH_UNIT = new Set(['km', 'µg/m³', 'ppb']);
 function figure(cell: SiteMetric, m: MetricEntry): string {
   if (cell.value == null) return cell.value_text ?? '';
+  if (m.unit === 'year') return String(cell.value);
+  if (WITH_UNIT.has(m.unit)) return `${cell.value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${m.unit}`;
   return cell.value.toLocaleString('en-US', { maximumFractionDigits: m.unit === 'percentile' ? 1 : 0 });
 }
 ---
@@ -27,11 +57,9 @@ function figure(cell: SiteMetric, m: MetricEntry): string {
       {g.periods.length ? (
         <>
           {g.periods.map((period) => (
-            <TableWrap label={`${g.sourceName}, version ${period}`}>
+            <TableWrap label={`${g.sourceName}, ${wording(g.source).period(period)}`}>
               <table>
-                <caption>
-                  As the source publishes it for each census tract, version {period}. A percentile runs from 0 to 100 across California's census tracts. "No score" means the source gives that tract no score. It does not mean zero.
-                </caption>
+                <caption>{wording(g.source).caption(period)}</caption>
                 <thead>
                   <tr><th scope="col">Measure</th><th scope="col">As published</th></tr>
                 </thead>
@@ -41,7 +69,7 @@ function figure(cell: SiteMetric, m: MetricEntry): string {
                     return (
                       <tr>
                         <th scope="row">{m.label}</th>
-                        {cell ? <td>{figure(cell, m)}</td> : <td class="muted">{m.unit === 'percentile' ? 'no score' : 'not listed'}</td>}
+                        {cell ? <td>{figure(cell, m)}</td> : <td class="muted">{wording(g.source).missing(m)}</td>}
                       </tr>
                     );
                   })}
@@ -53,12 +81,12 @@ function figure(cell: SiteMetric, m: MetricEntry): string {
             {g.entries.filter((m) => m.caveat).map((m) => <li>{m.label}: {m.caveat}</li>)}
           </ul>
           {g.unchecked && (
-            <p class="muted" data-testid="outline-provisional">This landfill's outline is provisional, so the census tract named here may change once the outline is drawn.</p>
+            <p class="muted" data-testid="outline-provisional">{wording(g.source).provisional}</p>
           )}
           {g.url && <p class="muted"><a href={g.url}>Source data</a></p>}
         </>
       ) : (
-        <p class="muted">No figures from this source are on file for this landfill.</p>
+        <p class="muted" data-testid="context-none">{wording(g.source).none}</p>
       )}
     </div>
   ))}

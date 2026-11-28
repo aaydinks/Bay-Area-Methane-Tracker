@@ -79,6 +79,7 @@ const DATA_TERMS = [
   { source: 'ghgrp', display_name: 'US EPA Greenhouse Gas Reporting Program', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: 'https://www.epa.gov/ghgreporting', credit_line: 'US EPA Greenhouse Gas Reporting Program, accessed via Envirofacts' },
   { source: 'epa-lmop', display_name: 'US EPA Landfill Methane Outreach Program database', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-11-27', terms_url: 'https://www.epa.gov/web-policies-and-procedures/epa-disclaimers', credit_line: 'US EPA Landfill Methane Outreach Program, Landfill and Project Database' },
   { source: 'calenviroscreen', display_name: 'CalEnviroScreen 5.0 (California OEHHA)', raw_publishable: false, derived_publishable: false, confirmed: false, checked_on: '2026-11-28', terms_url: 'https://oehha.ca.gov/public-information/conditions-use', credit_line: 'California Office of Environmental Health Hazard Assessment, CalEnviroScreen 5.0' },
+  { source: 'epa-aqs', display_name: 'US EPA Air Quality System, annual monitor summaries', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-11-28', terms_url: 'https://www.epa.gov/web-policies-and-procedures/epa-disclaimers', credit_line: 'US EPA Air Quality System (AirData), readings reported by state and local air agencies' },
   { source: 'baaqmd', display_name: 'Bay Area Air District public records', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'Bay Area Air Quality Management District public records' },
   { source: 'census', display_name: 'US Census Bureau ACS and TIGER', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'US Census Bureau, American Community Survey 5-year estimates' },
   { source: 'calrecycle', display_name: 'CalRecycle SWIS', raw_publishable: true, derived_publishable: true, confirmed: true, checked_on: '2026-10-30', terms_url: null, credit_line: 'CalRecycle Solid Waste Information System (SWIS)' },
@@ -278,6 +279,21 @@ const CES_CATALOGUE = [
   { metric_id: 'ces_nearby_lowest', unit: 'percentile', label: 'Lowest overall percentile among those tracts', caveat: 'The lowest and the highest are given as the state publishes them for those tracts. Nothing is averaged across tracts.' },
   { metric_id: 'ces_nearby_highest', unit: 'percentile', label: 'Highest overall percentile among those tracts', caveat: null },
 ];
+// The nearest air monitors to a landfill (ADR 0027), worded as config/metrics.yaml words it.
+// Context only (ADR 0020). EPA's terms are open, so a public build shows these figures for the
+// landfills it may show.
+const AQS_CATALOGUE = [
+  { metric_id: "aqs_pm25_monitor", unit: "monitor", label: "Nearest fine-particle monitor", caveat: "The closest monitor within 25 km of the landfill's outline that has a full year of readings its agency has certified to EPA, by the name and number EPA lists it under." },
+  { metric_id: "aqs_pm25_distance", unit: "km", label: "Fine-particle monitor: distance from the landfill's outline", caveat: "A monitor measures the air where it stands. The further it is from the landfill, the less it says about the air beside the landfill." },
+  { metric_id: "aqs_pm25_year", unit: "year", label: "Fine-particle monitor: year of its figure", caveat: "The newest year, among those the table names, that EPA marks complete and the monitor's agency has certified. Agencies certify at different times, so the year differs from monitor to monitor." },
+  { metric_id: "aqs_pm25_days", unit: "days", label: "Fine-particle monitor: days measured in that year", caveat: "Some monitors take a reading every day and others on fewer, scheduled days." },
+  { metric_id: "aqs_pm25_mean", unit: "µg/m³", label: "Fine particles (PM2.5) at that monitor, average over that year", caveat: "EPA's average of every measured day, in micrograms per cubic metre of air. Days EPA marks for events such as wildfire smoke are included. Fine particles come from many sources, such as traffic, wood burning and wildfires." },
+  { metric_id: "aqs_no2_monitor", unit: "monitor", label: "Nearest nitrogen dioxide monitor", caveat: "Chosen the same way as the fine-particle monitor. It can be a different monitor." },
+  { metric_id: "aqs_no2_distance", unit: "km", label: "Nitrogen dioxide monitor: distance from the landfill's outline", caveat: null },
+  { metric_id: "aqs_no2_year", unit: "year", label: "Nitrogen dioxide monitor: year of its figure", caveat: null },
+  { metric_id: "aqs_no2_days", unit: "days", label: "Nitrogen dioxide monitor: days measured in that year", caveat: null },
+  { metric_id: "aqs_no2_mean", unit: "ppb", label: "Nitrogen dioxide (NO2) at that monitor, average over that year", caveat: "EPA's average of every measured hour, in parts per billion. Nitrogen dioxide comes mostly from burning fuel, so a monitor beside a busy road reads higher." },
+];
 const metric_catalogue = PUBS.flatMap((pub) => [
   ...CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, unit: 't CO2e', kind: 'reported', source: 'ghgrp', sort_order: i + 1,
@@ -290,6 +306,9 @@ const metric_catalogue = PUBS.flatMap((pub) => [
   })),
   ...CES_CATALOGUE.map((m, i) => ({
     publish_id: pub.publish_id, ...m, kind: 'context', source: 'calenviroscreen', sort_order: CATALOGUE.length + CO2_CATALOGUE.length + LMOP_CATALOGUE.length + i + 1,
+  })),
+  ...AQS_CATALOGUE.map((m, i) => ({
+    publish_id: pub.publish_id, ...m, kind: 'context', source: 'epa-aqs', sort_order: CATALOGUE.length + CO2_CATALOGUE.length + LMOP_CATALOGUE.length + CES_CATALOGUE.length + i + 1,
   })),
 ]);
 // Made-up figures. Newby Island has every figure; the state gives Sonoma Central's own tract no
@@ -318,6 +337,33 @@ const CES_ROWS = [
   ['kiefer', '06067000003', false, 'ces_nearby_highest', 40, null],
 ];
 const cesUnit = new Map(CES_CATALOGUE.map((m) => [m.metric_id, m.unit]));
+// Made-up figures at made-up monitors. Newby Island has a monitor for both pollutants, from
+// different years; Sonoma Central has no fine-particle monitor close enough; Kiefer (a screened
+// landfill, review copy only) has a provisional outline; the other landfills have no monitor
+// close enough for either.
+const AQS_ROWS = [
+  ['newby-island', '06-085-9001-88101-3', true, 'aqs_pm25_monitor', null, 'Sample Street (06-085-9001)'],
+  ['newby-island', '06-085-9001-88101-3', true, 'aqs_pm25_distance', 12.0412, null],
+  ['newby-island', '06-085-9001-88101-3', true, 'aqs_pm25_year', 2024, null],
+  ['newby-island', '06-085-9001-88101-3', true, 'aqs_pm25_days', 355, null],
+  ['newby-island', '06-085-9001-88101-3', true, 'aqs_pm25_mean', 8.0449, null],
+  ['newby-island', '06-085-9001-42602-1', true, 'aqs_no2_monitor', null, 'Sample Street (06-085-9001)'],
+  ['newby-island', '06-085-9001-42602-1', true, 'aqs_no2_distance', 12.0412, null],
+  ['newby-island', '06-085-9001-42602-1', true, 'aqs_no2_year', 2022, null],
+  ['newby-island', '06-085-9001-42602-1', true, 'aqs_no2_days', 359, null],
+  ['newby-island', '06-085-9001-42602-1', true, 'aqs_no2_mean', 9.5, null],
+  ['sonoma-central', '06-097-9002-42602-1', true, 'aqs_no2_monitor', null, 'Example Avenue (06-097-9002)'],
+  ['sonoma-central', '06-097-9002-42602-1', true, 'aqs_no2_distance', 3, null],
+  ['sonoma-central', '06-097-9002-42602-1', true, 'aqs_no2_year', 2022, null],
+  ['sonoma-central', '06-097-9002-42602-1', true, 'aqs_no2_days', 362, null],
+  ['sonoma-central', '06-097-9002-42602-1', true, 'aqs_no2_mean', 3.6, null],
+  ['kiefer', '06-067-9003-88101-3', false, 'aqs_pm25_monitor', null, 'Test Road (06-067-9003)'],
+  ['kiefer', '06-067-9003-88101-3', false, 'aqs_pm25_distance', 2.5, null],
+  ['kiefer', '06-067-9003-88101-3', false, 'aqs_pm25_year', 2025, null],
+  ['kiefer', '06-067-9003-88101-3', false, 'aqs_pm25_days', 30, null],
+  ['kiefer', '06-067-9003-88101-3', false, 'aqs_pm25_mean', 6.25, null],
+];
+const aqsUnit = new Map(AQS_CATALOGUE.map((m) => [m.metric_id, m.unit]));
 // Made-up figures. Newby Island has every figure; Sonoma Central has a waste figure with no
 // year, no gas figures and no running project; Kiefer (a screened landfill, review copy only)
 // comes through a match nobody has checked by hand; the other landfills are not matched.
@@ -371,6 +417,10 @@ const site_metrics = PUBS.flatMap((pub) => MEASURES.map(([site_id, facility, met
 }))).concat(CES_ROWS.filter(([site_id]) => pub.publish_id === REVIEW || !SCREEN_SITES.some((s) => s.site_id === site_id)).map(([site_id, tract, confirmed, metric_id, value, value_text]) => ({
   publish_id: pub.publish_id, site_id, metric_id, period: '5.0', source: 'calenviroscreen', value, value_text, unit: cesUnit.get(metric_id), kind: 'context',
   confirmed, source_id: tract, url: 'https://data.ca.gov/dataset/calenviroscreen-5-0', restricted: true, display_only: false,
+  public_scope: !SCREEN_SITES.some((s) => s.site_id === site_id),
+}))).concat(AQS_ROWS.filter(([site_id]) => pub.publish_id === REVIEW || !SCREEN_SITES.some((s) => s.site_id === site_id)).map(([site_id, monitor, confirmed, metric_id, value, value_text]) => ({
+  publish_id: pub.publish_id, site_id, metric_id, period: '2021-2025', source: 'epa-aqs', value, value_text, unit: aqsUnit.get(metric_id), kind: 'context',
+  confirmed, source_id: monitor, url: 'https://aqs.epa.gov/aqsweb/airdata/download_files.html', restricted: false, display_only: false,
   public_scope: !SCREEN_SITES.some((s) => s.site_id === site_id),
 }))));
 
